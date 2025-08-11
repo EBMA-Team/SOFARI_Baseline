@@ -1,0 +1,663 @@
+---
+title: "Pain and function at baseline assessment of foot and ankle pathology: An analysis of the SOFARI Registry"
+author: "Corey Scholes"
+affiliation: "EBM Analytics"
+version: 1.0
+date: "2025-Aug-11"
+date-modified: "2025-Aug-11"
+type: website
+editor: visual
+code-annotations: true
+execute: 
+  echo: true
+  warning: false
+  message: false
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    
+    
+bibliography: PCSQ references.bib
+---
+
+# Analysis Preamble
+
+This analysis is to replicate a study describing the distribution of pain catastrophizing in patients presenting for surgical review of hip pathology [@hampton2019].
+
+## Reporting
+
+The study was reported according to the RECORD guidelines [@Benchimol2015] and companion checklist.
+
+The analysis was conducted in RStudio IDE (RStudio 2024.12.0+467 "Kousa Dogwood" Release) using *Rbase* [@base], *quarto* [@quarto] and attached packages to perform the following;
+
+-   Data import and preparation
+
+-   Sample selection
+
+-   Describe and address missingness
+
+-   Data manipulation, modelling and visualisation of;
+
+    -   Patient characteristics
+
+    -   Pathology characteristics (diagnosis)
+
+    -   Patient reported outcomes
+
+## Preparation
+
+Load up required packages in advance. Citations are applied to each library at first use in the text. <!--# Reorder these in order of general appearance -->
+
+```{r}
+
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  "knitr",
+  "cardx",
+  "quarto",
+  "pROC",
+  "reshape",
+  "future",
+  "furrr",
+  "memoise",
+  "gargle",
+  "googledrive",
+  "googlesheets4",
+  "openxlsx2",
+  "readr",
+  "purrr",
+  "tidyverse",
+  "tidymodels",
+  "tidytext",
+  "stopwords",
+  "tictoc",
+  "lubridate",
+  "forcats",
+  "gt",
+  "consort",
+  "gtsummary",
+  "flextable",
+  "survival",
+  "ggplot2",
+  "ggdist",
+  "ggsurvfit",
+  "ggfortify",
+  "mice",
+  "marginaleffects",
+  "patchwork",
+  "naniar",
+  "quantreg",
+  "broom",
+  "broom.helpers",
+  "labelled",
+  "epoxy",
+  "broom.mixed",
+  "lme4",
+  "janitor",
+  "progressr",
+  "DT",
+  install = TRUE,
+  update = FALSE
+)
+
+```
+
+## Authorisations
+
+Pre-authorise access to registry datasets using the *gargle* package (v`{r} utils::packageVersion("gargle")`) [@gargle].
+
+```{r, echo = FALSE}
+
+# Set the cache location
+options(gargle_oauth_cache = ".secrets")
+
+# Use the saved token for non-interactive auth
+drive_auth(email = "cscholes@ebma.com.au", 
+          cache = ".secrets")
+```
+
+```{r, echo = FALSE}
+
+options(
+  gargle_oauth_cache = ".secrets",
+  gargle_oauth_email = TRUE
+)
+
+drive_auth(cache = ".secrets", email = TRUE)
+```
+
+## Functions for Processing
+
+Include a series of functions to call later in the file for processing data imports.
+
+Function to retrieve files, using *googledrive* package(v`{r} utils::packageVersion("googledrive")`) [@googledrive].
+
+```{r, echo = FALSE}
+
+base_folder_id1 <- "1ldAFbv_g6zoF14_zt0HHQzft4pxgBY3O"
+
+```
+
+```{r}
+get_latest_snapshot <- function(base_folder_id = base_folder_id1) {
+  tryCatch({
+    # List all folders in the base directory
+    folders <- googledrive::drive_ls(as_id(base_folder_id), pattern = "^\\d{8}$")
+    
+    if(nrow(folders) == 0) {
+      stop("No dated folders found")
+    }
+    
+    # Sort folders by name (date) in descending order
+    latest_folder <- folders[order(folders$name, decreasing = TRUE),][1,]
+    
+    # Find the snapshot file in the latest folder
+    snapshot_file <- googledrive::drive_ls(
+      latest_folder$id, 
+      pattern = "Registry data snapshot\\.xlsx$"
+    )
+    
+    if(nrow(snapshot_file) == 0) {
+      stop("No snapshot file found in latest folder")
+    }
+    
+    # Return both pieces of information as a list
+    return(list(
+      snapshot = snapshot_file,
+      folder_name = latest_folder$name
+    ))
+    
+  }, error = function(e) {
+    stop(paste("Error finding latest snapshot:", e$message))
+  })
+}
+```
+
+A general text cleaning function was constructed to apply during first import of raw data files, built on *tidyverse* (v`{r} utils::packageVersion("tidyverse")`) [@tidyverse-2] and *stringr* (v`{r} utils::packageVersion("stringr")`) [@stringr-2]. The *janitor* package (v`{r} utils::packageVersion("janitor")`) [@janitor] was utilised to clean column names in the resulting dataframe.
+
+```{r}
+# Generalized text cleaning function
+clean_text <- function(text) {
+  text |> 
+    stringr::str_to_lower() |>
+    stringr::str_squish() |>
+    stringr::str_replace_all("\\.|\\. |\\: |\\, |w\\/", "; ") |>
+    stringr::str_replace_all(";+", "; ") |>
+    stringr::str_remove_all("^;|;$")
+}
+
+```
+
+```{r}
+bind_and_clean <- function(df1, df2, cols = NULL, clean_cols = NULL, clean_fn = clean_text) {
+  # Store the names of the input dataframes
+  df1_name <- deparse(substitute(df1))
+  df2_name <- deparse(substitute(df2))
+  
+  # Bind rows
+  result <- bind_rows(df1, df2)
+  
+  # If cols is specified, select those columns, otherwise keep all columns
+  if (!is.null(cols)) {
+    result <- result |> dplyr::select(all_of(cols))
+  }
+  
+  # Apply text cleaning to specified columns
+  if (!is.null(clean_cols)) {
+    for (col in clean_cols) {
+      if (col %in% names(result)) {
+        result[[col]] <- clean_fn(result[[col]])
+      } else {
+        warning(glue::glue("Column '{col}' not found in dataframe"))
+      }
+    }
+  }
+  
+  # Remove the input dataframes from the parent environment
+  rm(list = c(df1_name, df2_name), envir = parent.frame())
+  
+  # Clean column names for consistency
+  result |> janitor::clean_names(
+    case = "big_camel"
+  )
+}
+
+```
+
+### Diagnosis
+
+Include a series of functions for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* (v`{r} utils::packageVersion("future")`) [@future] and *furrr* (v`{r} utils::packageVersion("furrr")`) [@furrr] to enable distributed processing of the records. The *progressr* package (v`{r} utils::packageVersion("progressr")`) [@progressr] was utlised to enable visual progress to be communicated during processing and *memoise* (v`{r} utils::packageVersion("memoise")`) [@memoise]to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
+
+```{r}
+
+# Enable parallel processing
+future::plan(multisession)
+
+# Configure progress reporting
+progressr::handlers("progress")
+
+# Create a shared cache (in memory or filesystem)
+shared_cache <- memoise::cache_memory()
+
+# Memoize the target terms loading to match original format
+load_target_terms <- memoise::memoise(function(sheet_url, sheet_name = "DiagTerm", range = "A1:C") {
+  terms <- googlesheets4::range_read(
+    ss = sheet_url,
+    sheet = sheet_name,
+    range = range,
+    col_names = TRUE,
+    trim_ws = TRUE
+  ) |> 
+    mutate(TargetTerm = paste0("\\b", stringr::str_escape(Term), "\\b"))
+  
+  list(
+    terms = terms,
+    pattern = str_c(terms$TargetTerm, collapse = "|")
+  )
+})
+
+# Target-Replacement Function
+create_replace_function <- function(target_terms_df) {
+  function(string) {
+    # Find the matched term in target_terms_df
+    match <- filter(target_terms_df, Term == string)
+    
+    # Check if a match is found
+    if (nrow(match) == 1) {
+      return(match$ReplaceTerm)
+    } else {
+      # Return the original string if no match is found
+      return(string)
+    }
+  }
+}
+
+clean_diagnosis_text <- memoise::memoise (function(df) {
+  df |> 
+    dplyr::select(TreatmentID, DiagnosisRawFinal, DiagnosisRawPrelim) |> 
+    tidyr::unite("DiagnosisRaw", c(DiagnosisRawFinal, DiagnosisRawPrelim), 
+          na.rm = TRUE, remove = FALSE, sep = "; ") |> 
+    filter(stringr::str_count(str_to_lower(DiagnosisRaw), "") > 1) |> 
+    mutate(
+      DiagnosisRaw = stringr::str_squish(DiagnosisRaw),
+      DiagnosisRaw = stringr::str_replace_all(DiagnosisRaw, "\\.|\\. |\\: |\\, |w\\/", ";"),
+      DiagnosisRaw = stringr::str_replace_all(DiagnosisRaw, "\\#", "fracture"),
+      DiagnosisRaw = stringr::str_replace_all(DiagnosisRaw, ";+", ";"),
+      DiagnosisRaw = stringr::str_trim(stringr::str_remove_all(DiagnosisRaw, "^;|;$"))
+    )
+})
+
+# Modified process_batch1 to maintain sequence integrity
+process_batch1 <- function(batch_df) {
+  batch_df |> 
+    mutate(
+      DiagnosisRaw1 = stringr::str_replace_all(
+        str_to_lower(DiagnosisRaw), 
+        "\\bwith\\b|\\band\\b|\\bas well as\\b", ";"
+      ),
+      DiagnosisRaw1 = stringr::str_replace_all(DiagnosisRaw1, "\\s+", " "),
+      DiagnosisRaw1 = stringr::str_trim(DiagnosisRaw1)
+    ) |> 
+    tidyr::separate_rows(DiagnosisRaw1, sep = ";") |> 
+    mutate(
+      DiagnosisRaw1 = stringr::str_trim(DiagnosisRaw1),
+      # Add row identifier before unnesting
+      SequenceID = row_number()
+    ) |> 
+    filter(nchar(DiagnosisRaw1) > 0) |>
+    tidytext::unnest_tokens(
+      output = Term,
+      input = DiagnosisRaw1,
+      token = "regex",
+      pattern = "\\s+",
+      format = "text",
+      to_lower = TRUE,
+      drop = FALSE
+    ) |>
+    anti_join(stop_words, by = c("Term" = "word")) |>
+    mutate(
+      TermLength = stringr::str_length(Term),
+      # Maintain original ordering within each diagnosis
+      term_sequence = row_number()
+    ) |>
+    group_by(TreatmentID, SequenceID) |>
+    mutate(
+      term_count = n(),
+      term_position = row_number()
+    ) |>
+    ungroup()
+}
+
+# Modified process_batch2 to preserve sequence information
+process_batch2 <- function(batch_df, target_terms) {
+  replace_function <- create_replace_function(target_terms$terms)
+  
+  batch_df |> 
+    mutate(
+      Term1 = stringr::str_replace_all(Term, target_terms$pattern, replace_function)
+    ) |> 
+    filter(
+      stringr::str_detect(
+        Term1, 
+        "\\d+(?!(?:st|nd|rd|th)\\b)|(left|right)", 
+        negate = TRUE
+      )
+    ) |>
+    # Preserve grouping and sequence
+    arrange(TreatmentID, SequenceID, term_position)
+}
+
+# Modified tokenize_diagnosis to handle sequence preservation
+tokenize_diagnosis <- memoise::memoise(function(df, stop_words = NULL, batch_size = 500, process_batch) {
+  if (is.null(stop_words)) {
+    stop_words <- tidytext::get_stopwords()
+  }
+  
+  if (missing(process_batch)) {
+    stop("You must provide a process_batch function.")
+  }
+  
+  # Add global identifier before splitting
+  df <- df |> mutate(global_id = row_number())
+  
+  # Split the data into batches
+  df_split <- split(df, ceiling(seq_len(nrow(df)) / batch_size))
+  
+  # Process batches while maintaining order
+  furrr::future_map_dfr(df_split, process_batch, .progress = TRUE) |>
+    arrange(global_id, term_position)
+})
+
+```
+
+```{r}
+# Term replacement logic
+apply_target_terms <- memoise::memoise(function(df, target_terms, batch_size = 500, process_batch) {
+  # Ensure `process_batch` is provided
+  if (missing(process_batch)) {
+    stop("You must provide a process_batch function.")
+  }
+  
+  # Split the data into batches
+  df_split <- split(df, ceiling(seq_len(nrow(df)) / batch_size))
+  
+  # Process each batch using the provided `process_batch` function
+  furrr::future_map_dfr(df_split, ~process_batch(.x, target_terms), .progress = TRUE)
+})
+```
+
+```{r}
+# Function to safely process diagnosis
+safe_process_diagnosis <- function(
+    snapshot_df,
+    target_terms_url,
+    stop_words = NULL,
+    batch_size = 1000,
+    tokenize_batch = process_batch1,
+    term_batch = process_batch2,
+    workers = 4
+    ) {    # Add workers parameter
+  
+  # Set up parallel processing
+  old_plan <- plan(multisession, workers = workers)
+  on.exit(plan(old_plan), add = TRUE)  # Ensure we reset the plan when done
+  
+  # Set up progress handling
+  handlers("progress")
+  
+  tryCatch({
+    with_progress({
+      p <- progressor(steps = 4)
+      
+      # Load target terms
+      p(message = "Loading target terms...")
+      terms_data <- load_target_terms(target_terms_url)
+      
+      # Process the diagnosis data with progress updates
+      p(message = "Cleaning text...")
+      cleaned_data <- clean_diagnosis_text(snapshot_df)
+      
+      # Ensure stop_words is available
+      if (is.null(stop_words)) {
+        stop_words <- tidytext::get_stopwords()
+      }
+      
+      # Create the tokenize batch function closure
+      tokenize_batch_fn <- function(batch_df) {
+        process_batch1(batch_df)
+      }
+      
+      environment(tokenize_batch_fn)$stop_words <- stop_words
+      
+      p(message = "Tokenizing diagnosis...")
+      tokenized_data <- tokenize_diagnosis(
+        df = cleaned_data, 
+        stop_words = stop_words,
+        batch_size = batch_size,
+        process_batch = tokenize_batch_fn
+      )
+      
+      p(message = "Applying target terms...")
+      processed_data <- apply_target_terms(
+        df = tokenized_data, 
+        target_terms = terms_data,
+        batch_size = batch_size,
+        process_batch = term_batch
+      )
+      
+      processed_data
+    })
+  }, error = function(e) {
+    message("Error in processing: ", e$message)
+    # Clean up any remaining connections or resources
+    future:::ClusterRegistry("stop")
+    stop(e)
+  })
+}
+
+
+```
+
+Function to conduct categorisation of terms for pathology (diagnosis) stored in the registry.
+
+```{r}
+#' Categorize medical diagnoses with anatomical and pathological classifications
+#' @param df A dataframe containing Term2 columns
+#' @param remove_intermediate Logical, whether to remove intermediate processing columns
+#' @param use_parallel Logical, whether to use parallel processing for large datasets
+#' @param chunk_size Integer, number of rows to process in each parallel chunk
+#' @return A dataframe with new classification columns based on Term2 pattern matching
+categorize_diagnosis <- function(
+    df,
+    remove_intermediate = TRUE,
+    use_parallel = FALSE,
+    chunk_size = 1000
+    ) {
+  
+  # Input validation with more detailed error message
+  required_cols <- c("Term2")
+  if(!all(required_cols %in% names(df))) {
+    stop("Missing required column 'Term2'. Available columns are: ", 
+         paste(names(df), collapse = ", "))
+  }
+  
+  # Ensure df is a data.frame
+  df <- as.data.frame(df)
+  
+  # Main processing function
+  process_chunk <- function(chunk_df) {
+    # Ensure required packages are loaded in parallel context
+    require(dplyr)
+    require(stringr)
+    
+    # Convert chunk to data.frame to ensure consistent behavior
+    chunk_df <- as.data.frame(chunk_df)
+    
+    chunk_df |> 
+      # Extract diagnosis side
+      mutate(
+        # Anatomical classifications
+        Ankle = if_else(str_detect(chunk_df$Term2, "ankle|tibiotalar|\\bplafond\\b|dome|malleol*|weber|achilles|tendo-achilles|fibula|\\btibia\\b|gutter|perone*|syndesmo|gastrocnemius|talo-fibular|talofibular|calcaneofibular|calcaneo-fibular|gutter|(lateral|medial)\\s+ligament|tibia|deltoid|compartment.+syndrome") & str_detect(chunk_df$Term2,"(lateral|medial)\\s+collateral\\s+ligament", negate = TRUE),1,0),
+        
+        Rearfoot = if_else(str_detect(chunk_df$Term2, "\\btarsal\\b|\\btalar(?!\\s+dome)|talus|talonavic*|plantar|rearfoot|hindfoot|trigonum|hindfeet|tarsi|calcaneus|\\bcalcaneal\\b|heel|subtalar"),1,0),
+        
+        Midfoot = if_else(str_detect(chunk_df$Term2, "metatarsus|tarsometatarsal|tarso-metatarsal|\\bmetatarsal\\b|talonavicular|navicular|cuneiform|lisfranc|cuboid|midfoot|jones|chopart"),1,0),
+        
+        Forefoot = if_else(str_detect(chunk_df$Term2, "digit*|morton*|metatarsophalangeal|phalange*|phalanx|hallux|nail|forefoot|forefeet|bunionette|hallucis|onychomycosis|paronychia|bunion|hammertoe|claw|sesamoid"),1,0),
+        
+        Foot = if_else(str_detect(chunk_df$Term2, "\\bfeet\\b|\\bfoot\\b|cavovarus|equinovarus|equinus|pes|charcot|footdrop|neuropathy"),1,0)
+      ) |>
+      # Pathological classifications
+      mutate(
+        Arthritis = if_else(str_detect(chunk_df$Term2, "psoria|arthritis|osteoarthritis|rheumatoid|gout|erosion|arthropathy"),1,0),
+        
+        Injury = if_else(str_detect(chunk_df$Term2, "injury|injuries|axial|impact|crush|rotation|inversion|forced|accident|tear|torn|ruptur|avulsion|fracture|defect|(osteochondral|chondral|cartilage).+lesion|sprain|haemarthrosis|disruption|wound|laceration|penetrating|hernia|maisonneuve"), 1, 0),
+        
+        Deformity = if_else(str_detect(chunk_df$Term2, "malalignment|deformit|angulation|contracture|contraction|\\bvalgus\\b|varus|planovalgus|valgoplanus|dysfunction|extension|adductus|crossover|hammer|claw|bunionette|bunion|interphalangeus|(relatively|significantly).+long|relative.+long"),1,0),
+        
+        Metatarsalgia = if_else(str_detect(chunk_df$Term2, "metatarsalgia|forefoot.+overload"),1,0),
+        
+        SoftTissueDisorder = if_else(str_detect(chunk_df$Term2, "tenosynovitis|enthesopathy|teno-synovitis|tendinopathy|tendinitis|tendonitis|tendinosis|fasciosis|fasciitis|sesamoiditis|arthrofibro|scar|tibialis posterior.+dysfunction|dysfunction tibialis posterior"),1,0),
+        
+        Growth = if_else(str_detect(chunk_df$Term2, "cyst|ganglion|neuroma|malformation|fibroma|tumour|accessory|ingrown|in_grown|coalition|(?<!(?:chondral|osteochondral|cartilage)\\s)\\blesion\\b|xanthomas|osteoma|gioma|schwannoma|chondroma|lump|villonodular|callosity|corn|mass|\\b(non|mal|delayed)[-]?union|pseudo-articulation|bone.+loss|exostosis|spur|osteophyte|onychogryphosis|bipartite|neuroma|chondromatosis"), 1, 0),
+        
+        Neural = if_else(str_detect(chunk_df$Term2, "foot.+drop|footdrop|nerve|neuropathy|neural|sensory|charcot|motor|pain.+syndrome|tunnel.+syndrome|neuropathic|denervation"),1,0),
+        
+        Infection = if_else(str_detect(chunk_df$Term2, "infect|osteomyelitis|cellulitis|onychomycosis|ulcer|paronychia"),1,0),
+        
+        Impingement = if_else(str_detect(chunk_df$Term2, "impingement|stiffness|os.+trigonum"),1,0),
+        
+        Instability = if_else(str_detect(chunk_df$Term2, "disloc|unstable|sublux|instability|talar.+shift|widening|maisonneuve"),1,0)
+      ) |>
+      # Final classifications
+      mutate(
+        Other = if_else(rowSums(across(c(Arthritis:Instability))) < 1 | str_detect(chunk_df$Term2,"foreign.+(body|material)"),1,0),
+        NegatePathology = if_else(str_detect(chunk_df$Term2, "(?<!ab?)normal|(?<!(non|mal)-?)|nil.+pathology|\\bheal\\b|reduced|non-tender|unremarkable"),0,1)
+      )
+  }
+  
+  # Process data based on parallel preference
+  if (use_parallel && nrow(df) > chunk_size) {
+    # Ensure required packages are loaded in main session
+    require(future)
+    require(furrr)
+    
+    # Set up parallel processing
+    plan(multisession)
+    
+    # Create chunks with explicit data.frame conversion
+    chunks <- split(df, ceiling(seq_len(nrow(df))/chunk_size))
+    chunks <- lapply(chunks, as.data.frame)
+    
+    # Process chunks in parallel
+    df_processed <- future_map_dfr(chunks, process_chunk, .progress = TRUE)
+  } else {
+    df_processed <- process_chunk(df)
+  }
+  
+  return(df_processed)
+}
+
+# Create cached version
+categorize_diagnosis_cached <- memoise::memoise(categorize_diagnosis)
+```
+
+Concatenated terms for each treatment record using *tidyverse* syntax. Generated a method to cumulatively concatenate terms within a treatment record that have been split into text sequences delimited by punctuation (e.g. ";").
+
+```{r}
+concatenate_diagnoses <- function(data) {
+  # Sort the data by TreatmentID and SequenceRow in descending order
+  data %>%
+    arrange(TreatmentID, desc(SequenceRow)) %>%
+    group_by(TreatmentID) %>%
+    mutate(
+      CumulativeTerm = accumulate(Term2, 
+                                 .f = function(x, y) {
+                                   if (is.na(x)) y else paste(y, x, sep = "; ")
+                                 }) %>% 
+        last()
+    ) %>%
+    ungroup()
+}
+
+```
+
+```{r}
+
+concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
+  # Create a dataframe to help with tracking
+  df <- data.frame(
+    SequenceRow = SequenceRow, 
+    ProductCuml = ProductCuml, 
+    Term2 = Term2,
+    stringsAsFactors = FALSE
+  )
+  
+  # Sort by SequenceRow to ensure correct processing
+  df <- df[order(df$SequenceRow), ]
+  
+  # Initialize result vector
+  result <- character(length(SequenceRow))
+  
+  # Use accumulate to build up the terms
+  accumulated_result <- purrr::accumulate(
+    1:nrow(df), 
+    .init = list(
+      accumulated_terms = character(),
+      last_classified_term = NA_character_
+    ),
+    function(acc, i) {
+      # Current row details
+      current_term <- df$Term2[i]
+      current_product_cuml <- df$ProductCuml[i]
+      
+      # If current row is classified (ProductCuml >= 1)
+      if (current_product_cuml >= 1) {
+        # Concatenate all accumulated terms with current term
+        if (length(acc$accumulated_terms) > 0) {
+          combined_term <- str_c(
+            str_c(acc$accumulated_terms, collapse = "; "), 
+            current_term, 
+            sep = "; "
+          )
+        } else {
+          combined_term <- current_term
+        }
+        
+        # Return updated state
+        list(
+          accumulated_terms = character(),
+          last_classified_term = combined_term
+        )
+      } else {
+        # Accumulate terms for rows with ProductCuml < 1
+        list(
+          accumulated_terms = c(acc$accumulated_terms, current_term),
+          last_classified_term = acc$last_classified_term
+        )
+      }
+    }
+  )
+  
+  # Extract the last_classified_term for each row
+  result <- sapply(accumulated_result[-1], `[[`, "last_classified_term")
+  
+  # Ensure result matches original input order
+  result[order(SequenceRow)] <- result
+  
+  return(result)
+}
+
+```
+
+# Title and abstract
+
+<!--# Indicate the study’s design with a commonly used term in the title or the abstract. Provide in the abstract an informative and balanced summary of what was done and what was found -->
+
+The following working title is proposed;
+
+::: {#workingtitle style="color: gray"}
+Pain and function at baseline assessment of foot and ankle pathology: A cross-sectional analysis of the SOFARI Registry
+:::
