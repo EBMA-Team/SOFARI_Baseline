@@ -104,6 +104,26 @@ pacman::p_load(
 
 ```
 
+```{r}
+#| label: tbl-pkgcite
+#| echo: false
+#| tbl-cap: Summary of package usage and citations
+
+pkgs <- grateful::cite_packages(
+  dependencies = FALSE,
+  output = "table", 
+  out.dir = ".",
+  cite.tidyverse = TRUE,
+  include.RStudio = FALSE,
+  bib.file = "grateful-refs"
+  )
+
+knitr::kable(
+  pkgs
+)
+
+```
+
 ## Authorisations
 
 Pre-authorise access to registry datasets using the *gargle* package (v`{r} utils::packageVersion("gargle")`) [@gargle].
@@ -661,3 +681,546 @@ The following working title is proposed;
 ::: {#workingtitle style="color: gray"}
 Pain and function at baseline assessment of foot and ankle pathology: A cross-sectional analysis of the SOFARI Registry
 :::
+
+## Abstract
+
+::: {#abstract style="color: gray"}
+Purpose:
+
+Methods:
+
+Results: Include geographic region and timeframe
+
+Conclusion:
+:::
+
+## RECORD \[1.1\] Data Type
+
+<!--# RECORD 1.1: The type of data used should be specified in the title or abstract. When possible, the name of the databases used should be included. -->
+
+Data type included in Title.
+
+## RECORD \[1.2\] Geography and Timeframe
+
+<!--# RECORD 1.2: If applicable, the geographic region and timeframe within which the study took place should be reported in the title or abstract. -->
+
+Included in abstract.
+
+## RECORD \[1.3\] Data Linkage
+
+<!--# RECORD 1.3: If linkage between databases was conducted for the study, this should be clearly stated in the title or abstract -->
+
+No data linkage to another data was performed for this analysis.
+
+## RECORD \[2\] Background/rationale
+
+<!--# Explain the scientific background and rationale for the investigation being reported -->
+
+## RECORD \[3\] Objectives
+
+<!--# State specific objectives, including any prespecified hypotheses -->
+
+PICOS question format
+
+::: {#tbl-questions}
+| Component | Question 1 | Comments |
+|-----------|------------|----------|
+|           |            |          |
+|           |            |          |
+|           |            |          |
+|           |            |          |
+|           |            |          |
+|           |            |          |
+
+Questions presented in PICOS format
+:::
+
+### Hypotheses
+
+Clinical and statistical hypotheses presented in tabular format
+
+::: {#tbl-hypotheses}
+
+| Col1 | Col2 | Col3 |
+|------|------|------|
+|      |      |      |
+|      |      |      |
+|      |      |      |
+|      |      |      |
+|      |      |      |
+|      |      |      |
+
+Clinical and statistical hypotheses for question 1 and 2
+:::
+
+# Methods
+
+## RECORD \[4\] Study design
+
+<!--# Present key elements of study design early in the paper -->
+
+Cross-sectional analysis of registry data.
+
+## RECORD \[5\] Setting
+
+<!--# Describe the setting, locations, and relevant dates, including periods of recruitment, exposure, follow-up, and data collection -->
+
+The SOFARI (Sydney Orthopaedic Foot and Ankle Research Institute) registry is a multi-site system based in Sydney, Australia. It commenced recruitment with one specialist in Jun-2020 and was expanded sequentially to three other specialists by Aug-2021.
+
+Patients were recruited in an opt-out consent model through electronic communication (sms, email) at the time of their initial consultation with their surgeon. Recruitment and data collection into the registry for the present analysis spans 6-Jun-2020 to 31-Jan-2025.
+
+## RECORD \[8\] Data sources/measurement
+
+<!--# For each variable of interest, give sources of data and details of methods of assessment (measurement). Describe comparability of assessment methods if there is more than one group -->
+
+Data was sourced directly from the SOFARI registry. Patient and treatment information were entered into the database through the registry interface and compiled into a data cube (snapshot) every quarter. Complications and adverse events captured into an online form (QuestionPro, USA) and linked using record identifier codes. Patient-reported outcomes were collected from the patient through electronic communication (sms, email) of a form link specific to baseline assessment and captured into an online form (QuestionPro, USA) for each questionnaire of interest. PROMs data were also linked back to patient and treatment infromation using record identifier codes.
+
+### Data Import and Preparation
+
+Data was retrieved and formatted using *openxlsx* [@openxlsx2] to retrieve static snapshot files and *googlesheets4* (v`{r} utils::packageVersion("googlesheets4")`) [@googlesheets4] to retrieve live database tables. Text and code output were integrated using the *epoxy* package (v`{r} utils::packageVersion("epoxy")`) [@epoxy].
+
+Source files were specified and stored as global variables to call on in further functions.
+
+```{r, echo = FALSE}
+
+SheetIDs <- list(
+  Complic1 = "https://docs.google.com/spreadsheets/d/1hs9AHor_cqEOzFBpXHLrcrb2Gs3Ot647g8aMYfax6Fw/edit",
+  Complic2 = "https://docs.google.com/spreadsheets/d/1nFMsHl_LEm4tVi7GGtArGWB3EkG3YE_rF5C-PUcAgMs/edit",
+  Patient1 = "https://docs.google.com/spreadsheets/d/1hs9AHor_cqEOzFBpXHLrcrb2Gs3Ot647g8aMYfax6Fw/edit",
+  Patient2 = "https://docs.google.com/spreadsheets/d/1nFMsHl_LEm4tVi7GGtArGWB3EkG3YE_rF5C-PUcAgMs/edit"
+  
+)
+
+```
+
+Read in complication tables, then combine and clean the text description of complications as required.
+
+```{r}
+
+# Authenticate for sheets using the same token
+gs4_auth(token = drive_token())
+
+ComplicTable1 <- googlesheets4::read_sheet(
+  ss = SheetIDs$Complic1,
+  sheet = "Complications",
+  range = "A2:AD",
+  col_names = TRUE,
+  col_types = "cccTlnicicccccccccccicccccDccD"
+  )
+
+ComplicTable2 <- range_read(
+  ss = SheetIDs$Complic2,
+  sheet = "Complications",
+  range = "A2:AD",
+  col_names = TRUE,
+  col_types = "cccTlnicicccccccccccicccccDccD"
+  )
+
+# Complication Table
+MasterComplic <- bind_and_clean(
+  df1 = ComplicTable1, 
+  df2 = ComplicTable2, 
+  cols = c(
+    "TreatmentID", 
+    "ComplicationID", 
+    "ComplicationOccurrence",
+    "ComplicationNature", 
+    "DateOfOccurrence",
+    "ComplicationTreatmentOffered",
+    "DateReoperation"),
+  clean_cols = "ComplicationNature",
+  clean_fn = clean_text  # Pass the function directly
+)
+
+```
+
+Read in patient tables, then combine and clean the text columns as required.
+
+```{r}
+
+
+# Authenticate for sheets using the same token
+gs4_auth(token = drive_token())
+
+PatientTable1 <- range_read(
+  ss = SheetIDs$Patient1,
+  sheet = "Patient",
+  col_names = c(
+  "PatientCreationDate",
+  "PatientID",
+  "LastName",
+  "FirstName",
+  "AlternateID",
+  "DateOfBirth",
+  "Sex",
+  "RegistryStatus",
+  "RegistryStatusNotes",
+  "DateRegistryStatus",
+  "NotificationMethod",
+  "NoTreatmentRecords",
+  "Email",
+  "Phone",
+  "Postcode",
+  "PatientRegistrationStatus",
+  "DatePatientRegistration",
+  "TrueNoTreatmentRecords"
+),
+range = "A6:R",
+col_types = "DccccDcccTciccccTi"
+)
+
+PatientTable2 <- range_read(
+  ss = SheetIDs$Patient2,
+  sheet = "Patient",
+  col_names = c(
+  "PatientCreationDate",
+  "PatientID",
+  "LastName",
+  "FirstName",
+  "AlternateID",
+  "DateOfBirth",
+  "Sex",
+  "RegistryStatus",
+  "RegistryStatusNotes",
+  "DateRegistryStatus",
+  "NotificationMethod",
+  "NoTreatmentRecords",
+  "Email",
+  "Phone",
+  "Postcode",
+  "PatientRegistrationStatus",
+  "DatePatientRegistration",
+  "TrueNoTreatmentRecords"
+),
+range = "A6:R",
+col_types = "DccccDcccTciccccTi")
+
+
+MasterPatient <- bind_rows(
+  PatientTable1,
+  PatientTable2
+) |> mutate(
+  AlternateID2 = stringr::str_remove(AlternateID,"MS1|MS2")
+) |> group_by(
+  PatientID
+) |> mutate(
+  RecordNum = row_number()
+) |> ungroup()
+
+rm(PatientTable1,
+  PatientTable2
+)
+```
+
+Process the registry snapshot by retrieving the file and use *tidyverse* to add columns, recode existing columns and create an additional identifier using *tidyr* (v`{r} utils::packageVersion("tidyr")`) [@tidyr], representing the patient and their side, to track multiple treatments for each limb. Dates were reformatted to a form appropriate for analysis using *lubridate* (v`{r} utils::packageVersion("lubridate")`) [@lubridate].
+
+```{r}
+# Get the latest snapshot file
+latest_snapshot <- get_latest_snapshot()
+# 
+# You can then use these in your subsequent code:
+temp_file <- tempfile(fileext = ".xlsx")
+drive_download(
+  file = latest_snapshot$snapshot$id,
+  path = temp_file,
+  overwrite = TRUE
+)
+
+# Correction to reset back to excel origin
+DaysDiff <- as.numeric(as.duration(interval(ymd("1899-12-30"), ymd("1970-01-01"))),"days")
+
+Snapshot <- read_xlsx(
+  temp_file,
+  sheet = "General",
+  colNames = TRUE,
+  detectDates = FALSE
+  ) |>
+  mutate(
+        # Convert to dates
+        across(
+            starts_with("Date"),
+            ~lubridate::as_date(., origin = "1899-12-30")
+        ),
+        # Then get the numeric values directly
+        across(
+            starts_with("Date"),
+            ~as.numeric(.)+ DaysDiff,
+            .names = "{.col}Num"
+        ),
+        Sex2 = case_when( # Fix up sex entries
+          Sex == "M" ~ "Male",
+          Sex == "Male" ~ "Male",
+          Sex == "F" ~ "Female",
+          Sex == "Female" ~ "Female",
+          Sex == "N" ~ NA_character_,
+          .default = NA_character_
+        ),
+        PatientID = stringr::str_split_i(TreatmentID,"\\.",1)
+    ) |> left_join(
+    MasterPatient |> dplyr::select(
+    PatientID,
+    AlternateID2,
+    AlternateID
+),
+by = "PatientID",
+relationship = "many-to-many"
+) |> tidyr::unite(
+  "CombID",
+  c("PatientID","AffectedSide"),
+  sep = ".",
+  na.rm = FALSE,
+  remove = FALSE
+) |> group_by(
+  CombID
+) |> arrange(
+  DateInitialExaminationNum
+  ) |> mutate(
+  RecordNum = row_number()
+) |> ungroup() |> 
+    relocate(
+        c(PatientID, ends_with("Num"),RecordNum),
+        .before = TreatmentID
+    ) 
+
+
+#Import STROBEInput to conduct flowchart and record selection "Strobe_Input"
+
+STROBEInput <- read_xlsx(
+  temp_file,
+  sheet = "Strobe_Input",
+  colNames = TRUE,
+  detectDates = FALSE
+  )
+
+# Clean up
+unlink(temp_file)
+
+```
+
+
+## RECORD \[6\] Participants
+
+<!--# (a) Cohort study—Give the eligibility criteria, and the sources and methods of selection of participants. Describe methods of follow-up -->
+
+Participants are eligible for inclusion in the SOFARI registry if they meet the following criteria
+
+-   Presented with a pathology localised to the foot or ankle
+
+-   Offered or recommended treatment by the reviewing surgeon (operative or non-operative)
+
+-   Aged 16 or over at the time of initial consultation for the condition included in the registry
+
+-   Have not withdrawn their data from the registry (opt-out)
+
+### Record \[6.1\] Sample selection
+
+<!--# RECORD 6.1: The methods of study population selection (such as codes or algorithms used to identify subjects) should be listed in detail. If this is not possible, an explanation should be provided. -->
+
+Record selection was based on the following criteria;
+
+-   The status of the record was not set to *Archived* (the treatment record does not meet inclusion into the registry).
+
+-   The status of the record was not set to *Pending Initial Consultation* or *Pending Imaging* (not eligible for formal diagnosis).
+
+-   The record represented the first presentation for the limb within the registry. This may not represent the first presentation to the clinic.
+
+-   The record was eligible for baseline PROMs capture. That is, sufficient time was available between patient registration and definitive treatment offered by the reviewing surgeon. In some cases, trauma cases first present to the clinic after their definitive surgical treatment and baseline PROMs cannot be captured prior to surgery.
+
+-   Diagnosis text had been retrieved at the time of analysis.
+
+The *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] was used to create a table of indications for exclusion for each record and plot a flowchart (see 13.1) indicating the flow from total records processed to the final inclusion sample for analysis.
+
+```{r}
+
+# EligibleAtPreop 
+# - NFFU/failed with no treatment date
+# - NFFU/failed < treatmentdate
+# - pre-registry treatment
+# - recordcreationdate >= datetreatment
+# - registrystatus = open:no proms <= datetreatment
+
+
+STROBEFlow <- STROBEInput |> dplyr::filter(
+  !is.na(TreatmentID)
+) |> left_join(
+  Snapshot |> dplyr::select(
+    TreatmentID,
+    CombID,
+    DateInitialExamination,
+    EligibleAtPreop,
+    DiagnosisRawPrelim,
+    DiagnosisRawFinal
+  ),
+  by = "TreatmentID"
+) |> dplyr::select(
+  TreatmentID,
+  CombID,
+  TreatmentStatus,
+  TreatmentStatusNotes,
+  DateInitialExamination,
+  EligibleAtPreop,
+  DiagnosisRawPrelim,
+  DiagnosisRawFinal
+) |> group_by(
+  CombID
+) |> arrange(
+  DateInitialExamination
+  ) |> mutate(
+  RecordNum = if_else(!is.na(CombID),row_number(),NA)
+) |> ungroup() |>
+  dplyr::mutate(
+  EligibleAtPreop = if_else(is.na(EligibleAtPreop),"No",EligibleAtPreop),
+  TreatmentStatusNotes2 = case_when(
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes), "acl|amput*|wrist|shoulder|knee|(non.*registry)|nfr|(pathology not)|(non.*ankle)|(not.*registry)") ~ "Non-Registry Pathology",
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes), "error|(not failed)|reop*|duplicate|incorrect|mention|superfluous|left|right|side|(complication only)|(not needed)") ~ "Accessory Record",
+        stringr::str_detect(str_to_lower(TreatmentStatusNotes), "(sa.*patient)|(sa//ak)") ~ "Non-Registry Clinician",
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes), "(did not)|canx|dna|cx|attend|appointment|appt|cancel|resch|(never.*(arrived|came|return*))") ~ "No Initial Consult",
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes), "empty|(no.*(note|record))|information|insufficient|(cannot retrieve)|(enough.*info*)") ~ "No Patient File",
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes), "pre-registry|existing|prior") ~ "Pre-Registry Treatment",
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes), "intervention|elsewhere|(treated prior)|(no.*(treatment|pathology))|refer*|(no.*diagnosis)|(other.*surg*)|(surgeon.*other)|2nd|second|hesitant|(not.*viable)|(failed.*return)|public") ~ "No Treatment Offered",
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes), "withdraw*|(opt*.*out)|(unable.*recruit*)") ~ "Patient Opt-Out",
+    .default = TreatmentStatusNotes
+  ),
+exclusion1 = case_when( #exclusion before induction
+    stringr::str_detect(str_to_lower(TreatmentStatus), "pending: ic") ~ "No Initial Consult",
+    stringr::str_detect(str_to_lower(TreatmentStatus),"treatment") &
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes),"imaging") ~ "Pending Diagnosis",
+    stringr::str_detect(str_to_lower(TreatmentStatus),"archived") ~ stringr::str_to_title(TreatmentStatusNotes2),
+    .default = NA_character_
+    ),
+exclusion2 = case_when( #exclusion after induction
+    is.na(exclusion1) & EligibleAtPreop == "Yes" & RecordNum == 1 ~ NA_character_,
+    is.na(exclusion1) & EligibleAtPreop == "Yes" & RecordNum > 1 ~ "Subsequent Presentation",
+    is.na(exclusion1) & RecordNum == 1 & EligibleAtPreop == "No" ~ "Not eligible for Baseline"
+
+),
+exclusion3 = case_when(
+  is.na(exclusion1) & is.na(exclusion2) & is.na(DiagnosisRawFinal) & is.na(DiagnosisRawPrelim) ~ "Missing Diagnosis",
+  .default = NA_character_
+)
+)|> dplyr::rename(
+  trialno = "TreatmentID"
+)
+
+AnalysisList = STROBEFlow |> dplyr::filter(
+  is.na(exclusion1),
+  is.na(exclusion2),
+  is.na(exclusion3)
+)
+
+
+```
+
+A masterfile was created with *tidyverse* syntax of all included records for further processing.
+
+```{r}
+MasterTable1 <- Snapshot |> dplyr::select(
+  EligibleAtPreop:VR12_Mental_TotalScore_Preop,
+  Satisfaction_Preop:PCSSF_TotalScore_Preop,
+  Sex2,
+  -Sex
+) |> dplyr::filter( # Filter archived and pending: ic records
+  TreatmentID %in% AnalysisList$trialno
+) |> mutate(
+  PreviousPath = case_when(
+    PreviousPathology_Preop == "Both sides" ~ "Bilateral",
+    str_detect(PreviousPathology_Preop,"same side") ~ "Ipsilateral",
+    str_detect(PreviousPathology_Preop,"opposite side") ~ "Contralateral",
+    .default = NA_character_
+  ),
+  PreviousSurgery = case_when(
+    PreviousSurgery_Preop == "Both sides" ~ "Bilateral",
+    str_detect(PreviousSurgery_Preop,"same side") ~ "Ipsilateral",
+    str_detect(PreviousSurgery_Preop,"opposite side") ~ "Contralateral",
+    .default = NA_character_
+  )
+) |> dplyr::select(
+  -c(
+    PreviousPathology_Preop,
+    PreviousSurgery_Preop
+  )
+) 
+```
+
+```{epoxy}
+
+A total of {nrow(MasterTable1)} records were selected, with dates of initial examination ranging from {min(MasterTable1$DateInitialExamination, na.rm = TRUE)} to {max(MasterTable1$DateInitialExamination, na.rm = TRUE)}. 
+```
+
+### Record \[6.2\] Algorithm validation
+
+<!--# RECORD 6.2: Any validation studies of the codes or algorithms used to select the population should be referenced. If validation was conducted for this study and not published elsewhere, detailed methods and results should be provided. -->
+
+### Record \[6.3\] Data linkage
+
+<!--# RECORD 6.3: If the study involved linkage of databases, consider use of a flow diagram or other graphical display to demonstrate the data linkage process, including the number of individuals with linked data at each stage. -->
+
+No data linkage was performed for this analysis.
+
+## RECORD \[7\] Variables
+
+<!--# Clearly define all outcomes, exposures, predictors, potential confounders, and effect modifiers. Give diagnostic criteria, if applicable -->
+
+Key variables defined as part of this analysis are summarised in Table 2 below.
+
+Table 1: Summary of key variable definitions in the analysis
+
++-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
+| Category    | Variable                                | Definition - Comments                                              | Citation      |
++=============+=========================================+====================================================================+===============+
+| Outcomes    | Pain catastrophising scale - Short form | 7-question short version of the PCS                                | [@cheng2019]  |
+|             |                                         |                                                                    |               |
+|             |                                         | Total score from sum of individual items                           |               |
++-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
+|             | VR12- MCS                               | 12-question general health questionnaire.                          | [@Selim2009]  |
+|             |                                         |                                                                    |               |
+|             |                                         | Produces mental and physical sub-scores                            |               |
++-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
+| Exposures   | Cohort (Region)                         | categorisation of pathology based on anatomical region             |               |
++-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
+| Confounders | Age                                     | age at the date of initial examination                             |               |
++-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
+|             | Sex                                     | self-reported by the patient (male, female)                        |               |
++-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
+|             | Comorbidity score                       | Self-assessed comorbidity score (SACQ) sum of 12 items rated 0 - 3 | [@Sangha2003] |
++-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
+
+The self-assessed comorbidity score had to added to the dataset by calculating from individual responses included in the registry snapshot. The scores were then added to the analysis master table.
+
+```{r}
+# Apply to your data
+SRCQScore <- MasterTable1 |> 
+  dplyr::select(
+    TreatmentID,
+    starts_with("comorb")
+  ) |> 
+  mutate(
+    across(starts_with("Comorb"), 
+           ~ case_when(
+             is.na(.) ~ NA,
+             . == "I do not have the problem" ~ 0,
+             . == "I have the problem" ~ 1,
+             . == "I am receiving treatment for it" | 
+               . == "I have the problem, I am receiving treatment for it" ~ 2,
+             . == "The problem limits my activities" | 
+               . == "I have the problem, I am receiving treatment for it, The problem limits my activities" ~ 3,
+             TRUE ~ NA_real_  # Add default case
+           )
+    )
+  ) |> 
+  mutate(
+    SRCQTotalScore = rowSums(across(where(is.numeric)))
+  )
+```
+
+```{r}
+MasterTable2 <- MasterTable1 |> left_join(
+  SRCQScore |> dplyr::select(
+    TreatmentID,
+    SRCQTotalScore
+  ),
+  by = "TreatmentID"
+) |> dplyr::select(
+  !(starts_with("Comorb"))
+)
+```
