@@ -2101,7 +2101,7 @@ FAOSQOLMod2 <- with(
 
 ManovaMod1 <- with(
   MasterImp, 
-  exp = (cbind(
+  exp = lm(cbind(
     FAOS_Pain_TotalScore_Preop,
     FAOS_Symptom_TotalScore_Preop
   ) ~ Region
