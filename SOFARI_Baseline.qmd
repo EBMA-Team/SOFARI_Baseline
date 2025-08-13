@@ -54,6 +54,8 @@ Load up required packages in advance. Citations are applied to each library at f
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
+  "car",
+  "corrplot",
   "knitr",
   "cardx",
   "quarto",
@@ -740,7 +742,6 @@ Questions presented in PICOS format
 Clinical and statistical hypotheses presented in tabular format
 
 ::: {#tbl-hypotheses}
-
 | Col1 | Col2 | Col3 |
 |------|------|------|
 |      |      |      |
@@ -997,7 +998,6 @@ unlink(temp_file)
 
 ```
 
-
 ## RECORD \[6\] Participants
 
 <!--# (a) Cohort study—Give the eligibility criteria, and the sources and methods of selection of participants. Describe methods of follow-up -->
@@ -1047,9 +1047,7 @@ STROBEFlow <- STROBEInput |> dplyr::filter(
     TreatmentID,
     CombID,
     DateInitialExamination,
-    EligibleAtPreop,
-    DiagnosisRawPrelim,
-    DiagnosisRawFinal
+    EligibleAtPreop
   ),
   by = "TreatmentID"
 ) |> dplyr::select(
@@ -1161,29 +1159,33 @@ No data linkage was performed for this analysis.
 
 <!--# Clearly define all outcomes, exposures, predictors, potential confounders, and effect modifiers. Give diagnostic criteria, if applicable -->
 
-Key variables defined as part of this analysis are summarised in Table 2 below.
+Key variables defined as part of this analysis are summarised below and retrieved from the core dataset of the SOFARI registry.
 
-Table 1: Summary of key variable definitions in the analysis
+::: {#tbl-variables}
++-------------+-----------------------------------------+----------------------------------------------------------------------------+---------------+
+| Category    | Variable                                | Definition - Comments                                                      | Citation      |
++=============+=========================================+============================================================================+===============+
+| Outcomes    | Pain catastrophising scale - Short form | 7-question short version of the PCS                                        | [@cheng2019]  |
+|             |                                         |                                                                            |               |
+|             |                                         | Total score from sum of individual items                                   |               |
++-------------+-----------------------------------------+----------------------------------------------------------------------------+---------------+
+|             | VR12- MCS                               | 12-question general health questionnaire.                                  | [@Selim2009]  |
+|             |                                         |                                                                            |               |
+|             |                                         | Produces mental and physical sub-scores                                    |               |
++-------------+-----------------------------------------+----------------------------------------------------------------------------+---------------+
+|             | FAOS                                    | 42-question with 5 subscales (Pain, ADL, Sport, Symptoms, Quality of Life) | [@roos2001]   |
++-------------+-----------------------------------------+----------------------------------------------------------------------------+---------------+
+| Exposures   | Cohort (Region)                         | categorisation of pathology based on anatomical region                     |               |
++-------------+-----------------------------------------+----------------------------------------------------------------------------+---------------+
+| Confounders | Age                                     | age at the date of initial examination                                     |               |
++-------------+-----------------------------------------+----------------------------------------------------------------------------+---------------+
+|             | Sex                                     | self-reported by the patient (male, female)                                |               |
++-------------+-----------------------------------------+----------------------------------------------------------------------------+---------------+
+|             | Comorbidity score                       | Self-assessed comorbidity score (SACQ) sum of 12 items rated 0 - 3         | [@Sangha2003] |
++-------------+-----------------------------------------+----------------------------------------------------------------------------+---------------+
 
-+-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
-| Category    | Variable                                | Definition - Comments                                              | Citation      |
-+=============+=========================================+====================================================================+===============+
-| Outcomes    | Pain catastrophising scale - Short form | 7-question short version of the PCS                                | [@cheng2019]  |
-|             |                                         |                                                                    |               |
-|             |                                         | Total score from sum of individual items                           |               |
-+-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
-|             | VR12- MCS                               | 12-question general health questionnaire.                          | [@Selim2009]  |
-|             |                                         |                                                                    |               |
-|             |                                         | Produces mental and physical sub-scores                            |               |
-+-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
-| Exposures   | Cohort (Region)                         | categorisation of pathology based on anatomical region             |               |
-+-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
-| Confounders | Age                                     | age at the date of initial examination                             |               |
-+-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
-|             | Sex                                     | self-reported by the patient (male, female)                        |               |
-+-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
-|             | Comorbidity score                       | Self-assessed comorbidity score (SACQ) sum of 12 items rated 0 - 3 | [@Sangha2003] |
-+-------------+-----------------------------------------+--------------------------------------------------------------------+---------------+
+Summary of key variable definitions in the analysis
+:::
 
 The self-assessed comorbidity score had to added to the dataset by calculating from individual responses included in the registry snapshot. The scores were then added to the analysis master table.
 
@@ -1224,3 +1226,1282 @@ MasterTable2 <- MasterTable1 |> left_join(
   !(starts_with("Comorb"))
 )
 ```
+
+*Extract individual PCS scores*
+
+```{r}
+PCSTable  <- MasterTable1 |> 
+  dplyr::select(
+    TreatmentID,
+    starts_with("PCSSF")
+  ) |> 
+  dplyr::mutate(
+    across(starts_with("PCSSF"),
+           ~as.numeric(stringr::str_extract(.,"\\d+"))
+    )
+  )
+
+```
+
+According to [@cheng2019] the PCS-SF (and perhaps the full scale as well) would be best scored by simply adding all the items up. The present analysis may provide a platform for future examination of subscales of PCS such as *Rumination*, *Magnification* and *Helplessness* with respect to baseline pain.
+
+The PCS-SF total score was added to the master table.
+
+```{r}
+MasterTable3 <- MasterTable2 |> dplyr::select(
+  !(starts_with("PCSSF"))
+) |> left_join(
+  PCSTable |> dplyr::select(
+    TreatmentID,
+    PCSSF_TotalScore_Preop
+  ),
+  by = "TreatmentID"
+) |> dplyr::select(
+  TreatmentID,
+  PatientID,
+  TreatmentType,
+  Sex2,
+  Provider,
+  AgeAtInitialExam,
+  InjuryToPresentation,
+  VR12_Physical_TotalScore_Preop,
+  VR12_Mental_TotalScore_Preop,
+  SRCQTotalScore,
+  PCSSF_TotalScore_Preop,
+  Satisfaction_Preop,
+  PreviousPath,
+  PreviousSurgery
+)
+
+```
+
+*Extract individual PCS scores*
+
+```{r}
+FAOSTable  <- Snapshot |> dplyr::filter(
+  TreatmentID %in% MasterTable1$TreatmentID
+) |> dplyr::select(
+    TreatmentID,
+    starts_with("FAOS") & contains("TotalScore") & contains("Preop")
+  ) |>
+  dplyr::mutate(
+    across(starts_with("FAOS"),
+           ~as.numeric(stringr::str_extract(.,"\\d+"))
+    )
+  )
+
+```
+
+According to [@cheng2019] the PCS-SF (and perhaps the full scale as well) would be best scored by simply adding all the items up. The present analysis may provide a platform for future examination of subscales of PCS such as *Rumination*, *Magnification* and *Helplessness* with respect to baseline pain.
+
+The FAOS subscale total scores were added to the master table.
+
+```{r}
+MasterTable3 <- MasterTable2 |> left_join(
+  FAOSTable,
+  by = "TreatmentID"
+) |> dplyr::select(
+  TreatmentID,
+  PatientID,
+  TreatmentType,
+  Sex2,
+  Provider,
+  AgeAtInitialExam,
+  InjuryToPresentation,
+  VR12_Physical_TotalScore_Preop,
+  VR12_Mental_TotalScore_Preop,
+  SRCQTotalScore,
+  PCSSF_TotalScore_Preop,
+  Satisfaction_Preop,
+  PreviousPath,
+  PreviousSurgery,
+  starts_with("FAOS")
+)
+
+```
+
+### Diagnosis
+
+Raw text stored in the registry snapshot was processed with custom functions (see *Functions for Processing*). Additional processing was performed to create a *Region* label, describing the anatomical region in which the pathology affected.
+
+```{r}
+#| echo: false
+
+
+TargetURL = "https://docs.google.com/spreadsheets/d/1f-zb_pdjH9PuFSdkMBcAdyPCP_b-YJk2Jzvrn5G6df4/edit"
+
+```
+
+```{r}
+#| eval: true
+#| echo: false
+#| message: false
+#| warning: false
+
+
+
+progressr::handlers("progress")
+
+# Run the processing
+with_progress({
+  # Try processing with smaller batch size and fewer workers
+# Update your safe_process_diagnosis call
+DiagTerm <- safe_process_diagnosis(
+  MasterTable2,
+  target_terms_url = TargetURL,
+  batch_size = 500,
+  workers = 4
+)
+})
+
+```
+
+```{r}
+# Group by sequence
+
+DiagSequence <- DiagTerm |> tidyr::unite(
+  "SequenceID1",
+  c(TreatmentID,
+    SequenceID
+    ),
+  na.rm = TRUE, 
+  remove = FALSE, 
+  sep = "."
+  ) |> group_by(
+    SequenceID1
+    ) |> summarize(
+    Term2 = str_c(Term1, collapse = " ")
+  ) |> ungroup() |> mutate(
+    TreatmentID = stringr::str_remove(SequenceID1, "\\.[^.]*$")
+  )
+
+# Group by Treatment
+
+DiagTreatment <- DiagSequence |> group_by(
+  TreatmentID
+) |> summarise(
+  Term3 = str_c(
+    Term2,
+    collapse = "; "
+  )
+) |> ungroup()
+
+
+```
+
+```{r}
+#| eval: true
+#| echo: false
+#| message: false
+#| warning: false
+
+  
+# With parallel processing
+DiagFunc1 <- categorize_diagnosis(
+  DiagSequence |> filter(
+    stringr::str_detect(Term2,"history", negate = TRUE)
+  ),
+  remove_intermediate = FALSE,
+  use_parallel = TRUE,
+  chunk_size = 4000) |>
+  mutate(
+    SequenceRow = row_number(),
+    has_region = rowSums(across(Ankle:Foot)),
+    has_pathology = rowSums(across(Arthritis:Instability)),
+   # RowTarget = SequenceRow - 1,
+    .by = TreatmentID
+  ) |> tidyr::unite(
+    "SequenceIDUpdate",
+    c(TreatmentID,SequenceRow),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+  ) 
+
+```
+
+```{r}
+DiagFunc2 <- DiagFunc1 |> 
+  mutate(
+    RowCount1 = n(),
+    .by = TreatmentID
+  ) |> 
+  dplyr::select(
+    -(Ankle:NegatePathology)
+  ) |> 
+  mutate(
+    SequenceCat1 = if_else(
+      has_region >= 1 & has_pathology >= 1,
+      "Classified",
+      "No"
+    )
+  ) |> 
+  group_by(TreatmentID) |> 
+  arrange(desc(SequenceRow), .by_group = TRUE) |> 
+  mutate(
+    Product = has_region * has_pathology,
+    SequenceCatLead = lead(SequenceCat1),
+    ResetFlag = case_when( 
+      lag(Product) >= 1 & Product == 0 ~ 1,
+      lag(Product) < 1 & Product < 1 ~ 1,
+      Product >= 1 & lag(Product) < 1 ~ 1,
+      SequenceRow == max(SequenceRow) & Product == 0 ~ 1,
+      SequenceRow == max(SequenceRow) & Product >= 1 ~ 0,
+      .default = 0
+    )
+  ) |> 
+  ungroup()
+
+```
+
+```{r}
+DiagFunc2a <- DiagFunc2 |> filter(
+  Product > 0,
+  ResetFlag == 0
+)
+
+
+DiagFunc2b <- left_join(
+  DiagFunc2 |> filter(
+    ResetFlag == 1
+  ) |> distinct(
+    TreatmentID,
+    .keep_all = TRUE
+  ),
+DiagFunc2c <- DiagFunc2 |> filter(
+  ResetFlag == 1
+) |> group_by(
+  TreatmentID
+) |> summarise( # COLLAPSE rows into 1. JOIN back into FuncX (bindrows)
+   Term3 = str_c(
+     Term2,
+     collapse = "; "
+   )
+ ),
+by = "TreatmentID"
+) |> ungroup() |> dplyr::select(
+  -Term2
+) |> rename(
+  Term2 = "Term3"
+)
+
+
+DiagFunc3 <- bind_rows(
+  DiagFunc2a,
+  DiagFunc2b
+) |> arrange(
+  TreatmentID
+) |> dplyr::select(
+  -(has_region:ResetFlag)
+)
+
+```
+
+```{r}
+#| eval: true
+#| echo: false
+#| message: false
+#| warning: false
+
+  
+# With parallel processing
+DiagFunc4 <- categorize_diagnosis(
+  DiagFunc3 |> filter(
+    stringr::str_detect(Term2,"history", negate = TRUE)
+  ),
+  remove_intermediate = FALSE,
+  use_parallel = TRUE,
+  chunk_size = 4000) |>
+  mutate(
+    SequenceRow = row_number(),
+    has_region = rowSums(across(Ankle:Foot)),
+    has_pathology = rowSums(across(Arthritis:Instability)),
+   # RowTarget = SequenceRow - 1,
+    .by = TreatmentID
+  )  |> filter(
+  has_region*has_pathology >= 1
+) |> tidyr::unite(
+    "SequenceIDUpdate",
+    c(TreatmentID,SequenceRow),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+  )
+
+```
+
+```{r}
+DiagRegion <- DiagFunc4 |> dplyr::select(
+  Term2,
+  SequenceIDUpdate,
+  TreatmentID:Foot
+) |> dplyr:: select(
+  -SequenceRow
+) |> tidyr::pivot_longer(
+  cols = !c(TreatmentID,SequenceIDUpdate,Term2),
+  names_to = "Region",
+  values_to = "RegionPresence"
+) |> dplyr::filter(
+  RegionPresence > 0,
+  !is.na(Region)
+) |> dplyr::mutate(
+  RegionCount = n_distinct(Region),
+  RegionCat = if_else(RegionCount > 1,"Multiple","Isolated"),
+  .by = TreatmentID
+) |> dplyr::select(
+  -RegionPresence
+)
+```
+
+```{r}
+DiagPathology <- DiagFunc4 |> dplyr::select(
+  Term2,
+  TreatmentID,
+  SequenceIDUpdate,
+  Arthritis:Other
+) |> tidyr::pivot_longer(
+  cols = !c(TreatmentID,SequenceIDUpdate,Term2),
+  names_to = "Pathology",
+  values_to = "PathPresence"
+) |> filter(
+  PathPresence > 0,
+  !is.na(Pathology)
+) |> mutate(
+  PathCount = n_distinct(Pathology),
+  PathCat = if_else(PathCount > 1,"Multiple","Isolated"),
+  .by = TreatmentID
+)
+
+
+```
+
+```{r}
+
+DiagRegion1 <- DiagRegion |> distinct(
+  TreatmentID,
+  .keep_all = TRUE
+) 
+
+
+DiagPath1 <- DiagPathology |> distinct(
+  TreatmentID,
+  .keep_all = TRUE
+) 
+```
+
+### Cohort
+
+A cohort label (combining pathology and region) was created from the processed diagnosis text.
+
+```{r}
+# Slice Down Snapshot based on diagnosis availability
+
+MasterTable4 <- MasterTable3 |> left_join(
+  DiagFunc4 |> dplyr::select(
+    TreatmentID,
+    Term2
+  )  |>
+  summarize(
+    Term3 = str_c(Term2, collapse = " "),
+    .by = TreatmentID
+  ),
+  by = "TreatmentID"
+)  |> left_join(
+  DiagRegion1 |> dplyr::select(
+    TreatmentID,
+    RegionCat
+  ),
+  by = "TreatmentID"
+) |> left_join(
+  DiagPath1 |> dplyr::select(
+    TreatmentID,
+    PathCat
+  ),
+  by = "TreatmentID"
+) |> tidyr::unite(
+  "Cohort",
+  c(RegionCat,PathCat),
+  sep = "_",
+  na.rm = FALSE,
+  remove = FALSE
+) |> left_join(
+  DiagRegion1 |> filter(
+    RegionCat == "Isolated"
+    ) |> dplyr::select(
+    TreatmentID,
+    Region
+  ),
+  by = "TreatmentID"
+) |> left_join(
+  DiagPath1 |> filter(
+    PathCat == "Isolated"
+    ) |> dplyr::select(
+    TreatmentID,
+    Pathology
+  ),
+  by = "TreatmentID"
+) |> mutate(
+  Cohort1 = case_when(
+    is.na(RegionCat) & is.na(PathCat) ~ NA_character_,
+    RegionCat == "Multiple" & PathCat == "Multiple" ~ "Multiple",
+    !is.na(Region) & is.na(Pathology) ~ Region,
+    is.na(Region) & !is.na(Pathology) ~ Pathology,
+    !is.na(Region) & !is.na(Pathology) ~ stringr::str_c(Region,Pathology, sep = "_")
+  )
+) |> mutate(
+  Cohort2 = ifelse(n() < 30, "General", Cohort1),
+  .by = Cohort1,
+  Region2 = if_else(
+    is.na(Region) & RegionCat == "Multiple", "Multiple", Region
+  )
+) |> dplyr::select(
+  !c(
+    Region,
+    RegionCat
+  )
+) |> dplyr::rename(
+  Region = "Region2"
+) 
+
+
+
+```
+
+Establishing the breakdown of the sample by cohorts revealed that multiple pathologies across multiple regions of the foot-ankle was the most common presentation, followed by ankle_injury and multiple pathologies affecting the ankle (Figure 1).
+
+```{r}
+#| label: fig-cohort
+#| fig-cap: "Breakdown of sample by defined cohorts - combined pathology and region labels."
+
+min_count <- 10
+
+# Basic counts
+  basic_counts1 <- MasterTable4 |>
+    count(Cohort2, sort = TRUE) %>%
+    mutate(
+      percentage = n / sum(n) * 100,
+      cumulative_percentage = cumsum(percentage)
+    )
+
+
+ # Create visualization
+  plot_data <- basic_counts1 |>
+    filter(
+      n >= min_count,
+      !is.na(Cohort2)
+      )  # Filter for readability
+  
+  cohort_plot <- ggplot(plot_data, aes(x = reorder(Cohort2, -n), y = n)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+              vjust = -0.5, size = 3) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Distribution of Clinical Cohorts",
+         x = "Cohort",
+         y = "Count")
+  
+  knitr::knit_print(cohort_plot)
+```
+
+### Bilateral Status
+
+The bilateral status of each record in the registry snapshot was calculated by grouping by PatientID, establishing those records with \>1 record in the table, then calculating whether the bilateral record was;
+
+-   Simultaneous - where both records are presented and created at the same time
+
+-   Index - the first limb to present for that patient within the registry
+
+-   Subsequent - the second (contralateral) limb to present for that patient within the registry that is separated from the first record by time.
+
+-   Unilateral - the record appears in the dataset with no record present for the contralateral limb
+
+```{r}
+
+SnapshotBilat1 <- MasterTable4 |> group_by(
+  PatientID
+) |> summarise(
+  TreatmentCount = n()
+) |> filter(
+  TreatmentCount > 1
+)
+
+SnapshotBilat2 <- Snapshot |> filter(
+  PatientID %in% SnapshotBilat1$PatientID
+)
+
+SnapshotLeft1 <- SnapshotBilat2 |> filter(
+  AffectedSide == "Left"
+) |> group_by(
+  PatientID
+) |> arrange(
+  DateInitialExamination,
+  .by_group = TRUE
+) |> dplyr::select(
+  TreatmentID,
+  CombID,
+  PatientID,
+  AffectedSide,
+  DateInitialExamination,
+  DateInitialExaminationNum,
+  TreatmentStatus,
+  TreatmentStatusNotes,
+  DateStatusChange
+) |> slice_head(
+  n = 1
+) |> ungroup()
+
+SnapshotRight <- SnapshotBilat2 |> filter(
+  AffectedSide == "Right"
+) |> rename(
+  DIERight = "DateInitialExamination"
+) |> group_by(
+  PatientID
+) |> arrange(
+  DIERight,
+  .by_group = TRUE
+) |> dplyr::select(
+  TreatmentID,
+  CombID,
+  PatientID,
+  AffectedSide,
+  DIERight,
+  TreatmentStatus,
+  TreatmentStatusNotes,
+  DateStatusChange
+) |> slice_head(
+  n = 1
+) |> ungroup() |> left_join(
+  SnapshotLeft1 |> dplyr::select(
+    PatientID,
+    DateInitialExamination
+  ),
+  by = "PatientID"
+  ) |> rename(
+  DIELeft = "DateInitialExamination"
+) |> mutate(
+   DIEDiff = as.numeric(as.duration(DIERight %--% DIELeft),"weeks")
+  ) |> mutate(
+    BilateralPres = case_when(
+      DIEDiff == 0 ~ "Simultaneous",
+      DIEDiff > 0 ~ "Index",
+      DIEDiff < 0 ~ "Subsequent",
+      .default = "Unilateral"
+    )
+  )
+
+SnapshotLeft2 <- SnapshotLeft1 |> rename(
+  DIELeft = "DateInitialExamination"
+) |> left_join(
+  SnapshotRight |> dplyr::select(
+    PatientID,
+    DIERight
+  ),
+  by = "PatientID"
+  ) |> mutate(
+   DIEDiff = as.numeric(as.duration(DIELeft %--% DIERight),"weeks")
+  ) |> mutate(
+    BilateralPres = case_when(
+      DIEDiff == 0 ~ "Simultaneous",
+      DIEDiff > 0 ~ "Index",
+      DIEDiff < 0 ~ "Subsequent",
+      .default = "Unilateral"
+    )
+  ) |> filter(
+    BilateralPres != "Unilateral"
+  )
+```
+
+Marry back into the master table.
+
+```{r}
+MasterTable5 <- left_join(
+  MasterTable4,
+  SnapshotLeft2 |> dplyr::select(
+    TreatmentID,
+    BilateralPres
+  ) |> rename(
+    BilateralPresLeft = "BilateralPres"),
+  by = "TreatmentID"
+) |> left_join(
+  SnapshotRight |> dplyr::select(
+    TreatmentID,
+    BilateralPres
+  ) |> rename(
+    BilateralPresRight = "BilateralPres"),
+  by = "TreatmentID"
+) |> tidyr::unite(
+  "BilateralPres",
+  c(BilateralPresLeft,BilateralPresRight),
+  na.rm = TRUE,
+  remove = TRUE
+) |> mutate(
+  BilateralPres1 = if_else(
+    str_count(BilateralPres) < 1,
+    "Unilateral",
+    BilateralPres
+  )
+) |> dplyr::select(
+  -BilateralPres
+) |> rename(
+  BilateralPres = "BilateralPres1"
+) |> mutate(
+  BilateralDiag = stringr::str_detect(
+    Term3,
+    "bilateral"
+  )
+  )
+
+
+```
+
+### RECORD \[7.1\] Codes and Algorithms
+
+<!--# RECORD 7.1: A complete list of codes and algorithms used to classify exposures, outcomes, confounders, and effect modifiers should be provided. If these cannot be reported, an explanation should be provided -->
+
+## RECORD \[9\] Bias
+
+<!--# Describe any efforts to address potential sources of bias -->
+
+For a discussion of biases in the context of the clinical registry utilised for this analysis, refer to [@scholes2023]. Specific to this analysis, the following considerations are noted below.
+
+::: {#tbl-bias}
++-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Bias              | Definition                                                                                                   | Source                    | Mitigation                                                                                                                                                                                    |
++===================+==============================================================================================================+===========================+===============================================================================================================================================================================================+
+| Selection         |                                                                                                              |                           |                                                                                                                                                                                               |
++-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Misclassification | Treatment record labelled into incorrect cohort. PROMs package not aligned to                                | [@Benchimol2015]          | Clinical text retrieved by two experienced reviewers and transferred to registry.                                                                                                             |
+|                   |                                                                                                              |                           |                                                                                                                                                                                               |
+|                   |                                                                                                              |                           | Code functions used to process text in a repeatable workflow.                                                                                                                                 |
++-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Immortal Time     | Individuals meet eligibility criteria that can only assessed after followup has started                      | [@nguyen2021]             | Patients are enrolled at first presentation to the registry for their condition - but this does not necessarily represent first presentation to the clinic.                                   |
++-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Missing Data      | The absence of a data value where a treatment record is eligible to have a data value collected              | [@carroll2020]            | Multiple imputation was used to impute missing values and model-based predictions of outcomes used                                                                                            |
++-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Prevalent User    | Follow-up starts after eligible individuals have started the treatment. The follow-up time is left-truncated | [@nguyen2021]             | Eligibility and enrollment is performed prior to treatment offering for any patient or new presentation. Records where definitive treatment occurred before registry enrolment were excluded. |
++-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Pseudoreplication | Analyse data while ignoring dependency between observations. Inadequate model specification.                 | [@davies2015; @lazic2010] | Because not all patients had multiple treatments, mixed effects models were poorly specified. A generalised linear model was utilised instead.                                                |
++-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Confounder        | An variable of interest and a target outcome simultaneously influenced by a third variable                   | [@tennant2020]            | PCS-SF models incorporated adjustment for confounders                                                                                                                                         |
++-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Biases in an analysis of an observational cohort retrieved from a clinical registry
+:::
+
+## RECORD \[10\] Study size
+
+<!--# Explain how the study size was arrived at -->
+
+Sample size was derived based on the available records from the Registry at the time of analysis.
+
+## RECORD \[11\] Quantitative variables
+
+<!--# Explain how quantitative variables were handled in the analyses. If applicable, describe which groupings were chosen and why -->
+
+No categorisation of quantitative variables was undertaken in this analysis.
+
+## RECORD \[12\] Statistical methods
+
+<!--# (a) Describe all statistical methods, including those used to control for confounding (b) Describe any methods used to examine subgroups and interactions (c) Explain how missing data were addressed (d) Cohort study—If applicable, explain how loss to follow-up was addressed Case-control study—If applicable, explain how matching of cases and controls was addressed Cross-sectional study—If applicable, describe analytical methods taking account of sampling strategy (e) Describe any sensitivity analyses -->
+
+### RECORD \[12.1\] Data access
+
+<!--# RECORD 12.1: Authors should describe the extent to which the investigators had access to the database population used to create the study population. -->
+
+The registry system represents all cases presenting to the rooms of collaborating specialists within Sydney, Australia from the inception of the clinical registry to the analysis date. All reviewed charts from the operating surgeons practice records (electronic medical record) were entered into database and the present analysis draws data from a regular compilation of the registry records (snapshot) produced quarterly by the registry administration team.
+
+### RECORD \[12.2\] Data Cleaning
+
+<!--# RECORD 12.2: Authors should provide information on the data cleaning methods used in the study. -->
+
+Text data was cleaned using custom functions as described in *Functions for processing*.
+
+#### Missingness
+
+In the record selection workflow, patients with text in the diagnosis text field were included in the final analysis number. However, there was a proportion of patients that had text that could not be categorised into an anatomical region. For the purposes of this draft analysis, these cases will be removed and a round of chart review will be performed to resolve the discrepancy between the text and the classification code.
+
+```{r}
+MasterAnalysis <- MasterTable5 |> dplyr::select(
+  TreatmentID:Satisfaction_Preop,
+  Region,
+  BilateralPres,
+  starts_with("FAOS")
+) |> dplyr::filter(
+  !is.na(Region)
+) 
+```
+
+Missingness was visualised with the *naniar* package (v`{r} utils::packageVersion("naniar")`) [@naniar]. It showed that patients with a diagnosis also had other missing data, predominantly PROMs data.
+
+```{r}
+#| label: fig-missingness
+#| fig-cap: "Patterns of missingness across analysis variables"
+
+vis_miss(MasterAnalysis)
+
+```
+
+The *mice* (v`{r} utils::packageVersion("mice")`) [@mice] was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
+
+```{r}
+# First create your predictor matrix as before
+predM <- mice::make.predictorMatrix(MasterAnalysis)
+
+# Switch off IDs from predicting
+predM[,"TreatmentID"] <- 0 
+predM["TreatmentID",] <- 0
+predM[,"PatientID"] <- 0 
+predM["PatientID",] <- 0
+
+# Create a method vector
+meth <- mice::make.method(MasterAnalysis)
+
+# Modified mice command including method specification
+MasterImp <- mice::mice(
+  MasterAnalysis,
+  maxit = 10,
+  seed = 4218,
+  m = 20,
+  printFlag = FALSE,
+  predictorMatrix = predM,
+  method = meth
+  )
+```
+
+A strip plot (Figure 3) were used to visually inspect the convergence of the imputation iterations against the original dataset.
+
+```{r}
+#| label: fig-stripplot
+#| fig-cap: "Strip plot of imputed data over 5 iterations with 20 imputations per iteration."
+
+MasterImpStrip <- mice::densityplot(MasterImp)
+
+knitr::knit_print(MasterImpStrip)
+
+
+```
+
+The estimated FAOS-Pain subscore from the imputation model versus the distribution of the observed data was plotted as a visual inspection of the imputation result.
+
+```{r}
+#| label: fig-visualise
+#| fig-cap: "Estimated versus observed FAOS-Pain for the analysis cohort."
+
+FAOSPainImp <- ggplot() +
+  geom_density(data = complete(MasterImp, 1), aes(x = FAOS_Pain_TotalScore_Preop, color = "Observed")) +
+  geom_density(data = complete(MasterImp, 2:10), aes(x = FAOS_Pain_TotalScore_Preop, color = "Imputed"))
+
+knitr::knit_print(FAOSPainImp)
+
+```
+
+### RECORD \[12.3\] Linkage
+
+<!--# RECORD 12.3: State whether the study included person-level, institutional-level, or other data linkage across two or more databases. The methods of linkage and methods of linkage quality evaluation should be provided. -->
+
+No data linkage was performed for this analysis.
+
+### Analysis Methods
+
+Participant flow - consort package and flow chart Descriptive - gtsummary and prepared for display with knitr Outcome data - ggplot2 complete case analysis
+
+A flow chart was created with the *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary* (v`{r} utils::packageVersion("gtsummary")`) [@gtsummary]. Graphs were generated using *ggplot2* (v`{r} utils::packageVersion("ggplot2")`) [@ggplot2]. Graphs and tables were prepared for display using *knitr* (v`{r} utils::packageVersion("knitr")`) [@knitr]. A linear model was fitted to the imputed data using *stats* (v`{r} utils::packageVersion("stats")`) [@stats] with the following form.
+
+```{r}
+#| label: FAOS-models
+#| echo: true
+
+#Pain
+
+FAOSPainMod1 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_Pain_TotalScore_Preop ~ Region
+    )
+)
+
+FAOSPainMod2 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_Pain_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop + PCSSF_TotalScore_Preop
+    )
+)
+
+
+#Symptoms
+
+FAOSSympMod1 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_Symptom_TotalScore_Preop ~ Region
+    )
+)
+
+FAOSSympMod2 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_Symptom_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
+    )
+)
+
+#ADL
+
+FAOSADLMod1 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_DailyLiving_TotalScore_Preop ~ Region
+    )
+)
+
+FAOSADLMod2 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_DailyLiving_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
+    )
+)
+
+#Sport
+
+FAOSSportMod1 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_Sport_TotalScore_Preop ~ Region
+    )
+)
+
+FAOSSportMod2 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_Sport_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
+    )
+)
+
+#QoL
+
+FAOSQOLMod1 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_Quality_TotalScore_Preop ~ Region
+    )
+)
+
+FAOSQOLMod2 <- with(
+  MasterImp, 
+  exp = lm(
+    FAOS_Quality_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
+    )
+)
+
+    
+```
+
+```{r}
+
+ManovaMod1 <- with(
+  MasterImp, 
+  exp = (cbind(
+    FAOS_Pain_TotalScore_Preop,
+    FAOS_Symptom_TotalScore_Preop
+  ) ~ Region
+    )
+)
+
+car::Manova(ManovaMod1, test.statistic = "Pillai")
+
+
+```
+
+The model was summarised using *gtsummary*. Predicted values for all model variables were generated from the model object using *marginaleffects* (v`{r} utils::packageVersion("marginaleffects")`) [@marginaleffects].
+
+# Results
+
+## RECORD \[13\] Participants
+
+<!--# Report numbers of individuals at each stage of study—eg numbers potentially eligible, examined for eligibility, confirmed eligible, included in the study, completing follow-up, and analysed. Give reasons for non-participation at each stageConsider use of a flow diagram -->
+
+```{epoxy}
+
+The initial export from the registry returned {nrow(STROBEInput)} records of all types. 
+
+```
+
+### RECORD \[13.1\] Participant Flow
+
+<!--# RECORD 13.1: Describe in detail the selection of the persons included in the study (i.e., study population selection) including filtering based on data quality, data availability and linkage. The selection of included persons can be described in the text and/or by means of the study flow diagram. -->
+
+The diagram below (Figure 5) summarises recruitment and categorisation of patients from the SOFARI registry into the final analysis cohort.
+
+```{r}
+#| label: fig-strobe
+#| fig-cap: "Flow chart of treatment record inclusion for analysis."
+
+
+STROBEplot <- consort_plot(
+  data = STROBEFlow,
+  orders = c(
+    trialno = "Population",
+    exclusion1 = "Screened Out",
+    trialno = "Active Records",
+    exclusion2 = "Excluded",
+    trialno = "Total Pool",
+    exclusion3 = "Not Available",
+    trialno = "Available Pool"
+  ),
+  side_box = c(
+    "exclusion1",
+    "exclusion2",
+    "exclusion3"
+  ),
+  cex = 0.8
+)
+
+knitr::knit_print(STROBEplot)
+
+```
+
+## RECORD \[14\] Patient Characteristics
+
+<!--# (a) Give characteristics of study participants (eg demographic, clinical, social) and information on exposures and potential confounders(b) Indicate number of participants with missing data for each variable of interest (c) Cohort study—Summarise follow-up time (eg, average and total amount) -->
+
+Summarising the sample by anatomical region showed the ankle to be most common presentation, followed by multiple regions (Figure 6).
+
+```{r}
+#| label: fig-cohort-breakdown
+#| fig-cap: "Breakdown of sample by diagnostic group - region labels."
+
+min_count <- 10
+
+# Basic counts
+  basic_counts2 <- MasterAnalysis |> 
+    count(Region, sort = TRUE) %>%
+    mutate(
+      percentage = n / sum(n) * 100,
+      cumulative_percentage = cumsum(percentage)
+    )
+
+
+ # Create visualization
+  plot_data <- basic_counts2 |>
+    filter(
+      n >= min_count,
+      !is.na(Region)
+      )  # Filter for readability
+  
+  cohort_plot <- ggplot(plot_data, aes(x = reorder(Region, -n), y = n)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+              vjust = -0.5, size = 3) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Distribution of Diagnostic Groups",
+         x = "Region",
+         y = "Count")
+  
+  knitr::knit_print(cohort_plot)
+```
+
+Patient characteristics for the sample are summarised in Table 2.
+
+```{r}
+#| label: tbl-demographics
+#| tbl-cap: "Summary of patient and treatment record characteristics for the analysed sample."
+
+Table4 <- gtsummary::tbl_summary(
+  MasterAnalysis |> dplyr::select(
+    !(c(
+      TreatmentID,
+      PatientID,
+      PCSSF_TotalScore_Preop
+    ))
+  ),
+label = list(
+    AgeAtInitialExam ~ "Age",
+    InjuryToPresentation ~ "Onset to Presentation (Days)",
+    #BMI ~ "Body Mass Index",
+    BilateralPres ~ "Bilateral",
+    Region ~ "Diagnostic Group",
+    Sex2 ~ "Female",
+    Satisfaction_Preop ~ "Symptom Satisfaction"
+    ),
+    type = list(
+    Sex2 ~ "dichotomous"
+    ),
+    value = list(
+      Sex2 ~ "Female"
+    ),
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{p}% ({n})"
+      ),
+    missing = "no"
+) |> gtsummary::add_n() |> gtsummary::add_ci(statistic = list(all_categorical() ~ "{conf.low} - {conf.high}",
+                          all_continuous() ~ "{conf.low} - {conf.high}")) |> gtsummary::add_stat_label(
+    location = "row"
+  ) 
+    # |> modify_table_styling(
+    #   columns = label,
+    #   rows = label == "DVA",
+    #   footnote = "DVA = Department of Veterans Affairs"
+    # ) %>% modify_table_styling(
+    #   columns = label,
+    #   rows = label == "TAC",
+    #   footnote = "TAC = Transport Accident Commission"
+    # )
+
+knitr::knit_print(Table4)
+
+
+```
+
+## RECORD \[15\] Outcome data
+
+<!--# Cohort study—Report numbers of outcome events or summary measures over timeCase-control study—Report numbers in each exposure category, or summary measures of exposure Cross-sectional study—Report numbers of outcome events or summary measures -->
+
+Complete case analysis displayed unique distributions of PCS-SF total score between diagnostic groups (Figure 7).
+
+```{r}
+#| label: fig-faospain-cca
+#| fig-cap: "FAOS Pain subscale Total Score by Diagnostic Group"
+
+
+FAOSPlot1 <- ggplot(data = MasterAnalysis, mapping = aes(y = Region, x = FAOS_Pain_TotalScore_Preop)) + stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7) +
+  stat_dotsinterval(side = "bottom", scale = 0.7, slab_linewidth = NA) +
+  scale_fill_brewer(palette = "Set2")
+
+knitr::knit_print(FAOSPlot1)
+```
+
+Correlation matrix for FAOS subscales
+
+```{r}
+
+FAOSCorr <- cor(MasterAnalysis |> dplyr::select(contains("FAOS")) |> dplyr::rename(
+  Pain = "FAOS_Pain_TotalScore_Preop",
+  ADL = "FAOS_DailyLiving_TotalScore_Preop",
+  Symptoms = "FAOS_Symptom_TotalScore_Preop",
+  Sport = "FAOS_Sport_TotalScore_Preop",
+  QoL = "FAOS_Quality_TotalScore_Preop"
+),
+               use = "pairwise.complete.obs")
+```
+
+```{r}
+#| label: fig-corr-plot
+#| fig-cap: "Correlation matrix for FAOS subscales at baseline"
+
+FAOSCorrPlot <- corrplot(FAOSCorr, method = "number")
+
+knitr::knit_print(FAOSCorrPlot)
+
+```
+
+## RECORD \[16\] Main results
+
+<!--# (a) Give unadjusted estimates and, if applicable, confounder-adjusted estimates and their precision (eg, 95% confidence interval). Make clear which confounders were adjusted for and why they were included. (b) Report category boundaries when continuous variables were categorized. (c) If relevant, consider translating estimates of relative risk into absolute risk for a meaningful time period -->
+
+Table 4: Summary of regression assessing the effect of region on PCS-SF adjusted for confounders.
+
+```{r}
+#| label: tbl-FAOS-unadjust
+#| tbl-cap: "Summary of regression assessing the effect of region on FAOS unadjusted"
+
+
+FAOSPainfit1 <- gtsummary::tbl_regression(
+  FAOSPainMod1,
+  tidy_fun = pool_and_tidy_mice,
+               label = list(
+                            Region ~ "Diagnostic Group"
+               ),
+  estimate_fun = function(x) style_number(x, digits = 2),
+  pvalue_fun = function(x) style_pvalue(x, digits = 3),
+  add_estimate_to_reference_rows = TRUE
+)
+
+FAOSSympfit1 <- gtsummary::tbl_regression(
+  FAOSSympMod1,
+  tidy_fun = pool_and_tidy_mice,
+               label = list(
+                            Region ~ "Diagnostic Group"
+               ),
+  estimate_fun = function(x) style_number(x, digits = 2),
+  pvalue_fun = function(x) style_pvalue(x, digits = 3),
+  add_estimate_to_reference_rows = TRUE
+)
+
+FAOSADLfit1 <- gtsummary::tbl_regression(
+  FAOSADLMod1,
+  tidy_fun = pool_and_tidy_mice,
+               label = list(
+                            Region ~ "Diagnostic Group"
+               ),
+  estimate_fun = function(x) style_number(x, digits = 2),
+  pvalue_fun = function(x) style_pvalue(x, digits = 3),
+  add_estimate_to_reference_rows = TRUE
+)
+
+FAOSSportfit1 <- gtsummary::tbl_regression(
+  FAOSSportMod1,
+  tidy_fun = pool_and_tidy_mice,
+               label = list(
+                            Region ~ "Diagnostic Group"
+               ),
+  estimate_fun = function(x) style_number(x, digits = 2),
+  pvalue_fun = function(x) style_pvalue(x, digits = 3),
+  add_estimate_to_reference_rows = TRUE
+)
+
+FAOSQOLfit1 <- gtsummary::tbl_regression(
+  FAOSQOLMod1,
+  tidy_fun = pool_and_tidy_mice,
+               label = list(
+                            Region ~ "Diagnostic Group"
+               ),
+  estimate_fun = function(x) style_number(x, digits = 2),
+  pvalue_fun = function(x) style_pvalue(x, digits = 3),
+  add_estimate_to_reference_rows = TRUE
+)
+
+FAOSfit1 <- tbl_stack(list(
+  FAOSPainfit1,
+  FAOSSympfit1,
+  FAOSADLfit1,
+  FAOSSportfit1,
+  FAOSQOLfit1
+),
+group_header = c("Pain", "Symptoms", "ADL", "Sport", "Quality of Life")
+)
+
+knitr::knit_print(FAOSfit1)
+```
+
+```{r}
+#| label: tbl-FAOSPain-adjust
+#| tbl-cap: "Summary of regression assessing the effect of region on FAOS adjusted for confounders"
+
+
+FAOSPainfit2 <- gtsummary::tbl_regression(
+  FAOSPainMod2,
+  tidy_fun = pool_and_tidy_mice,
+               label = list(
+                            Region ~ "Diagnostic Group"
+               ),
+  estimate_fun = function(x) style_number(x, digits = 2), 
+  pvalue_fun = function(x) style_pvalue(x, digits = 3)
+)  
+
+knitr::knit_print(FAOSPainfit2)
+```
+
+```{r}
+
+# extract approximate F value from manova output
+ManovaPoolstats <- purrr::map_dbl(ManovaMod1$analyses, ~{
+  broom::tidy(.x)$statistic[1]
+})
+
+
+```
+
+```{r}
+# pool approximate F values
+miceadds::micombine.F(ManovaPoolstats, df = 4)
+```
+
+Predictions were generated from the model and summarised.
+
+```{r}
+
+
+# Calculate marginal means
+FAOSPainPredict <- marginaleffects::predictions(
+  FAOSPainMod2,
+  type = "response"
+  ) 
+
+
+```
+
+```{r}
+#| label: fig-predict-pain
+#| fig-cap: "Model predicted FAOS-Pain compared between diagnostic groups - region labels"
+
+
+FAOSPainPlot2 <- ggplot(data = FAOSPainPredict, mapping = aes(y = Region, x = FAOS_Pain_TotalScore_Preop)) + stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7) +
+  stat_dotsinterval(side = "bottom", scale = 0.7, slab_linewidth = NA) +
+  scale_fill_brewer(palette = "Set2")
+
+knitr::knit_print(FAOSPainPlot2)
+```
+
+Table 5: Pairwise comparisons between regions for model-predicted averages of PCS-SF.
+
+```{r}
+#| label: tbl-pwc-faospain
+#| tbl-cap: "Pairwise comparisons between regions for model-predicted averages of FAOS Pain"
+
+
+
+FAOSPainComp <- avg_comparisons(
+  FAOSPainMod2,
+  variables = list(Region = "pairwise"),
+  conf_level = 0.95
+) |> dplyr::select(
+    contrast,
+    estimate,
+    std.error,
+    p.value
+    ) |> gt() |> fmt_number(
+    decimals = 3
+  )
+
+
+knitr::knit_print(FAOSPainComp)
+
+```
+
+## RECORD \[17\] Other analyses
+
+<!--# Report other analyses done—eg analyses of subgroups and interactions, and sensitivity analyses -->
+
+<!--# Repeat modelling without "foot" region -->
+
+# Discussion
+
+## RECORD \[18\] Key results
+
+<!--# Summarise key results with reference to study objectives -->
+
+## RECORD \[19\] Limitations
+
+<!--# Discuss limitations of the study, taking into account sources of potential bias or imprecision. Discuss both direction and magnitude of any potential bias -->
+
+### RECORD \[19.1\] Implications of non-specific data
+
+<!--# RECORD 19.1: Discuss the implications of using data that were not created or collected to answer the specific research question(s). Include discussion of misclassification bias, unmeasured confounding, missing data, and changing eligibility over time, as they pertain to the study being reported. -->
+
+## RECORD \[20\] Interpretation
+
+<!--# Give a cautious overall interpretation of results considering objectives, limitations, multiplicity of analyses, results from similar studies, and other relevant evidence -->
+
+## RECORD \[21\] Generalisability
+
+<!--# Discuss the generalisability (external validity) of the study results -->
+
+# Other information
+
+## RECORD \[22\] Funding
+
+<!--# Give the source of funding and the role of the funders for the present study and, if applicable, for the original study on which the present article is based -->
+
+## RECORD \[23\] Accessibility of protocol, raw data, and programming code
+
+<!--# RECORD 22.1: Authors should provide information on how to access any supplemental information such as the study protocol, raw data, or programming code. -->
+
+Programming code is incorporated into this document.
+
+Study data may be accessed for reasonable research activities by contacting the corresponding author.
+
+# Publishing functions
+
+Write files for publication on posit connect.
