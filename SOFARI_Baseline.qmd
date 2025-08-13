@@ -54,6 +54,7 @@ Load up required packages in advance. Citations are applied to each library at f
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
+  "patchwork",
   "car",
   "corrplot",
   "knitr",
@@ -2024,7 +2025,7 @@ FAOSPainMod1 <- with(
 FAOSPainMod2 <- with(
   MasterImp, 
   exp = lm(
-    FAOS_Pain_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop + PCSSF_TotalScore_Preop
+    FAOS_Pain_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Mental_TotalScore_Preop + PCSSF_TotalScore_Preop
     )
 )
 
@@ -2041,7 +2042,7 @@ FAOSSympMod1 <- with(
 FAOSSympMod2 <- with(
   MasterImp, 
   exp = lm(
-    FAOS_Symptom_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
+    FAOS_Symptom_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Mental_TotalScore_Preop
     )
 )
 
@@ -2265,11 +2266,117 @@ Complete case analysis displayed unique distributions of PCS-SF total score betw
 #| fig-cap: "FAOS Pain subscale Total Score by Diagnostic Group"
 
 
-FAOSPlot1 <- ggplot(data = MasterAnalysis, mapping = aes(y = Region, x = FAOS_Pain_TotalScore_Preop)) + stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7) +
-  stat_dotsinterval(side = "bottom", scale = 0.7, slab_linewidth = NA) +
-  scale_fill_brewer(palette = "Set2")
+FAOSPlot1 <- ggplot(data = MasterAnalysis, mapping = aes(y = FAOS_Pain_TotalScore_Preop, x = Region)) + stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7, fill = "steelblue") +
+  stat_dotsinterval(side = "right", scale = 0.7, slab_linewidth = NA, fill = "steelblue") + labs(y = "FAOS Pain")
 
-knitr::knit_print(FAOSPlot1)
+
+FAOSPlot2 <- ggplot(data = MasterAnalysis |> dplyr::filter(!is.na(Sex2)), mapping = aes(y = FAOS_Pain_TotalScore_Preop, x = Sex2)) + stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7, fill = "steelblue") +
+  stat_dotsinterval(side = "right", scale = 0.7, slab_linewidth = NA, fill = "steelblue") + labs(y = "FAOS Pain")
+
+
+# Plot 3: Age relationship - this needs the most careful handling of missing data
+# First, create a dataset with complete cases for the model
+complete_data <- MasterAnalysis |> 
+  dplyr::filter(!is.na(FAOS_Pain_TotalScore_Preop) & !is.na(AgeAtInitialExam))
+
+# Check if we have enough data
+if(nrow(complete_data) < 10) {
+  warning("Very few complete cases available for regression analysis")
+}
+
+# Fit the linear model on complete data only
+FAOSlm_simple <- lm(FAOS_Pain_TotalScore_Preop ~ AgeAtInitialExam, 
+                    data = complete_data)
+
+# Create prediction grid based on the range of non-missing age data
+prediction_data3 <- tidyr::expand_grid(
+  AgeAtInitialExam = seq(min(complete_data$AgeAtInitialExam, na.rm = TRUE), 
+                         max(complete_data$AgeAtInitialExam, na.rm = TRUE), 
+                         length.out = 101)
+)
+
+# Create the plot using complete data
+FAOSPlot3 <- ggplot(data = complete_data, 
+                    mapping = aes(x = AgeAtInitialExam, y = FAOS_Pain_TotalScore_Preop)) + 
+  geom_point(alpha = 0.5, color = "steelblue") +
+  # stat_lineribbon(
+  #   data = augment(FAOSlm_simple, newdata = prediction_data3, se_fit = TRUE),
+  #   aes(ydist = distributional::dist_student_t(df = df.residual(FAOSlm_simple), 
+  #                              mu = .fitted, 
+  #                              sigma = .se.fit)),
+  #   color = "red", fill = "red", alpha = 0.2, .width = 0.95) +
+  labs(y = "FAOS Pain")
+
+# Combine the plots
+FAOSPlot1 / FAOSPlot2 / FAOSPlot3
+
+```
+
+```{r}
+
+FAOSlm1 <- lm(
+    FAOS_Pain_TotalScore_Preop ~ Sex2 * AgeAtInitialExam,
+    data = MasterAnalysis |> dplyr::filter(!is.na(Sex2))
+)
+
+# Create the expanded grid manually
+prediction_data1 <- tidyr::expand_grid(
+  Sex2 = unique(MasterAnalysis$Sex2[!is.na(MasterAnalysis$Sex2)]),
+  AgeAtInitialExam = seq(min(MasterAnalysis$AgeAtInitialExam, na.rm = TRUE), 
+                         max(MasterAnalysis$AgeAtInitialExam, na.rm = TRUE), 
+                         length.out = 101)
+)
+
+  FAOSlmFig <- augment(FAOSlm1, newdata = prediction_data, se_fit = TRUE) |>
+  ggplot(aes(x = AgeAtInitialExam, fill = ordered(Sex2), color = ordered(Sex2))) +
+  stat_lineribbon(
+    aes(ydist = distributional::dist_student_t(df = df.residual(FAOSlm1), mu = .fitted, sigma = .se.fit)),
+    alpha = 1/4
+  ) +
+  #geom_point(aes(y = FAOS_Pain_TotalScore_Preop), data = MasterAnalysis) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+    color = "Sex2",
+    fill = "Sex2",
+    y = "FAOS_Pain_TotalScore_Preop"
+  )
+
+
+
+```
+
+```{r}
+
+FAOSlm2 <- lm(
+    FAOS_Pain_TotalScore_Preop ~ Sex2 * SRCQTotalScore,
+    data = MasterAnalysis |> dplyr::filter(!is.na(Sex2))
+)
+
+# Create the expanded grid manually
+prediction_data2 <- tidyr::expand_grid(
+  Sex2 = unique(MasterAnalysis$Sex2[!is.na(MasterAnalysis$Sex2)]),
+  SRCQTotalScore = seq(min(MasterAnalysis$SRCQTotalScore, na.rm = TRUE), 
+                         max(MasterAnalysis$SRCQTotalScore, na.rm = TRUE), 
+                         length.out = 101)
+)
+
+  FAOSlmFig2 <- augment(FAOSlm2, newdata = prediction_data2, se_fit = TRUE) |>
+  ggplot(aes(x = SRCQTotalScore, fill = ordered(Sex2), color = ordered(Sex2))) +
+  stat_lineribbon(
+    aes(ydist = distributional::dist_student_t(df = df.residual(FAOSlm2), mu = .fitted, sigma = .se.fit)),
+    alpha = 1/4
+  ) +
+  #geom_point(aes(y = FAOS_Pain_TotalScore_Preop), data = MasterAnalysis) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+    color = "Sex2",
+    fill = "Sex2",
+    y = "FAOS_Pain_TotalScore_Preop"
+  )
+  
+  knitr::knit_print(FAOSlmFig2)
 ```
 
 Correlation matrix for FAOS subscales
