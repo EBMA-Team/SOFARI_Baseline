@@ -2097,21 +2097,6 @@ FAOSQOLMod2 <- with(
     
 ```
 
-```{r}
-
-ManovaMod1 <- with(
-  MasterImp, 
-  exp = lm(cbind(
-    FAOS_Pain_TotalScore_Preop,
-    FAOS_Symptom_TotalScore_Preop
-  ) ~ Region
-    )
-)
-
-car::Manova(ManovaMod1, test.statistic = "Pillai")
-
-
-```
 
 The model was summarised using *gtsummary*. Predicted values for all model variables were generated from the model object using *marginaleffects* (v`{r} utils::packageVersion("marginaleffects")`) [@marginaleffects].
 
@@ -2313,6 +2298,8 @@ FAOSPlot1 / FAOSPlot2 / FAOSPlot3
 ```
 
 ```{r}
+#| label: fig-corr-plot
+#| fig-cap: "Correlation matrix for FAOS subscales at baseline"
 
 FAOSlm1 <- lm(
     FAOS_Pain_TotalScore_Preop ~ Sex2 * AgeAtInitialExam,
@@ -2327,7 +2314,7 @@ prediction_data1 <- tidyr::expand_grid(
                          length.out = 101)
 )
 
-  FAOSlmFig <- augment(FAOSlm1, newdata = prediction_data, se_fit = TRUE) |>
+  FAOSlmFig <- augment(FAOSlm1, newdata = prediction_data1, se_fit = TRUE) |>
   ggplot(aes(x = AgeAtInitialExam, fill = ordered(Sex2), color = ordered(Sex2))) +
   stat_lineribbon(
     aes(ydist = distributional::dist_student_t(df = df.residual(FAOSlm1), mu = .fitted, sigma = .se.fit)),
@@ -2342,11 +2329,13 @@ prediction_data1 <- tidyr::expand_grid(
     y = "FAOS_Pain_TotalScore_Preop"
   )
 
-
+knitr::knit_print(FAOSlmFig2)
 
 ```
 
 ```{r}
+#| label: fig-corr-plot
+#| fig-cap: "Correlation matrix for FAOS subscales at baseline"
 
 FAOSlm2 <- lm(
     FAOS_Pain_TotalScore_Preop ~ Sex2 * SRCQTotalScore,
@@ -2381,21 +2370,18 @@ prediction_data2 <- tidyr::expand_grid(
 
 Correlation matrix for FAOS subscales
 
+
 ```{r}
+#| label: fig-corr-plot
+#| fig-cap: "Correlation matrix for FAOS subscales at baseline"
 
 FAOSCorr <- cor(MasterAnalysis |> dplyr::select(contains("FAOS")) |> dplyr::rename(
   Pain = "FAOS_Pain_TotalScore_Preop",
   ADL = "FAOS_DailyLiving_TotalScore_Preop",
   Symptoms = "FAOS_Symptom_TotalScore_Preop",
   Sport = "FAOS_Sport_TotalScore_Preop",
-  QoL = "FAOS_Quality_TotalScore_Preop"
-),
+  QoL = "FAOS_Quality_TotalScore_Preop"),
                use = "pairwise.complete.obs")
-```
-
-```{r}
-#| label: fig-corr-plot
-#| fig-cap: "Correlation matrix for FAOS subscales at baseline"
 
 FAOSCorrPlot <- corrplot(FAOSCorr, method = "number")
 
@@ -2500,20 +2486,7 @@ FAOSPainfit2 <- gtsummary::tbl_regression(
 knitr::knit_print(FAOSPainfit2)
 ```
 
-```{r}
 
-# extract approximate F value from manova output
-ManovaPoolstats <- purrr::map_dbl(ManovaMod1$analyses, ~{
-  broom::tidy(.x)$statistic[1]
-})
-
-
-```
-
-```{r}
-# pool approximate F values
-miceadds::micombine.F(ManovaPoolstats, df = 4)
-```
 
 Predictions were generated from the model and summarised.
 
