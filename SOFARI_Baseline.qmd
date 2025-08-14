@@ -19,7 +19,7 @@ format:
     code-fold: true
     
     
-bibliography: Baseline references.bib
+bibliography: SOFARI_Baseline.bib
 ---
 
 # Analysis Preamble
