@@ -2298,8 +2298,8 @@ FAOSPlot1 / FAOSPlot2 / FAOSPlot3
 ```
 
 ```{r}
-#| label: fig-corr-plot
-#| fig-cap: "Correlation matrix for FAOS subscales at baseline"
+#| label: fig-simple-model1
+#| fig-cap: "Relationship between interaction effect of sex and age with FAOS-Pain at baseline"
 
 FAOSlm1 <- lm(
     FAOS_Pain_TotalScore_Preop ~ Sex2 * AgeAtInitialExam,
@@ -2334,8 +2334,8 @@ knitr::knit_print(FAOSlmFig2)
 ```
 
 ```{r}
-#| label: fig-corr-plot
-#| fig-cap: "Correlation matrix for FAOS subscales at baseline"
+#| label: fig-simple-model2
+#| fig-cap: "Relationship between interaction effect of sex and self-reported comorbidities score with FAOS-Pain at baseline"
 
 FAOSlm2 <- lm(
     FAOS_Pain_TotalScore_Preop ~ Sex2 * SRCQTotalScore,
