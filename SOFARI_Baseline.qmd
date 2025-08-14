@@ -2314,7 +2314,7 @@ prediction_data1 <- tidyr::expand_grid(
                          length.out = 101)
 )
 
-  FAOSlmFig <- augment(FAOSlm1, newdata = prediction_data1, se_fit = TRUE) |>
+  FAOSlmFig1 <- augment(FAOSlm1, newdata = prediction_data1, se_fit = TRUE) |>
   ggplot(aes(x = AgeAtInitialExam, fill = ordered(Sex2), color = ordered(Sex2))) +
   stat_lineribbon(
     aes(ydist = distributional::dist_student_t(df = df.residual(FAOSlm1), mu = .fitted, sigma = .se.fit)),
