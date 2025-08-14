@@ -2329,7 +2329,7 @@ prediction_data1 <- tidyr::expand_grid(
     y = "FAOS_Pain_TotalScore_Preop"
   )
 
-knitr::knit_print(FAOSlmFig2)
+knitr::knit_print(FAOSlmFig1)
 
 ```
 
