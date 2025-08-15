@@ -1927,10 +1927,34 @@ MasterAnalysis <- MasterTable5 |> dplyr::select(
   TreatmentID:Satisfaction_Preop,
   Region,
   BilateralPres,
+  Pathology,
+  Term3,
   starts_with("FAOS")
 ) |> dplyr::filter(
-  !is.na(Region)
-) 
+  !is.na(Term3)
+) |> mutate( #Fix up pathology, add bilateralpath
+  Pathology2 = if_else(
+    is.na(Pathology),
+    "Multiple",
+    Pathology
+  ),
+  Arthritis = if_else(
+    stringr::str_detect(Term3,"arthrit"),
+    "Yes",
+    "No"
+  ),
+  BilateralPath = if_else(
+    (BilateralPres == "Unilateral" & stringr::str_detect(Term3,"bilateral")) | BilateralPres != "Unilateral",
+    "Bilateral",
+    "Unilateral"
+  )
+) |> dplyr::select(
+ -c(
+   Term3,
+   Pathology,
+   Pathology2
+ )
+)
 ```
 
 Missingness was visualised with the *naniar* package (v`{r} utils::packageVersion("naniar")`) [@naniar]. It showed that patients with a diagnosis also had other missing data, predominantly PROMs data.
@@ -1942,6 +1966,9 @@ Missingness was visualised with the *naniar* package (v`{r} utils::packageVersio
 vis_miss(MasterAnalysis)
 
 ```
+
+Investigate missing pathology
+
 
 The *mice* (v`{r} utils::packageVersion("mice")`) [@mice] was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
 
@@ -1974,7 +2001,7 @@ A strip plot (Figure 3) were used to visually inspect the convergence of the imp
 
 ```{r}
 #| label: fig-stripplot
-#| fig-cap: "Strip plot of imputed data over 5 iterations with 20 imputations per iteration."
+#| fig-cap: "Strip plot of imputed data over 10 iterations with 20 imputations per iteration."
 
 MasterImpStrip <- mice::densityplot(MasterImp)
 
@@ -2018,14 +2045,14 @@ A flow chart was created with the *consort* package (v`{r} utils::packageVersion
 FAOSPainMod1 <- with(
   MasterImp, 
   exp = lm(
-    FAOS_Pain_TotalScore_Preop ~ Region
+    FAOS_Pain_TotalScore_Preop ~ Region*Arthritis
     )
 )
 
 FAOSPainMod2 <- with(
   MasterImp, 
   exp = lm(
-    FAOS_Pain_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Mental_TotalScore_Preop + PCSSF_TotalScore_Preop
+    FAOS_Pain_TotalScore_Preop ~ Region + Arthritis + AgeAtInitialExam + Sex2 + BilateralPath + SRCQTotalScore + VR12_Mental_TotalScore_Preop + PCSSF_TotalScore_Preop
     )
 )
 
@@ -2035,64 +2062,64 @@ FAOSPainMod2 <- with(
 FAOSSympMod1 <- with(
   MasterImp, 
   exp = lm(
-    FAOS_Symptom_TotalScore_Preop ~ Region
+    FAOS_Symptom_TotalScore_Preop ~ Region*Arthritis
     )
 )
 
 FAOSSympMod2 <- with(
   MasterImp, 
   exp = lm(
-    FAOS_Symptom_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Mental_TotalScore_Preop
+    FAOS_Symptom_TotalScore_Preop ~ Region + Arthritis + AgeAtInitialExam + Sex2 + BilateralPath + SRCQTotalScore + VR12_Mental_TotalScore_Preop
     )
 )
 
-#ADL
-
-FAOSADLMod1 <- with(
-  MasterImp, 
-  exp = lm(
-    FAOS_DailyLiving_TotalScore_Preop ~ Region
-    )
-)
-
-FAOSADLMod2 <- with(
-  MasterImp, 
-  exp = lm(
-    FAOS_DailyLiving_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
-    )
-)
-
-#Sport
-
-FAOSSportMod1 <- with(
-  MasterImp, 
-  exp = lm(
-    FAOS_Sport_TotalScore_Preop ~ Region
-    )
-)
-
-FAOSSportMod2 <- with(
-  MasterImp, 
-  exp = lm(
-    FAOS_Sport_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
-    )
-)
-
-#QoL
-
-FAOSQOLMod1 <- with(
-  MasterImp, 
-  exp = lm(
-    FAOS_Quality_TotalScore_Preop ~ Region
-    )
-)
-
-FAOSQOLMod2 <- with(
-  MasterImp, 
-  exp = lm(
-    FAOS_Quality_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
-    )
-)
+# #ADL
+# 
+# FAOSADLMod1 <- with(
+#   MasterImp, 
+#   exp = lm(
+#     FAOS_DailyLiving_TotalScore_Preop ~ Region
+#     )
+# )
+# 
+# FAOSADLMod2 <- with(
+#   MasterImp, 
+#   exp = lm(
+#     FAOS_DailyLiving_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
+#     )
+# )
+# 
+# #Sport
+# 
+# FAOSSportMod1 <- with(
+#   MasterImp, 
+#   exp = lm(
+#     FAOS_Sport_TotalScore_Preop ~ Region
+#     )
+# )
+# 
+# FAOSSportMod2 <- with(
+#   MasterImp, 
+#   exp = lm(
+#     FAOS_Sport_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
+#     )
+# )
+# 
+# #QoL
+# 
+# FAOSQOLMod1 <- with(
+#   MasterImp, 
+#   exp = lm(
+#     FAOS_Quality_TotalScore_Preop ~ Region
+#     )
+# )
+# 
+# FAOSQOLMod2 <- with(
+#   MasterImp, 
+#   exp = lm(
+#     FAOS_Quality_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + BilateralPres + SRCQTotalScore + VR12_Physical_TotalScore_Preop + VR12_Mental_TotalScore_Preop
+#     )
+# )
 
     
 ```
@@ -2197,8 +2224,7 @@ Table4 <- gtsummary::tbl_summary(
   MasterAnalysis |> dplyr::select(
     !(c(
       TreatmentID,
-      PatientID,
-      PCSSF_TotalScore_Preop
+      PatientID
     ))
   ),
 label = list(
@@ -2222,7 +2248,9 @@ label = list(
       ),
     missing = "no"
 ) |> gtsummary::add_n() |> gtsummary::add_ci(statistic = list(all_categorical() ~ "{conf.low} - {conf.high}",
-                          all_continuous() ~ "{conf.low} - {conf.high}")) |> gtsummary::add_stat_label(
+                          all_continuous() ~ "{conf.low} - {conf.high}"),
+                          conf.level = 0.99,
+                          ) |> gtsummary::add_stat_label(
     location = "row"
   ) 
     # |> modify_table_styling(
@@ -2367,6 +2395,9 @@ prediction_data2 <- tidyr::expand_grid(
   
   knitr::knit_print(FAOSlmFig2)
 ```
+
+
+
 
 Correlation matrix for FAOS subscales
 
