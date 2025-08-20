@@ -783,7 +783,8 @@ Data was retrieved and formatted using *openxlsx* [@openxlsx2] to retrieve stati
 
 Source files were specified and stored as global variables to call on in further functions.
 
-```{r, echo = FALSE}
+```{r}
+#| echo: false
 
 SheetIDs <- list(
   Complic1 = "https://docs.google.com/spreadsheets/d/1hs9AHor_cqEOzFBpXHLrcrb2Gs3Ot647g8aMYfax6Fw/edit",
@@ -999,6 +1000,10 @@ unlink(temp_file)
 
 ```
 
+
+
+
+
 ## RECORD \[6\] Participants
 
 <!--# (a) Cohort study—Give the eligibility criteria, and the sources and methods of selection of participants. Describe methods of follow-up -->
@@ -1030,6 +1035,39 @@ Record selection was based on the following criteria;
 -   Diagnosis text had been retrieved at the time of analysis.
 
 The *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] was used to create a table of indications for exclusion for each record and plot a flowchart (see 13.1) indicating the flow from total records processed to the final inclusion sample for analysis.
+
+
+```{r}
+STROBESub <- STROBEInput |> dplyr::select(
+ TreatmentID,
+ TreatmentStatusNotes,
+ TreatmentStatus
+ ) |> dplyr::filter(
+   !is.na(TreatmentStatusNotes),
+   TreatmentStatus == "Archived"
+ )
+
+STROBESub2 <- STROBESub |>
+  dplyr::distinct(TreatmentStatusNotes) |>
+  dplyr::mutate(
+    TreatmentStatusNotes2 = dplyr::case_when(
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "(second|2nd) opinion|(treating surgeon)") ~ "Second opinion",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "referred|(referral.*neuropathic)") ~ "Referred elsewhere",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "opt|op-|withdr*") ~ "Opt out",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "non.*registry|pathology|shoulder|wrist|knee|amput*|acl") ~ "Non-registry pathology",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "attend|cancel|cnx|canx|cx|(never came)|arrive|missed|show|(no referral)") ~ "Did not attend",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "((treatme.*t|tx) offered)|mention|menion|(surgery elsewhere)|(no intervention)|(surgery in ed)|hesitant.*treat") ~ "No treatment offered",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "((sa|ak) patient)|(w sa)|(other surgeon)|(joint consult)") ~ "Non-registry surgeon",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "duplicate|accessory|error|reop|complication|incorrect|(additional treatment)|superfluous") ~ "Accessory record",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "pre.*registry|prior|(existing treatment)") ~ "Followup of pre-registry treatment",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "imaging|mri|(returned for results)") ~ "Incomplete diagnosis",
+      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "no.*(note|letter|info|record)|insufficient") ~ "Insufficient information",
+      .default = NA_character_
+    )
+  )
+```
+
+
 
 ```{r}
 
@@ -2052,7 +2090,7 @@ FAOSPainMod1 <- with(
 FAOSPainMod2 <- with(
   MasterImp, 
   exp = lm(
-    FAOS_Pain_TotalScore_Preop ~ Region + Arthritis + AgeAtInitialExam + Sex2 + BilateralPath + SRCQTotalScore + VR12_Mental_TotalScore_Preop + PCSSF_TotalScore_Preop
+    FAOS_Pain_TotalScore_Preop ~ Region * Arthritis + AgeAtInitialExam + Sex2 + BilateralPath + SRCQTotalScore + VR12_Mental_TotalScore_Preop + PCSSF_TotalScore_Preop
     )
 )
 
@@ -2069,7 +2107,7 @@ FAOSSympMod1 <- with(
 FAOSSympMod2 <- with(
   MasterImp, 
   exp = lm(
-    FAOS_Symptom_TotalScore_Preop ~ Region + Arthritis + AgeAtInitialExam + Sex2 + BilateralPath + SRCQTotalScore + VR12_Mental_TotalScore_Preop
+    FAOS_Symptom_TotalScore_Preop ~ Region * Arthritis + AgeAtInitialExam + Sex2 + BilateralPath + SRCQTotalScore + VR12_Mental_TotalScore_Preop
     )
 )
 
@@ -2187,10 +2225,14 @@ min_count <- 10
 
 # Basic counts
   basic_counts2 <- MasterAnalysis |> 
-    count(Region, sort = TRUE) %>%
+    count(Region,Arthritis, sort = TRUE) %>%
     mutate(
       percentage = n / sum(n) * 100,
       cumulative_percentage = cumsum(percentage)
+    ) |> tidyr::unite(
+      "RegionArthritis",
+      Region:Arthritis,
+      remove = FALSE
     )
 
 
@@ -2201,7 +2243,7 @@ min_count <- 10
       !is.na(Region)
       )  # Filter for readability
   
-  cohort_plot <- ggplot(plot_data, aes(x = reorder(Region, -n), y = n)) +
+  cohort_plot <- ggplot(plot_data, aes(x = reorder(RegionArthritis, -n), y = n)) +
     geom_bar(stat = "identity", fill = "steelblue") +
     geom_text(aes(label = sprintf("%.1f%%", percentage)), 
               vjust = -0.5, size = 3) +
@@ -2233,6 +2275,7 @@ label = list(
     #BMI ~ "Body Mass Index",
     BilateralPres ~ "Bilateral",
     Region ~ "Diagnostic Group",
+    Arthritis ~ "Arthritis",
     Sex2 ~ "Female",
     Satisfaction_Preop ~ "Symptom Satisfaction"
     ),
@@ -2279,8 +2322,12 @@ Complete case analysis displayed unique distributions of FAOS - Pain total score
 #| fig-cap: "FAOS Pain subscale Total Score by Diagnostic Group"
 
 
-FAOSPlot1 <- ggplot(data = MasterAnalysis, mapping = aes(y = FAOS_Pain_TotalScore_Preop, x = Region)) + stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7, fill = "steelblue") +
-  stat_dotsinterval(side = "right", scale = 0.7, slab_linewidth = NA, fill = "steelblue") + labs(y = "FAOS Pain")
+FAOSPlot1 <- ggplot(data = MasterAnalysis, mapping = aes(y = FAOS_Pain_TotalScore_Preop, x = Region, fill = Arthritis)) + 
+  stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7) +
+  stat_dotsinterval(side = "right", scale = 0.7, slab_linewidth = NA) + 
+  labs(y = "FAOS Pain") +
+  scale_fill_manual(values = c("Yes" = "steelblue", "No" = "lightblue")) +
+  theme(legend.title = element_text(face = "bold"))
 
 
 FAOSPlot2 <- ggplot(data = MasterAnalysis |> dplyr::filter(!is.na(Sex2)), mapping = aes(y = FAOS_Pain_TotalScore_Preop, x = Sex2)) + stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7, fill = "steelblue") +
@@ -2320,8 +2367,11 @@ FAOSPlot3 <- ggplot(data = complete_data,
   #   color = "red", fill = "red", alpha = 0.2, .width = 0.95) +
   labs(y = "FAOS Pain")
 
+FAOSPlot4 <- ggplot(data = MasterAnalysis |> dplyr::filter(!is.na(Arthritis)), mapping = aes(y = FAOS_Pain_TotalScore_Preop, x = Arthritis)) + stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7, fill = "steelblue") +
+  stat_dotsinterval(side = "right", scale = 0.7, slab_linewidth = NA, fill = "steelblue") + labs(y = "FAOS Pain")
+
 # Combine the plots
-FAOSPlot1 / FAOSPlot2 / FAOSPlot3
+(FAOSPlot1 + FAOSPlot2) / (FAOSPlot3 + FAOSPlot4)
 
 ```
 
@@ -2330,20 +2380,18 @@ FAOSPlot1 / FAOSPlot2 / FAOSPlot3
 #| fig-cap: "Relationship between interaction effect of sex and age with FAOS-Pain at baseline"
 
 FAOSlm1 <- lm(
-    FAOS_Pain_TotalScore_Preop ~ Sex2 * AgeAtInitialExam,
-    data = MasterAnalysis |> dplyr::filter(!is.na(Sex2))
+    FAOS_Pain_TotalScore_Preop ~ Region * Arthritis,
+    data = MasterAnalysis |> dplyr::filter(!(Region == "Foot"))
 )
 
 # Create the expanded grid manually
 prediction_data1 <- tidyr::expand_grid(
-  Sex2 = unique(MasterAnalysis$Sex2[!is.na(MasterAnalysis$Sex2)]),
-  AgeAtInitialExam = seq(min(MasterAnalysis$AgeAtInitialExam, na.rm = TRUE), 
-                         max(MasterAnalysis$AgeAtInitialExam, na.rm = TRUE), 
-                         length.out = 101)
+  Region = unique(MasterAnalysis$Region[!is.na(MasterAnalysis$Region) & MasterAnalysis$Region != "Foot"]),
+  Arthritis = unique(MasterAnalysis$Arthritis[!is.na(MasterAnalysis$Arthritis)])
 )
 
   FAOSlmFig1 <- augment(FAOSlm1, newdata = prediction_data1, se_fit = TRUE) |>
-  ggplot(aes(x = AgeAtInitialExam, fill = ordered(Sex2), color = ordered(Sex2))) +
+  ggplot(aes(x = Region, fill = ordered(Arthritis), color = ordered(Arthritis))) +
   stat_lineribbon(
     aes(ydist = distributional::dist_student_t(df = df.residual(FAOSlm1), mu = .fitted, sigma = .se.fit)),
     alpha = 1/4
@@ -2352,8 +2400,8 @@ prediction_data1 <- tidyr::expand_grid(
   scale_fill_brewer(palette = "Set2") +
   scale_color_brewer(palette = "Dark2") +
   labs(
-    color = "Sex2",
-    fill = "Sex2",
+    color = "Arthritis",
+    fill = "Arthritis",
     y = "FAOS_Pain_TotalScore_Preop"
   )
 
