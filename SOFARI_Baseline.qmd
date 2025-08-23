@@ -2927,8 +2927,8 @@ create_faos_comparisons <- function(model_list,
       all_comparisons <- all_comparisons |>
         mutate(
           p.value.raw = p.value,  # Keep original p-values
-          p.value.fdr = p.adjust(p.value, method = "BH"),  # FDR adjusted p-values
-          significant.fdr = p.value.fdr < 0.05  # Flag FDR-significant results
+          p.value.fdr = p.adjust(p.value, method = "BH")  # FDR adjusted p-values
+          #significant.fdr = p.value.fdr < 0.05  # Flag FDR-significant results
         )
     }
     
@@ -2958,12 +2958,12 @@ create_faos_comparisons <- function(model_list,
           estimate = "Estimate",
           std.error = "SE",
           p.value.raw = "p-value (raw)",
-          p.value.fdr = "p-value (FDR)",
-          significant.fdr = "FDR Sig."
+          p.value.fdr = "p-value (FDR)"
+          #significant.fdr = "FDR Sig."
         ) |>
         tab_style(
           style = cell_fill(color = "lightblue"),
-          locations = cells_body(rows = significant.fdr == TRUE)
+          locations = cells_body(rows =  p.value.fdr < 0.05)
         ) |>
         tab_footnote(
           footnote = "FDR correction applied across all 75 comparisons (15 region pairs × 5 FAOS subscales)",
