@@ -2902,26 +2902,18 @@ create_faos_comparisons <- function(model_list,
                                    comparison_type = "pairwise",
                                    conf_level = 0.95,
                                    decimals = 3,
+                                   fdr_correction = TRUE,
                                    table_caption = "Pairwise comparisons between regions for model-predicted FAOS scores") {
-  
-  # Capture parameters to avoid scoping issues
-  var_name <- variable
-  comp_type <- comparison_type
-  conf_lvl <- conf_level
-  dec <- decimals
   
   if(combined) {
     # Create one combined table with all FAOS subscales
     all_comparisons <- map2_dfr(model_list, names(model_list), function(model, subscale_name) {
       
-      # Create the variables list for avg_comparisons
-      variables_list <- setNames(list(comp_type), var_name)
-      
-      # Generate comparisons
+      # Generate comparisons - hard-code the most common case
       comparisons <- avg_comparisons(
         model,
-        variables = variables_list,
-        conf_level = conf_lvl
+        variables = list(Region = "pairwise"),
+        conf_level = 0.95
       )
       
       # Add subscale identifier and select columns
@@ -2929,6 +2921,16 @@ create_faos_comparisons <- function(model_list,
         dplyr::select(contrast, estimate, std.error, p.value) |>
         mutate(subscale = subscale_name, .before = 1)
     })
+    
+    # Apply FDR correction across ALL comparisons if requested
+    if(fdr_correction) {
+      all_comparisons <- all_comparisons |>
+        mutate(
+          p.value.raw = p.value,  # Keep original p-values
+          p.value.fdr = p.adjust(p.value, method = "BH"),  # FDR adjusted p-values
+          significant.fdr = p.value.fdr < 0.05  # Flag FDR-significant results
+        )
+    }
     
     # Clean up subscale names for display
     all_comparisons <- all_comparisons |>
@@ -2942,48 +2944,133 @@ create_faos_comparisons <- function(model_list,
       ))
     
     # Create combined gt table
-    result <- all_comparisons |>
-      gt(groupname_col = "subscale") |>
-      fmt_number(columns = c(estimate, std.error, p.value), decimals = dec) |>
-      tab_header(title = table_caption) |>
-      cols_label(
-        contrast = "Contrast",
-        estimate = "Estimate",
-        std.error = "SE",
-        p.value = "p-value"
-      ) |>
-      tab_options(
-        row_group.font.weight = "bold"
-      )
+    if(fdr_correction) {
+      # Table with both raw and FDR-adjusted p-values
+      result <- all_comparisons |>
+        gt(groupname_col = "subscale") |>
+        fmt_number(columns = c(estimate, std.error, p.value.raw, p.value.fdr), decimals = 3) |>
+        tab_header(
+          title = table_caption,
+          subtitle = "P-values adjusted for multiple comparisons using Benjamini-Hochberg FDR correction"
+        ) |>
+        cols_label(
+          contrast = "Contrast",
+          estimate = "Estimate",
+          std.error = "SE",
+          p.value.raw = "p-value (raw)",
+          p.value.fdr = "p-value (FDR)",
+          significant.fdr = "FDR Sig."
+        ) |>
+        tab_style(
+          style = cell_fill(color = "lightblue"),
+          locations = cells_body(rows = significant.fdr == TRUE)
+        ) |>
+        tab_footnote(
+          footnote = "FDR correction applied across all 75 comparisons (15 region pairs × 5 FAOS subscales)",
+          locations = cells_column_labels(columns = p.value.fdr)
+        ) |>
+        tab_options(
+          row_group.font.weight = "bold"
+        )
+    } else {
+      # Standard table with raw p-values only
+      result <- all_comparisons |>
+        gt(groupname_col = "subscale") |>
+        fmt_number(columns = c(estimate, std.error, p.value), decimals = 3) |>
+        tab_header(title = table_caption) |>
+        cols_label(
+          contrast = "Contrast",
+          estimate = "Estimate",
+          std.error = "SE",
+          p.value = "p-value"
+        ) |>
+        tab_options(
+          row_group.font.weight = "bold"
+        )
+    }
     
     return(result)
     
   } else {
     # Create separate tables for each FAOS subscale
-    comparison_tables <- map2(model_list, names(model_list), function(model, subscale_name) {
+    # First, get all comparisons to calculate FDR across all subscales
+    if (fdr_correction) {
+      all_comparisons_temp <- map2_dfr(model_list, names(model_list), function(model, subscale_name) {
+        comparisons <- avg_comparisons(
+          model,
+          variables = list(Region = "pairwise"),
+          conf_level = 0.95
+        )
+        
+        comparisons |>
+          dplyr::select(contrast, estimate, std.error, p.value) |>
+          mutate(subscale = subscale_name, .before = 1)
+      })
       
-      # Create the variables list for avg_comparisons
-      variables_list <- setNames(list(comp_type), var_name)
+      # Apply FDR correction across all comparisons
+      all_comparisons_temp <- all_comparisons_temp |>
+        mutate(p.value.fdr = p.adjust(p.value, method = "BH"))
+    }
+    
+    comparison_tables <- map2(model_list, names(model_list), function(model, subscale_name) {
       
       # Generate comparisons
       comparisons <- avg_comparisons(
         model,
-        variables = variables_list,
-        conf_level = conf_lvl
+        variables = list(Region = "pairwise"),
+        conf_level = 0.95
       )
       
+      comparisons_df <- comparisons |>
+        dplyr::select(contrast, estimate, std.error, p.value)
+      
+      # Add FDR-adjusted p-values if correction requested
+      if (fdr_correction) {
+        fdr_values <- all_comparisons_temp |>
+          filter(subscale == subscale_name) |>
+          pull(p.value.fdr)
+        
+        comparisons_df <- comparisons_df |>
+          mutate(
+            p.value.raw = p.value,
+            p.value.fdr = fdr_values
+            #significant.fdr = p.value.fdr < 0.05
+          )
+      }
+      
       # Create individual gt table
-      comp_table <- comparisons |>
-        dplyr::select(contrast, estimate, std.error, p.value) |>
-        gt() |>
-        fmt_number(decimals = dec) |>
-        tab_header(title = paste("FAOS", subscale_name, "- Pairwise Comparisons")) |>
-        cols_label(
-          contrast = "Contrast",
-          estimate = "Estimate",
-          std.error = "SE", 
-          p.value = "p-value"
-        )
+      if(fdr_correction) {
+        comp_table <- comparisons_df |>
+          gt() |>
+          fmt_number(columns = c(estimate, std.error, p.value.raw, p.value.fdr), decimals = 3) |>
+          tab_header(
+            title = paste("FAOS", subscale_name, "- Pairwise Comparisons"),
+            subtitle = "P-values adjusted for multiple comparisons using Benjamini-Hochberg FDR correction"
+          ) |>
+          cols_label(
+            contrast = "Contrast",
+            estimate = "Estimate",
+            std.error = "SE",
+            p.value.raw = "p-value (raw)",
+            p.value.fdr = "p-value (FDR)"
+            #significant.fdr = "FDR Sig."
+          ) |>
+          tab_style(
+            style = cell_fill(color = "lightblue"),
+            locations = cells_body(rows =  p.value.fdr < 0.05)
+          )
+      } else {
+        comp_table <- comparisons_df |>
+          gt() |>
+          fmt_number(columns = c(estimate, std.error, p.value), decimals = 3) |>
+          tab_header(title = paste("FAOS", subscale_name, "- Pairwise Comparisons")) |>
+          cols_label(
+            contrast = "Contrast",
+            estimate = "Estimate",
+            std.error = "SE", 
+            p.value = "p-value"
+          )
+      }
       
       return(comp_table)
     })
@@ -2994,6 +3081,8 @@ create_faos_comparisons <- function(model_list,
 }
 
 
+
+
 ```
 
 ```{r}
@@ -3001,8 +3090,8 @@ create_faos_comparisons <- function(model_list,
 #| tbl-cap: "Pairwise comparisons between regions for model-predicted averages of FAOS Pain"
 
 
-combined_comparisons <- create_faos_comparisons(adjusted_models, combined = TRUE)
-# knitr::knit_print(combined_comparisons)
+combined_comparisons <- create_faos_comparisons(adjusted_models, combined = TRUE, fdr_correction = TRUE)
+knitr::knit_print(combined_comparisons)
 
 ```
 
