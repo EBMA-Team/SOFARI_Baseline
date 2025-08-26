@@ -54,6 +54,7 @@ Load up required packages in advance. Citations are applied to each library at f
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
+  "effectsize",
   "purrr",
   "patchwork",
   "car",
@@ -132,7 +133,8 @@ knitr::kable(
 
 Pre-authorise access to registry datasets using the *gargle* package (v`{r} utils::packageVersion("gargle")`) [@gargle].
 
-```{r, echo = FALSE}
+```{r}
+#| echo: false
 
 # Set the cache location
 options(gargle_oauth_cache = ".secrets")
@@ -142,7 +144,8 @@ drive_auth(email = "cscholes@ebma.com.au",
           cache = ".secrets")
 ```
 
-```{r, echo = FALSE}
+```{r}
+#| echo: false
 
 options(
   gargle_oauth_cache = ".secrets",
@@ -763,7 +766,7 @@ create_faos_regression_table <- function(model_list,
     ),
     "fully_adjusted" = list(
       Region ~ "Region"
-      # Arthritis ~ "Arthritis",
+      #Arthritis ~ "Arthritis"
       # AgeAtInitialExam ~ "Age at Initial Exam", 
       # Sex2 ~ "Sex",
       # BilateralPath ~ "Bilateral Pathology",
@@ -838,8 +841,7 @@ create_descriptive_table <- function(descriptive_models,
     "AgeAtInitialExam" = list(AgeAtInitialExam ~ "Age at Initial Exam", Sex2 ~ "Sex"),
     "SRCQTotalScore" = list(SRCQTotalScore ~ "Self-Reported Comorbidities", 
                            AgeAtInitialExam ~ "Age at Initial Exam", Sex2 ~ "Sex"),
-    "VR12_Mental_TotalScore_Preop" = list(VR12_Mental_TotalScore_Preop ~ "VR12 Mental Component",
-                                         AgeAtInitialExam ~ "Age at Initial Exam", Sex2 ~ "Sex")
+    "VR12_Mental_TotalScore_Preop" = list(VR12_Mental_TotalScore_Preop ~ "VR12 Mental", Sex2 ~ "Sex")
   )
   
   table <- create_faos_regression_table(descriptive_models, 
@@ -1029,7 +1031,6 @@ fit_adjusted_models <- function(imputed_data, outcomes = NULL) {
   fit_faos_models(imputed_data, outcomes = outcomes, model_type = "fully_adjusted")
 }
 ```
-
 
 ```{r}
 #| label: comparison-table-func
@@ -2635,7 +2636,7 @@ A flow chart was created with the *consort* package (v`{r} utils::packageVersion
 
 ```{r}
 
-# unadjusted_models <- fit_unadjusted_models(MasterImp)
+unadjusted_models <- fit_unadjusted_models(MasterImp)
 adjusted_models <- fit_adjusted_models(MasterImp)
 
 ```
@@ -2731,6 +2732,8 @@ min_count <- 10
          y = "Count")
   
   knitr::knit_print(cohort_plot)
+  
+  
 ```
 
 Patient characteristics for the sample are summarised.
@@ -2790,45 +2793,42 @@ knitr::knit_print(Table4)
 
 ## RECORD \[15\] Outcome data
 
-```{=html}
-<!--# Cohort study—Report numbers of outcome events or summary measures over time
-Case-control study—Report numbers in each exposure category, or summary measures of exposure 
-Cross-sectional study—Report numbers of outcome events or summary measures -->
-```
-
-
+<!--# Cohort study—Report numbers of outcome events or summary measures over time. Case-control study—Report numbers in each exposure category, or summary measures of exposure Cross-sectional study—Report numbers of outcome events or summary measures -->
 
 ```{r}
-# Simple approach - create a list of your models
-models <- list(
-  Pain = 
+#| label: fig-desc-agesex
+#| fig-cap: "FAOS subscales visualised against age, categorised by sex"
 
-```{r}
-
-# Test the main function
-#age_models <- fit_descriptive_models(MasterImp, covariate = "AgeAtInitialExam")
-
-
+# For descriptive plots - Age relationship (minimally adjusted for sex only)
+age_models <- fit_descriptive_models(MasterImp, covariate = "AgeAtInitialExam")
 age_plots <- create_faos_plots(age_models, plot_type = "age_sex")
 
+(age_plots$Pain + age_plots$Symptom + age_plots$Daily + age_plots$Sport + age_plots$Quality) + patchwork::plot_layout(ncol = 2)
+
 
 ```
 
 ```{r}
+#| label: fig-desc-comorbidsex
+#| fig-cap: "FAOS subscales visualised against self-reported comorbidity score, categorised by sex"
 
-age_plots$Pain + age_plots$Quality
 
-```
-
-```{r}
 comorbidity_models <- fit_descriptive_models(MasterImp, covariate = "SRCQTotalScore")
 comorbidity_plots <- create_faos_plots(comorbidity_models, plot_type = "comorbidities_sex")
+
+(comorbidity_plots$Pain + comorbidity_plots$Symptom + comorbidity_plots$Daily + comorbidity_plots$Sport + comorbidity_plots$Quality) + patchwork::plot_layout(ncol = 2)
+
 ```
 
 ```{r}
+#| label: fig-desc-agearthritis
+#| fig-cap: "FAOS subscales visualised against age, categorised by the presence or absence of an arthritis diagnosis"
+#| eval: false
 
-comorbidity_plots$Pain + comorbidity_plots$Quality
+arthritis_models <- fit_descriptive_models(MasterImp, covariate = "AgeAtInitialExam")
+arthritis_plots <- create_faos_plots(arthritis_models, plot_type = "age_arthritis")
 
+(arthritis_plots$Pain + arthritis_plots$Symptom + arthritis_plots$Daily + arthritis_plots$Sport + arthritis_plots$Quality) + patchwork::plot_layout(ncol = 2)
 ```
 
 Correlation matrix for FAOS subscales
@@ -2837,12 +2837,7 @@ Correlation matrix for FAOS subscales
 #| label: fig-corr-plot
 #| fig-cap: "Correlation matrix for FAOS subscales at baseline using imputed data"
 
-library(mice)
-library(corrplot)
-library(dplyr)
 
-# Method 1: Using pooled correlations across all imputations
-# This is the most statistically appropriate approach
 
 # Function to calculate correlations for each imputed dataset
 calc_faos_corr <- function(imp_data) {
@@ -2904,12 +2899,12 @@ Table 4: Summary of regression assessing the effect of region on FAOS-Pain adjus
 #| tbl-cap: "Summary of regression assessing the effect of region on FAOS unadjusted"
 
 
-# unadjusted_table <- create_unadjusted_table(unadjusted_models)
+unadjusted_table <- create_unadjusted_table(unadjusted_models)
 knitr::knit_print(unadjusted_table)
 ```
 
 ```{r}
-#| label: tbl-FAOSPain-adjust
+#| label: tbl-FAOS-adjust
 #| tbl-cap: "Summary of regression assessing the effect of region on FAOS adjusted for confounders"
 
 
@@ -2918,15 +2913,15 @@ knitr::knit_print(adjusted_table)
 ```
 
 ```{r}
+#| label: fig-FAOS-adjust
+#| tbl-cap: "Adjusted FAOS subscales across anatomical regions adjusted for potential confounders"
 
 adjusted_region_plots <- create_faos_plots(adjusted_models, plot_type = "region_distribution")
 
 
-adjusted_region_plots$Pain + adjusted_region_plots$Quality
+(adjusted_region_plots$Pain + adjusted_region_plots$Symptom + adjusted_region_plots$Daily + adjusted_region_plots$Sport + adjusted_region_plots$Quality) + patchwork::plot_layout(ncol = 2)
 
 ```
-
-
 
 ```{r}
 #| label: tbl-pwc-faospain
@@ -2942,116 +2937,180 @@ knitr::knit_print(combined_comparisons)
 
 <!--# Report other analyses done—eg analyses of subgroups and interactions, and sensitivity analyses -->
 
-Filter for ankle arthritis and plot against other characteristics
+## Benchmark subgroup
+
+Review how isolated ankle arthritis compares to other ankle pathology and arthritis spanning multiple foot-ankle regions
 
 ```{r}
-#| label: tbl-demographics2
-#| tbl-cap: "Summary of patient and treatment record characteristics for the ankle sub-sample."
 
-MasterAnalysisSub <- MasterTable5 |> dplyr::select(
-  TreatmentID:Satisfaction_Preop,
-  Pathology,
-  Region,
-  BilateralPres,
-  starts_with("FAOS")
-) |> dplyr::filter(
-  !is.na(Region),
-  !is.na(Sex2),
-  Region == "Ankle",
-  Pathology == "Arthritis"
-) 
+# Step 1: Pool the multiple imputations first
+# Pool imputations using mice::complete() with action = "long" for easy handling
+pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) %>%
+  # Calculate pooled estimates for each row across all imputations
+  group_by(.id) %>%
+  summarise(
+    # Keep categorical/character variables from first imputation
+    TreatmentID = first(TreatmentID),
+    PatientID = first(PatientID),
+    TreatmentType = first(TreatmentType),
+    Sex2 = first(Sex2),
+    Provider = first(Provider),
+    BilateralPres = first(BilateralPres),
+    Region = first(Region),
+    Arthritis = first(Arthritis),
+    BilateralPath = first(BilateralPath),
+    Satisfaction_Preop = first(Satisfaction_Preop),
+    
+    # Pool continuous variables by taking the mean across imputations
+    AgeAtInitialExam = mean(AgeAtInitialExam, na.rm = TRUE),
+    InjuryToPresentation = mean(InjuryToPresentation, na.rm = TRUE),
+    VR12_Physical_TotalScore_Preop = mean(VR12_Physical_TotalScore_Preop, na.rm = TRUE),
+    VR12_Mental_TotalScore_Preop = mean(VR12_Mental_TotalScore_Preop, na.rm = TRUE),
+    SRCQTotalScore = mean(SRCQTotalScore, na.rm = TRUE),
+    PCSSF_TotalScore_Preop = mean(PCSSF_TotalScore_Preop, na.rm = TRUE),
+    FAOS_Symptom_TotalScore_Preop = mean(FAOS_Symptom_TotalScore_Preop, na.rm = TRUE),
+    FAOS_Pain_TotalScore_Preop = mean(FAOS_Pain_TotalScore_Preop, na.rm = TRUE),
+    FAOS_DailyLiving_TotalScore_Preop = mean(FAOS_DailyLiving_TotalScore_Preop, na.rm = TRUE),
+    FAOS_Sport_TotalScore_Preop = mean(FAOS_Sport_TotalScore_Preop, na.rm = TRUE),
+    FAOS_Quality_TotalScore_Preop = mean(FAOS_Quality_TotalScore_Preop, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  select(-.id)
 
+```
 
-TblDemoSub <- gtsummary::tbl_summary(
-  MasterAnalysisSub |> dplyr::select(
-    !(c(
-      TreatmentID,
-      PatientID,
-      Pathology,
-      Region
-    ))
-  ),
-label = list(
-    AgeAtInitialExam ~ "Age",
-    InjuryToPresentation ~ "Onset to Presentation (Days)",
-    #BMI ~ "Body Mass Index",
-    BilateralPres ~ "Bilateral",
-    #Region ~ "Diagnostic Group",
-    Sex2 ~ "Female",
-    Satisfaction_Preop ~ "Symptom Satisfaction",
-    PCSSF_TotalScore_Preop ~ "Pan Catastrophising"
-    ),
-    type = list(
-    Sex2 ~ "dichotomous"
-    ),
-    value = list(
-      Sex2 ~ "Female"
-    ),
+```{r}
+# Step 2: Create the comparison groups on pooled data
+ankle_comparison <- pooled_subset %>%
+  # Create a comparison group variable
+  mutate(
+    ComparisonGroup = case_when(
+      Region == "Ankle" & Arthritis == "Yes" ~ "Ankle Arthritis",
+      Region == "Ankle" & Arthritis == "No" ~ "Ankle Non-Arthritis", 
+      Region == "Multiple" ~ "Multiple Regions",
+      TRUE ~ "Other"  # This captures all other combinations
+    )
+  ) %>%
+  # Filter to keep only the three groups of interest
+  filter(ComparisonGroup %in% c("Ankle Arthritis", "Ankle Non-Arthritis", "Multiple Regions"))
+
+# Check the sample sizes
+ankle_comparison %>%
+  count(ComparisonGroup) %>%
+  print()
+```
+
+```{r}
+#| label: tbl-subset
+#| tbl-cap: "Comparison between sub-groups derived from registry cohort for FAOS subscales and other characteristics"
+
+ # Function to calculate eta-squared for one-way ANOVA (overall effect size)
+EtaSquared <- function(data, variable, by, ...) {
+  # Perform ANOVA
+  model <- aov(data[[variable]] ~ factor(data[[by]]))
+  
+  # Calculate eta-squared with confidence interval
+  es <- effectsize::eta_squared(model, ci = 0.90)
+  
+  # Format results
+  est <- style_sigfig(es$Eta2)
+  ci_lower <- style_sigfig(es$CI_low)
+  ci_upper <- style_sigfig(es$CI_high)
+  
+  # Return formatted results
+  tibble(
+    eta_squared = stringr::str_glue("{est} ({ci_lower}, {ci_upper})"),
+    interpret_eta = stringr::str_glue("{effectsize::interpret_eta_squared(es$Eta2, rules = 'field2013')}")
+  )
+}
+
+# Function to calculate largest raw difference on response scale
+MaxRawDifference <- function(data, variable, by, ...) {
+  # Calculate group means
+  group_means <- data %>%
+    group_by(!!sym(by)) %>%
+    summarise(mean_val = mean(!!sym(variable), na.rm = TRUE), .groups = 'drop')
+  
+  # Find all pairwise differences
+  groups <- group_means[[by]]
+  means <- group_means$mean_val
+  names(means) <- groups
+  
+  pairwise_diffs <- list()
+  comparison_names <- list()
+  
+  for(i in 1:(length(groups)-1)) {
+    for(j in (i+1):length(groups)) {
+      diff <- abs(means[i] - means[j])
+      pairwise_diffs <- append(pairwise_diffs, diff)
+      comparison_names <- append(comparison_names, 
+                                paste(groups[i], "vs", groups[j]))
+    }
+  }
+  
+  # Find the maximum difference and which groups it's between
+  max_diff_idx <- which.max(unlist(pairwise_diffs))
+  max_diff <- unlist(pairwise_diffs)[max_diff_idx]
+  max_comparison <- unlist(comparison_names)[max_diff_idx]
+  
+  # Format results
+  diff_formatted <- style_sigfig(max_diff)
+  
+  tibble(
+    max_raw_diff = diff_formatted,
+    comparison_groups = max_comparison
+  )
+}
+
+# Step 3: Summary statistics using gtsummary on pooled data
+subset_summary <- ankle_comparison %>%
+  select(ComparisonGroup, AgeAtInitialExam, Sex2, 
+         VR12_Physical_TotalScore_Preop, VR12_Mental_TotalScore_Preop,
+         FAOS_Symptom_TotalScore_Preop, FAOS_Pain_TotalScore_Preop, 
+         FAOS_DailyLiving_TotalScore_Preop, FAOS_Sport_TotalScore_Preop, 
+         FAOS_Quality_TotalScore_Preop, SRCQTotalScore, PCSSF_TotalScore_Preop) %>%
+  tbl_summary(
+    by = ComparisonGroup,
     statistic = list(
       all_continuous() ~ "{mean} ({sd})",
-      all_categorical() ~ "{p}% ({n})"
-      ),
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    digits = all_continuous() ~ 1,
+    label = list(
+      AgeAtInitialExam ~ "Age at Initial Exam",
+      Sex2 ~ "Sex",
+      VR12_Physical_TotalScore_Preop ~ "VR-12 Physical Score",
+      VR12_Mental_TotalScore_Preop ~ "VR-12 Mental Score",
+      FAOS_Symptom_TotalScore_Preop ~ "FAOS Symptom Score",
+      FAOS_Pain_TotalScore_Preop ~ "FAOS Pain Score",
+      FAOS_DailyLiving_TotalScore_Preop ~ "FAOS Daily Living Score",
+      FAOS_Sport_TotalScore_Preop ~ "FAOS Sport Score",
+      FAOS_Quality_TotalScore_Preop ~ "FAOS Quality of Life Score",
+      SRCQTotalScore ~ "SRCQ Total Score",
+      PCSSF_TotalScore_Preop ~ "PCS-SF Total Score"
+    ),
     missing = "no"
-) |> gtsummary::add_n() |> gtsummary::add_ci(statistic = list(all_categorical() ~ "{conf.low} - {conf.high}",
-                          all_continuous() ~ "{conf.low} - {conf.high}")) |> gtsummary::add_stat_label(
-    location = "row"
-  ) 
-    # |> modify_table_styling(
-    #   columns = label,
-    #   rows = label == "DVA",
-    #   footnote = "DVA = Department of Veterans Affairs"
-    # ) %>% modify_table_styling(
-    #   columns = label,
-    #   rows = label == "TAC",
-    #   footnote = "TAC = Transport Accident Commission"
-    # )
+  ) |>
+  add_n() |>
+  add_p(test = list(
+    all_continuous() ~ "oneway.test",
+    all_categorical() ~ "chisq.test"
+  )) %>%
+  add_stat(fns = all_continuous() ~ EtaSquared) %>%
+  add_stat(fns = all_continuous() ~ MaxRawDifference) %>%
+  add_overall() |>
+  modify_header(
+    label ~ "**Characteristic**",
+    eta_squared ~ "**η² (90% CI)**",
+    interpret_eta ~ "**η² Interpretation**",
+    max_raw_diff ~ "**Largest Difference**",
+    comparison_groups ~ "**Between Groups**"
+  ) |>
+  modify_spanning_header(c("stat_1", "stat_2", "stat_3") ~ "**Group**") |>
+  bold_labels()
 
-knitr::knit_print(TblDemoSub)
-
-
+knitr::knit_print(subset_summary)
 ```
-
-```{r}
-#| label: fig-simple-model1
-#| fig-cap: "Relationship between interaction effect of sex and age with FAOS-Pain at baseline"
-
-FAOSPlotAA <- ggplot(data = MasterAnalysisSub |> dplyr::filter(!is.na(Sex2)), mapping = aes(y = FAOS_Pain_TotalScore_Preop, x = Sex2)) + stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7, fill = "steelblue") +
-  stat_dotsinterval(side = "right", scale = 0.7, slab_linewidth = NA, fill = "steelblue") + labs(y = "FAOS - Pain")
-
-FAOSlmAA <- lm(
-    FAOS_Pain_TotalScore_Preop ~ Sex2 * AgeAtInitialExam,
-    data = MasterAnalysisSub
-)
-
-# Create the expanded grid manually
-prediction_dataAA <- tidyr::expand_grid(
-  Sex2 = unique(MasterAnalysisSub$Sex2[!is.na(MasterAnalysisSub$Sex2)]),
-  AgeAtInitialExam = seq(min(MasterAnalysisSub$AgeAtInitialExam, na.rm = TRUE),
-                         max(MasterAnalysisSub$AgeAtInitialExam, na.rm = TRUE),
-                         length.out = 101)
-)
-# 
-  FAOSlmFigSub <- augment(FAOSlmAA, newdata = prediction_dataAA, se_fit = TRUE) |>
-  ggplot(aes(x = AgeAtInitialExam, fill = ordered(Sex2), color = ordered(Sex2))) +
-  stat_lineribbon(
-    aes(ydist = distributional::dist_student_t(df = df.residual(FAOSlmAA), mu = .fitted, sigma = .se.fit)),
-    alpha = 1/4
-  ) +
-  geom_point(aes(y = FAOS_Pain_TotalScore_Preop), data = MasterAnalysisSub) +
-  scale_fill_brewer(palette = "Set2") +
-  scale_color_brewer(palette = "Dark2") +
-  labs(
-    color = "Sex2",
-    fill = "Sex2",
-    y = "FAOS - Pain"
-  )
-
-FAOSPlotAA / FAOSlmFigSub
-
-
-```
-
-<!--# Repeat modelling without "foot" region -->
 
 # Discussion
 
@@ -3088,7 +3147,3 @@ FAOSPlotAA / FAOSlmFigSub
 Programming code is incorporated into this document.
 
 Study data may be accessed for reasonable research activities by contacting the corresponding author.
-
-# Publishing functions
-
-Write files for publication on posit connect.
