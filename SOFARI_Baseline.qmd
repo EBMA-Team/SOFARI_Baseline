@@ -54,6 +54,7 @@ Load up required packages in advance. Citations are applied to each library at f
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
+  "ggdag",
   "effectsize",
   "purrr",
   "patchwork",
@@ -120,7 +121,7 @@ pkgs <- grateful::cite_packages(
   out.dir = ".",
   cite.tidyverse = TRUE,
   include.RStudio = FALSE,
-  bib.file = "grateful-refs"
+  bib.file = "grateful-refs.bib"
   )
 
 knitr::kable(
@@ -697,8 +698,7 @@ fit_faos_models <- function(imputed_data,
                            covariate = NULL,  # For minimal models - which covariate to focus on
                            minimal_adjusters = c("AgeAtInitialExam", "Sex2"),
                            full_covariates = c("Arthritis", "AgeAtInitialExam", "Sex2", 
-                                             "BilateralPath", "SRCQTotalScore", 
-                                             "VR12_Mental_TotalScore_Preop", "PCSSF_TotalScore_Preop"),
+                                             "BilateralPath", "SRCQTotalScore", "SmokingStatus","VR12_Mental_TotalScore_Preop", "PCSSF_TotalScore_Preop"),
                            interaction_terms = c("Region * Arthritis")) {
   
   model_type <- match.arg(model_type)
@@ -1714,6 +1714,7 @@ A masterfile was created with *tidyverse* syntax of all included records for fur
 ```{r}
 MasterTable1 <- Snapshot |> dplyr::select(
   EligibleAtPreop:VR12_Mental_TotalScore_Preop,
+  SmokingStatus_Preop,
   Satisfaction_Preop:PCSSF_TotalScore_Preop,
   Sex2,
   -Sex
@@ -1908,6 +1909,7 @@ MasterTable3 <- MasterTable2 |> left_join(
   Provider,
   AgeAtInitialExam,
   InjuryToPresentation,
+  SmokingStatus_Preop,
   VR12_Physical_TotalScore_Preop,
   VR12_Mental_TotalScore_Preop,
   SRCQTotalScore,
@@ -2505,6 +2507,226 @@ No categorisation of quantitative variables was undertaken in this analysis.
 
 <!--# (a) Describe all statistical methods, including those used to control for confounding (b) Describe any methods used to examine subgroups and interactions (c) Explain how missing data were addressed (d) Cohort study—If applicable, explain how loss to follow-up was addressed Case-control study—If applicable, explain how matching of cases and controls was addressed Cross-sectional study—If applicable, describe analytical methods taking account of sampling strategy (e) Describe any sensitivity analyses -->
 
+### Descriptives
+
+<!--# check methods in gtsummary for univariate comparisons -->
+
+Descriptives for exposure and outcome variables were summarised into tables. Univariate comparisons were between Groups for adverse events and comparisons made by Fisher's exact test (binary outcomes) and Pearson's chi-square tests (multilevel categorical variables) as per the *gtsummary* package functions.
+
+### Regression preparation
+
+Set up input table for statistical analysis with only variables required for models.
+
+The *ggdag* package (v`{r} utils::packageVersion("ggdag")` [@ggdag] was used to create and visualise directed acyclic graphs (in conjunction with *ggplot2*), with minimal adjustment sets to ensure correct specification of models to estimate the effect of Group on outcome variables.
+
+### FAOS Subscales
+
+::: {#tbl-adjustset}
++--------------------+------------------------------------------+--------------+------------------------------+
+| Category           | Variable                                 | Source       | Available in present dataset |
++--------------------+------------------------------------------+--------------+------------------------------+
+| Patient Factor     | Sex (Male)                               | Acuna et al  | ✅                           |
+|                    |                                          |              |                              |
+|                    |                                          | Badawy et al |                              |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Age at surgery                           | Acuna et al  | ✅                           |
+|                    |                                          |              |                              |
+|                    |                                          | Badawy et al |                              |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Body mass index                          | Acuna et al  | ✅                           |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | ASA - Class 3                            | Acuna et al  | ❌                           |
+|                    |                                          |              |                              |
+|                    |                                          | Badawy et al |                              |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Functional status                        | Acuna et al  | ❌                           |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Preoperative haematocrit, sodium and INR | Acuna et al  | ❌                           |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Smoking history                          | Acuna et al  | ✅                           |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Hypertension (requiring medication)      | Acuna et al  | ✅\*                         |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Weight loss within previous 6 months     | Acuna et al  | ❌                           |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Diagnosis other than OA                  | Badawy et al | ✅†                          |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Previous knee surgery                    | Badawy et al | ❌                           |
++--------------------+------------------------------------------+--------------+------------------------------+
+| Managament Factors | Perioperative complications              | Badawy et al | ✅                           |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Use of navigation                        | Badawy et al | ✅                           |
++--------------------+------------------------------------------+--------------+------------------------------+
+|                    | Implant Brand                            | Badawy et al | ✅                           |
++--------------------+------------------------------------------+--------------+------------------------------+
+
+Summary of potential adjustment set for *Procedure Duration* retrieved from the literature.
+:::
+
+A brief literature review was conducted to identify potential factors that should be adjusted for when assessing the effect of *Region* and *Arthritis* on *FAOS subcales* in the present sample. @tbl-adjustset.
+
+```{r}
+#| label: fig-dag-adjust
+#| fig-cap: "Directed acyclic graph of baseline FAOS in foot and ankle pathology"
+
+DAGFAOS <- ggdag::dagify(FAOS ~ Region + Arthritis + Age + Sex + ComorbidityScore + Smoking + Bilateral + MentalScore + PainCatastrophise,
+          Region ~ Age + Sex + Smoking + ComorbidityScore,
+          Arthritis ~ Bilateral + Age + Sex + Smoking,
+          Smoking ~ Age + Sex,
+          ComorbidityScore ~ Age + Sex + Smoking,
+          Bilateral ~ Age + Smoking,
+          MentalScore ~ Age + Sex + Smoking + ComorbidityScore + Arthritis,
+          PainCatastrophise ~ Age + Sex,
+  labels = c(
+    "FAOS" = "FAOS",
+    "SmokingStatus" = "Smoking History",
+    "ComorbidityScore" = "Comorbidities",
+    "Age" = "Age at\n Review",
+    "Region" = "AnatomicalRegion",
+    "Sex" = "Sex",
+    "Bilateral" = "Bilateral Presentation",
+    "MentalScore" = "Mental",
+    "PainCatastrophise" ~ "PainCatastr"
+  ),
+  exposure = "Region",
+  outcome = "FAOS"
+)
+
+# Create a tidy version of the DAG and apply custom labels
+tidy_dag1 <- ggdag::tidy_dagitty(DAGFAOS, layout = "auto") |> 
+  mutate(label = case_when(
+    name == "FAOS" ~ "FAOS",
+    name == "SmokingStatus" ~ "Smoking History",
+    name == "ComorbidityScore" ~ "Comorbidities",
+    name == "Age" ~ "Age at\n Review",
+    name == "Region" ~ "AnatomicalRegion",
+    name == "MentalScore" ~ "Mental",
+    name == "Bilateral" ~ "Bilateral Surgery",
+    name == "PainCatastrophise" ~ "PainCatastr",
+    name == "Sex" ~ "Sex",
+    TRUE ~ name
+  ))
+
+dagraw <- ggplot(
+  tidy_dag1, 
+  aes(
+    x = x, 
+    y = y, 
+    xend = xend, 
+    yend = yend)
+  ) +
+  geom_dag_node(
+    color = "darkblue", 
+    fill = "lightblue", 
+    alpha = 0.5, 
+    size = 20) +
+  geom_dag_text(
+    aes(
+      label = label
+      ), 
+    color = "black", 
+    fontface = "bold", 
+    size = 3, 
+    vjust = 0.5
+    ) +
+  geom_dag_edges(
+    edge_color = "gray50", 
+    edge_width = 0.5, 
+    #edge_arrow_size = 0.3
+    ) +
+  theme_dag(
+    base_size = 12,
+    base_family = "",
+    plot.background = element_rect(fill = "white"),
+    panel.background = element_rect(fill = "white")
+  ) +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5, 
+      size = 16, 
+      face = "bold"
+      ),
+    plot.margin = margin(
+      20, 
+      20, 
+      20, 
+      20
+      )
+  ) +
+  ggtitle(
+    "Directed Acyclic Graph"
+    )
+
+knitr::knit_print(dagraw)
+
+
+```
+
+```{r}
+#| label: fig-dag-minadjust
+#| fig-cap: "Calculated minimum adjustment set for modelling FAOS against anatomical region in foot-ankle pathology"
+
+dagmin <- ggdag_adjustment_set(
+  tidy_dag1,
+  text = FALSE,
+  #use_labels = "label"
+  exposure = "Region",
+  outcome = "FAOS"
+  ) +
+  geom_dag_node(
+    color = "darkblue", 
+    fill = "lightblue", 
+    alpha = 0.7, 
+    size = 10
+  ) +
+  # geom_dag_text(
+  #   aes(label = label),  # Use the 'label' column directly
+  #   color = "black", 
+  #   fontface = "bold", 
+  #   size = 3, 
+  #   vjust = -1.5,  # Adjust vertical position
+  #   hjust = 1.5,  # Adjust horizontal position
+  #   show.legend = FALSE  # Prevent text from appearing in legend
+  # ) +
+  geom_dag_label_repel(
+    aes(label = label, fill = adjusted),
+    color = "white",
+    fontface = "bold",
+    size = 3,
+    show.legend = FALSE,
+    box.padding = unit(0.5, "lines"),  # Padding around labels
+    point.padding = unit(0.5, "lines"),  # Padding around points
+    nudge_y = 0.5,  # Adjust vertical nudge
+    nudge_x = 0.5   # Adjust horizontal nudge
+  ) +
+  geom_dag_edges(
+    edge_color = "gray50", 
+    edge_width = 0.5
+  ) +
+  theme_dag(
+    base_size = 10,
+    base_family = "",
+    plot.background = element_rect(fill = "white"),
+    panel.background = element_rect(fill = "white")
+  ) +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5, 
+      size = 10, 
+      face = "bold"
+    ),
+    plot.margin = margin(20,20,20,20),
+    legend.position = "bottom",
+    legend.background = element_rect(fill = "white", color = "gray80"),
+    legend.title = element_text(face = "bold")
+  ) +
+  ggtitle("Adjustment Set for Directed Acyclic Graph")
+
+
+knitr::knit_print(dagmin)
+
+```
+
 ### RECORD \[12.1\] Data access
 
 <!--# RECORD 12.1: Authors should describe the extent to which the investigators had access to the database population used to create the study population. -->
@@ -2524,6 +2746,7 @@ In the record selection workflow, patients with text in the diagnosis text field
 ```{r}
 MasterAnalysis <- MasterTable5 |> dplyr::select(
   TreatmentID:Satisfaction_Preop,
+  SmokingStatus_Preop,
   Region,
   BilateralPres,
   Pathology,
@@ -2532,6 +2755,15 @@ MasterAnalysis <- MasterTable5 |> dplyr::select(
 ) |> dplyr::filter(
   !is.na(Term3)
 ) |> mutate( #Fix up pathology, add bilateralpath
+  SmokingStatus = forcats::fct(
+    SmokingStatus_Preop,
+    levels = c(
+      "Never smoked",
+      "Non smoker for >12 months",
+      "Non smoker for <12 months",
+      "Yes - current smoker"
+    )
+  ),
   Pathology2 = if_else(
     is.na(Pathology),
     "Multiple",
