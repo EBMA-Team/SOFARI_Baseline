@@ -4,7 +4,7 @@
   "platform": "4.4.2",
   "metadata": {
     "appmode": "quarto-static",
-    "primary_rmd": "index.qmd",
+    "primary_rmd": "SOFARI_Baseline.qmd",
     "primary_html": null,
     "content_category": null,
     "has_parameters": false
@@ -385,6 +385,36 @@
         "Archs": "x64"
       }
     },
+    "RcppArmadillo": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "RcppArmadillo",
+        "Type": "Package",
+        "Title": "'Rcpp' Integration for the 'Armadillo' Templated Linear Algebra\nLibrary",
+        "Version": "14.6.0-1",
+        "Date": "2025-07-02",
+        "Authors@R": "c(person(\"Dirk\", \"Eddelbuettel\", role = c(\"aut\", \"cre\"), email = \"edd@debian.org\",\n                    comment = c(ORCID = \"0000-0001-6419-907X\")),\n             person(\"Romain\", \"Francois\", role = \"aut\",\n                    comment = c(ORCID = \"0000-0002-2444-4226\")),\n             person(\"Doug\", \"Bates\", role = \"aut\",\n                    comment = c(ORCID = \"0000-0001-8316-9503\")),\n             person(\"Binxiang\", \"Ni\", role = \"aut\"),\n             person(\"Conrad\", \"Sanderson\", role = \"aut\",\n                    comment = c(ORCID = \"0000-0002-0049-4501\")))",
+        "Description": "'Armadillo' is a templated C++ linear algebra library (by Conrad\n Sanderson) that aims towards a good balance between speed and ease of\n use. Integer, floating point and complex numbers are supported, as\n well as a subset of trigonometric and statistics functions. Various\n matrix decompositions are provided through optional integration with\n LAPACK and ATLAS libraries.  The 'RcppArmadillo' package includes the\n header files from the templated 'Armadillo' library. Thus users do\n not need to install 'Armadillo' itself in order to use\n 'RcppArmadillo'. From release 7.800.0 on, 'Armadillo' is licensed\n under Apache License 2; previous releases were under licensed as MPL\n 2.0 from version 3.800.0 onwards and LGPL-3 prior to that;\n 'RcppArmadillo' (the 'Rcpp' bindings/bridge to Armadillo) is licensed\n under the GNU GPL version 2 or later, as is the rest of 'Rcpp'.",
+        "License": "GPL (>= 2)",
+        "LazyLoad": "yes",
+        "Depends": "R (>= 3.3.0)",
+        "LinkingTo": "Rcpp",
+        "Imports": "Rcpp (>= 1.0.12), stats, utils, methods",
+        "Suggests": "tinytest, Matrix (>= 1.3.0), pkgKitten, reticulate, slam",
+        "URL": "https://github.com/RcppCore/RcppArmadillo,\nhttps://dirk.eddelbuettel.com/code/rcpp.armadillo.html",
+        "BugReports": "https://github.com/RcppCore/RcppArmadillo/issues",
+        "RoxygenNote": "6.0.1",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-07-02 13:16:08 UTC; edd",
+        "Author": "Dirk Eddelbuettel [aut, cre] (ORCID:\n    <https://orcid.org/0000-0001-6419-907X>),\n  Romain Francois [aut] (ORCID: <https://orcid.org/0000-0002-2444-4226>),\n  Doug Bates [aut] (ORCID: <https://orcid.org/0000-0001-8316-9503>),\n  Binxiang Ni [aut],\n  Conrad Sanderson [aut] (ORCID: <https://orcid.org/0000-0002-0049-4501>)",
+        "Maintainer": "Dirk Eddelbuettel <edd@debian.org>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-07-02 20:10:06 UTC",
+        "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-08-04 01:04:15 UTC; windows",
+        "Archs": "x64"
+      }
+    },
     "RcppEigen": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -700,6 +730,40 @@
         "Date/Publication": "2015-07-28 08:03:37",
         "Built": "R 4.4.0; x86_64-w64-mingw32; 2024-04-23 00:24:00 UTC; windows",
         "Archs": "x64"
+      }
+    },
+    "bayestestR": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Type": "Package",
+        "Package": "bayestestR",
+        "Title": "Understand and Describe Bayesian Models and Posterior\nDistributions",
+        "Version": "0.16.1",
+        "Authors@R": "\n    c(person(given = \"Dominique\",\n             family = \"Makowski\",\n             role = c(\"aut\", \"cre\"),\n             email = \"officialeasystats@gmail.com\",\n             comment = c(ORCID = \"0000-0001-5375-9967\")),\n      person(given = \"Daniel\",\n             family = \"Lüdecke\",\n             role = \"aut\",\n             email = \"d.luedecke@uke.de\",\n             comment = c(ORCID = \"0000-0002-8895-3206\")),\n      person(given = \"Mattan S.\",\n             family = \"Ben-Shachar\",\n             role = \"aut\",\n             email = \"matanshm@post.bgu.ac.il\",\n             comment = c(ORCID = \"0000-0002-4287-4801\")),\n      person(given = \"Indrajeet\",\n             family = \"Patil\",\n             role = \"aut\",\n             email = \"patilindrajeet.science@gmail.com\",\n             comment = c(ORCID = \"0000-0003-1995-6531\")),\n      person(given = \"Micah K.\",\n             family = \"Wilson\",\n             role = \"aut\",\n             email = \"micah.k.wilson@curtin.edu.au\",\n             comment = c(ORCID = \"0000-0003-4143-7308\")),\n      person(given = \"Brenton M.\",\n             family = \"Wiernik\",\n             role = \"aut\",\n             email = \"brenton@wiernik.org\",\n             comment = c(ORCID = \"0000-0001-9560-6336\")),\n      person(given = \"Paul-Christian\",\n             family = \"Bürkner\",\n             role = \"rev\",\n             email = \"paul.buerkner@gmail.com\"),\n      person(given = \"Tristan\",\n             family = \"Mahr\",\n             role = \"rev\",\n             email = \"tristan.mahr@wisc.edu\",\n             comment = c(ORCID = \"0000-0002-8890-5116\")),\n      person(given = \"Henrik\",\n             family = \"Singmann\",\n             role = \"ctb\",\n             email = \"singmann@gmail.com\",\n             comment = c(ORCID = \"0000-0002-4842-3657\")),\n      person(given = \"Quentin F.\",\n             family = \"Gronau\",\n             role = \"ctb\",\n             comment = c(ORCID = \"0000-0001-5510-6943\")),\n      person(given = \"Sam\",\n             family = \"Crawley\",\n             role = \"ctb\",\n             email = \"sam@crawley.nz\",\n             comment = c(ORCID = \"0000-0002-7847-0411\")))",
+        "Maintainer": "Dominique Makowski <officialeasystats@gmail.com>",
+        "Description": "Provides utilities to describe posterior\n    distributions and Bayesian models. It includes point-estimates such as\n    Maximum A Posteriori (MAP), measures of dispersion (Highest Density\n    Interval - HDI; Kruschke, 2015 <doi:10.1016/C2012-0-00477-2>) and\n    indices used for null-hypothesis testing (such as ROPE percentage, pd\n    and Bayes factors). References: Makowski et al. (2021) <doi:10.21105/joss.01541>.",
+        "Depends": "R (>= 3.6)",
+        "Imports": "insight (>= 1.3.1), datawizard (>= 1.1.0), graphics, methods,\nstats, utils",
+        "Suggests": "BayesFactor (>= 0.9.12-4.4), bayesQR, bayesplot, betareg, BH,\nblavaan, bridgesampling, brms, collapse, curl, effectsize,\nemmeans, gamm4, ggdist, ggplot2, glmmTMB, httr2, KernSmooth,\nknitr, lavaan, lme4, logspline (>= 2.1.21), marginaleffects (>=\n0.26.0), MASS, mclust, mediation, modelbased, ordbetareg,\nparameters, patchwork, performance, posterior, quadprog,\nRcppEigen, rmarkdown, rstan, rstanarm, see (>= 0.8.5),\ntestthat, tweedie, withr",
+        "License": "GPL-3",
+        "URL": "https://easystats.github.io/bayestestR/",
+        "BugReports": "https://github.com/easystats/bayestestR/issues",
+        "VignetteBuilder": "knitr",
+        "Encoding": "UTF-8",
+        "Language": "en-US",
+        "RoxygenNote": "7.3.2",
+        "Config/testthat/edition": "3",
+        "Config/testthat/parallel": "true",
+        "Config/rcmdcheck/ignore-inconsequential-notes": "true",
+        "Config/Needs/website": "easystats/easystatstemplate",
+        "Config/Needs/check": "stan-dev/cmdstanr",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-07-01 07:07:15 UTC; DL",
+        "Author": "Dominique Makowski [aut, cre] (ORCID:\n    <https://orcid.org/0000-0001-5375-9967>),\n  Daniel Lüdecke [aut] (ORCID: <https://orcid.org/0000-0002-8895-3206>),\n  Mattan S. Ben-Shachar [aut] (ORCID:\n    <https://orcid.org/0000-0002-4287-4801>),\n  Indrajeet Patil [aut] (ORCID: <https://orcid.org/0000-0003-1995-6531>),\n  Micah K. Wilson [aut] (ORCID: <https://orcid.org/0000-0003-4143-7308>),\n  Brenton M. Wiernik [aut] (ORCID:\n    <https://orcid.org/0000-0001-9560-6336>),\n  Paul-Christian Bürkner [rev],\n  Tristan Mahr [rev] (ORCID: <https://orcid.org/0000-0002-8890-5116>),\n  Henrik Singmann [ctb] (ORCID: <https://orcid.org/0000-0002-4842-3657>),\n  Quentin F. Gronau [ctb] (ORCID:\n    <https://orcid.org/0000-0001-5510-6943>),\n  Sam Crawley [ctb] (ORCID: <https://orcid.org/0000-0002-7847-0411>)",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-07-01 08:40:02 UTC",
+        "Built": "R 4.4.3; ; 2025-08-04 01:27:30 UTC; windows"
       }
     },
     "bigD": {
@@ -1635,6 +1699,34 @@
         "Archs": "x64"
       }
     },
+    "dagitty": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "dagitty",
+        "Type": "Package",
+        "Title": "Graphical Analysis of Structural Causal Models",
+        "Version": "0.3-4",
+        "Date": "2023-12-07",
+        "Author": "Johannes Textor, Benito van der Zander, Ankur Ankan",
+        "Maintainer": "Johannes Textor <johannes.textor@gmx.de>",
+        "Description": "A port of the web-based software 'DAGitty', available at \n    <https://dagitty.net>, for analyzing structural causal models \n    (also known as directed acyclic graphs or DAGs).\n    This package computes covariate adjustment sets for estimating causal\n    effects, enumerates instrumental variables, derives testable\n    implications (d-separation and vanishing tetrads), generates equivalent\n    models, and includes a simple facility for data simulation. ",
+        "VignetteBuilder": "knitr",
+        "Encoding": "UTF-8",
+        "License": "GPL-2",
+        "URL": "https://www.dagitty.net, https://github.com/jtextor/dagitty",
+        "BugReports": "https://github.com/jtextor/dagitty/issues",
+        "Depends": "R (>= 3.0.0)",
+        "Imports": "V8, jsonlite, boot, MASS, methods, grDevices, stats, utils,\ngraphics",
+        "Suggests": "igraph, knitr, base64enc (>= 0.1-3), testthat, markdown,\nrmarkdown, lavaan, CCP, fastDummies",
+        "RoxygenNote": "7.2.1",
+        "NeedsCompilation": "no",
+        "Packaged": "2023-12-07 15:40:28 UTC; johannes",
+        "Repository": "CRAN",
+        "Date/Publication": "2023-12-07 16:30:02 UTC",
+        "Built": "R 4.4.2; ; 2025-02-18 02:09:33 UTC; windows"
+      }
+    },
     "data.table": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -1661,6 +1753,38 @@
         "Date/Publication": "2025-07-10 10:30:05 UTC",
         "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-08-04 00:21:54 UTC; windows",
         "Archs": "x64"
+      }
+    },
+    "datawizard": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Type": "Package",
+        "Package": "datawizard",
+        "Title": "Easy Data Wrangling and Statistical Transformations",
+        "Version": "1.2.0",
+        "Authors@R": "c(\n    person(\"Indrajeet\", \"Patil\", , \"patilindrajeet.science@gmail.com\", role = \"aut\",\n           comment = c(ORCID = \"0000-0003-1995-6531\")),\n    person(\"Etienne\", \"Bacher\", , \"etienne.bacher@protonmail.com\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0002-9271-5075\")),\n    person(\"Dominique\", \"Makowski\", , \"dom.makowski@gmail.com\", role = \"aut\",\n           comment = c(ORCID = \"0000-0001-5375-9967\")),\n    person(\"Daniel\", \"Lüdecke\", , \"d.luedecke@uke.de\", role = \"aut\",\n           comment = c(ORCID = \"0000-0002-8895-3206\")),\n    person(\"Mattan S.\", \"Ben-Shachar\", , \"matanshm@post.bgu.ac.il\", role = \"aut\",\n           comment = c(ORCID = \"0000-0002-4287-4801\")),\n    person(\"Brenton M.\", \"Wiernik\", , \"brenton@wiernik.org\", role = \"aut\",\n           comment = c(ORCID = \"0000-0001-9560-6336\")),\n    person(\"Rémi\", \"Thériault\", , \"remi.theriault@mail.mcgill.ca\", role = \"ctb\",\n           comment = c(ORCID = \"0000-0003-4315-6788\")),\n    person(\"Thomas J.\", \"Faulkenberry\", , \"faulkenberry@tarleton.edu\", role = \"rev\"),\n    person(\"Robert\", \"Garrett\", , \"rcg4@illinois.edu\", role = \"rev\")\n  )",
+        "Maintainer": "Etienne Bacher <etienne.bacher@protonmail.com>",
+        "Description": "A lightweight package to assist in key steps involved in any data\n    analysis workflow: (1) wrangling the raw data to get it in the needed form,\n    (2) applying preprocessing steps and statistical transformations, and\n    (3) compute statistical summaries of data properties and distributions.\n    It is also the data wrangling backend for packages in 'easystats' ecosystem.\n    References: Patil et al. (2022) <doi:10.21105/joss.04684>.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://easystats.github.io/datawizard/",
+        "BugReports": "https://github.com/easystats/datawizard/issues",
+        "Depends": "R (>= 4.0)",
+        "Imports": "insight (>= 1.3.1), stats, utils",
+        "Suggests": "bayestestR, boot, BH, brms, curl, data.table, dplyr (>= 1.1),\neffectsize, emmeans, gamm4, ggplot2 (>= 3.5.0), gt, haven,\nhttr, knitr, lme4, mediation, modelbased, nanoparquet,\nparameters (>= 0.21.7), performance (>= 0.14.0), poorman (>=\n0.2.7), psych, readxl, readr, rio, rmarkdown, rstanarm, see,\ntestthat (>= 3.2.1), tibble, tidyr, withr",
+        "VignetteBuilder": "knitr",
+        "Encoding": "UTF-8",
+        "Language": "en-US",
+        "RoxygenNote": "7.3.2",
+        "Config/testthat/edition": "3",
+        "Config/testthat/parallel": "true",
+        "Config/Needs/website": "easystats/easystatstemplate",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-07-17 11:33:03 UTC; etienne",
+        "Author": "Indrajeet Patil [aut] (ORCID: <https://orcid.org/0000-0003-1995-6531>),\n  Etienne Bacher [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-9271-5075>),\n  Dominique Makowski [aut] (ORCID:\n    <https://orcid.org/0000-0001-5375-9967>),\n  Daniel Lüdecke [aut] (ORCID: <https://orcid.org/0000-0002-8895-3206>),\n  Mattan S. Ben-Shachar [aut] (ORCID:\n    <https://orcid.org/0000-0002-4287-4801>),\n  Brenton M. Wiernik [aut] (ORCID:\n    <https://orcid.org/0000-0001-9560-6336>),\n  Rémi Thériault [ctb] (ORCID: <https://orcid.org/0000-0003-4315-6788>),\n  Thomas J. Faulkenberry [rev],\n  Robert Garrett [rev]",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-07-17 12:10:02 UTC",
+        "Built": "R 4.4.3; ; 2025-08-04 01:04:41 UTC; windows"
       }
     },
     "dbplyr": {
@@ -1919,6 +2043,38 @@
         "Repository": "CRAN",
         "Date/Publication": "2023-03-22 13:10:05 UTC",
         "Built": "R 4.4.2; ; 2024-11-24 03:03:56 UTC; windows"
+      }
+    },
+    "effectsize": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Type": "Package",
+        "Package": "effectsize",
+        "Title": "Indices of Effect Size",
+        "Version": "1.0.1",
+        "Authors@R": "\n    c(person(given = \"Mattan S.\",\n             family = \"Ben-Shachar\",\n             role = c(\"aut\", \"cre\"),\n             email = \"mattansb@msbstats.info\",\n             comment = c(ORCID = \"0000-0002-4287-4801\")),\n      person(given = \"Dominique\",\n             family = \"Makowski\",\n             role = \"aut\",\n             email = \"dom.makowski@gmail.com\",\n             comment = c(ORCID = \"0000-0001-5375-9967\")),\n      person(given = \"Daniel\",\n             family = \"Lüdecke\",\n             role = \"aut\",\n             email = \"d.luedecke@uke.de\",\n             comment = c(ORCID = \"0000-0002-8895-3206\")),\n      person(given = \"Indrajeet\",\n             family = \"Patil\",\n             role = \"aut\",\n             email = \"patilindrajeet.science@gmail.com\",\n             comment = c(ORCID = \"0000-0003-1995-6531\")),\n      person(given = \"Brenton M.\",\n             family = \"Wiernik\",\n             role = \"aut\",\n             email = \"brenton@wiernik.org\",\n             comment = c(ORCID = \"0000-0001-9560-6336\")),\n      person(given = \"Rémi\",\n             family = \"Thériault\",\n             role = \"aut\",\n             email = \"remi.theriault@mail.mcgill.ca\",\n             comment = c(ORCID = \"0000-0003-4315-6788\")),\n      person(given = \"Ken\",\n             family = \"Kelley\",\n             role = \"ctb\"),\n      person(given = \"David\",\n             family = \"Stanley\",\n             role = \"ctb\"),\n      person(given = \"Aaron\",\n             family = \"Caldwell\",\n             role = \"ctb\",\n             email = \"arcaldwell49@gmail.com\",\n             comment = c(ORCID = \"0000-0002-4541-6283\")),\n      person(given = \"Jessica\",\n             family = \"Burnett\",\n             role = \"rev\",\n             email = \"jburnett@usgs.gov\",\n             comment = c(ORCID = \"0000-0002-0896-5099\")),\n      person(given = \"Johannes\",\n             family = \"Karreth\",\n             role = \"rev\",\n             email = \"jkarreth@ursinus.edu\",\n             comment = c(ORCID = \"0000-0003-4586-7153\")),\n      person(given = \"Philip\",\n             family = \"Waggoner\",\n             role = c(\"aut\", \"ctb\"),\n             email = \"philip.waggoner@gmail.com\",\n             comment = c(ORCID = \"0000-0002-7825-7573\")))",
+        "Maintainer": "Mattan S. Ben-Shachar <mattansb@msbstats.info>",
+        "Description": "Provide utilities to work with indices of effect size for a wide\n    variety of models and hypothesis tests (see list of supported models using\n    the function 'insight::supported_models()'), allowing computation of and\n    conversion between indices such as Cohen's d, r, odds, etc.\n    References: Ben-Shachar et al. (2020) <doi:10.21105/joss.02815>.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://easystats.github.io/effectsize/",
+        "BugReports": "https://github.com/easystats/effectsize/issues/",
+        "Depends": "R (>= 4.0)",
+        "Imports": "bayestestR (>= 0.16.0), insight (>= 1.3.0), parameters (>=\n0.26.0), performance (>= 0.14.0), datawizard (>= 1.1.0), stats,\nutils",
+        "Suggests": "correlation (>= 0.8.7), see (>= 0.11.0), afex, BayesFactor,\nboot, brms, car, emmeans, gt, knitr, lavaan, lme4, lmerTest,\nmgcv, parsnip, pwr, rmarkdown, rms, rstanarm, rstantools,\ntestthat (>= 3.1.0)",
+        "VignetteBuilder": "knitr",
+        "Encoding": "UTF-8",
+        "Language": "en-US",
+        "RoxygenNote": "7.3.2",
+        "Config/testthat/edition": "3",
+        "Config/testthat/parallel": "true",
+        "Config/Needs/website": "rstudio/bslib, r-lib/pkgdown,\neasystats/easystatstemplate",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-05-25 11:16:14 UTC; user",
+        "Author": "Mattan S. Ben-Shachar [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-4287-4801>),\n  Dominique Makowski [aut] (ORCID:\n    <https://orcid.org/0000-0001-5375-9967>),\n  Daniel Lüdecke [aut] (ORCID: <https://orcid.org/0000-0002-8895-3206>),\n  Indrajeet Patil [aut] (ORCID: <https://orcid.org/0000-0003-1995-6531>),\n  Brenton M. Wiernik [aut] (ORCID:\n    <https://orcid.org/0000-0001-9560-6336>),\n  Rémi Thériault [aut] (ORCID: <https://orcid.org/0000-0003-4315-6788>),\n  Ken Kelley [ctb],\n  David Stanley [ctb],\n  Aaron Caldwell [ctb] (ORCID: <https://orcid.org/0000-0002-4541-6283>),\n  Jessica Burnett [rev] (ORCID: <https://orcid.org/0000-0002-0896-5099>),\n  Johannes Karreth [rev] (ORCID: <https://orcid.org/0000-0003-4586-7153>),\n  Philip Waggoner [aut, ctb] (ORCID:\n    <https://orcid.org/0000-0002-7825-7573>)",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-05-27 13:10:02 UTC",
+        "Built": "R 4.4.3; ; 2025-08-22 02:27:25 UTC; windows"
       }
     },
     "epoxy": {
@@ -2430,6 +2586,35 @@
         "Built": "R 4.4.3; ; 2025-05-28 00:39:37 UTC; windows"
       }
     },
+    "ggdag": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "ggdag",
+        "Title": "Analyze and Create Elegant Directed Acyclic Graphs",
+        "Version": "0.2.13",
+        "Authors@R": "\n    person(\"Malcolm\", \"Barrett\", , \"malcolmbarrett@gmail.com\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0003-0299-5825\"))",
+        "Description": "Tidy, analyze, and plot directed acyclic graphs (DAGs).\n    'ggdag' is built on top of 'dagitty', an R package that uses the\n    'DAGitty' web tool (<https://dagitty.net/>) for creating and analyzing\n    DAGs. 'ggdag' makes it easy to tidy and plot 'dagitty' objects using\n    'ggplot2' and 'ggraph', as well as common analytic and graphical\n    functions, such as determining adjustment sets and node relationships.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://github.com/r-causal/ggdag,\nhttps://r-causal.github.io/ggdag/",
+        "BugReports": "https://github.com/r-causal/ggdag/issues",
+        "Depends": "R (>= 3.4.0)",
+        "Imports": "dagitty, dplyr, forcats, ggplot2 (>= 3.0.0), ggraph (>=\n2.0.0), ggrepel, igraph, magrittr, pillar, purrr, rlang,\nstringr, tibble, tidygraph",
+        "Suggests": "covr, knitr, rmarkdown, spelling, testthat (>= 3.0.0), vdiffr\n(>= 1.0.2), withr",
+        "VignetteBuilder": "knitr",
+        "Encoding": "UTF-8",
+        "Language": "en-US",
+        "RoxygenNote": "7.2.3",
+        "Config/testthat/edition": "3",
+        "NeedsCompilation": "no",
+        "Packaged": "2024-07-21 19:22:20 UTC; malcolmbarrett",
+        "Author": "Malcolm Barrett [aut, cre] (<https://orcid.org/0000-0003-0299-5825>)",
+        "Maintainer": "Malcolm Barrett <malcolmbarrett@gmail.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-07-22 09:50:10 UTC",
+        "Built": "R 4.4.2; ; 2025-02-18 03:54:18 UTC; windows"
+      }
+    },
     "ggdist": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -2461,6 +2646,36 @@
         "Repository": "CRAN",
         "Date/Publication": "2025-04-23 00:20:02 UTC",
         "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-05-28 02:37:23 UTC; windows",
+        "Archs": "x64"
+      }
+    },
+    "ggforce": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "ggforce",
+        "Type": "Package",
+        "Title": "Accelerating 'ggplot2'",
+        "Version": "0.5.0",
+        "Authors@R": "\n    c(person(given = \"Thomas Lin\",\n             family = \"Pedersen\",\n             role = c(\"cre\", \"aut\"),\n             email = \"thomasp85@gmail.com\",\n             comment = c(ORCID = \"0000-0002-5147-4711\")),\n      person(\"RStudio\",\n             role = \"cph\"))",
+        "Maintainer": "Thomas Lin Pedersen <thomasp85@gmail.com>",
+        "Description": "The aim of 'ggplot2' is to aid in visual data investigations. This\n    focus has led to a lack of facilities for composing specialised plots.\n    'ggforce' aims to be a collection of mainly new stats and geoms that fills\n    this gap. All additional functionality is aimed to come through the official\n    extension system so using 'ggforce' should be a stable experience.",
+        "URL": "https://ggforce.data-imaginist.com,\nhttps://github.com/thomasp85/ggforce",
+        "BugReports": "https://github.com/thomasp85/ggforce/issues",
+        "License": "MIT + file LICENSE",
+        "Encoding": "UTF-8",
+        "Depends": "ggplot2 (>= 3.5.0), R (>= 3.3.0)",
+        "Imports": "grid, scales, MASS, tweenr (>= 0.1.5), gtable, rlang,\npolyclip, stats, grDevices, tidyselect, withr, utils,\nlifecycle, cli, vctrs, systemfonts",
+        "RoxygenNote": "7.3.2",
+        "LinkingTo": "cpp11",
+        "Suggests": "sessioninfo, deldir, latex2exp, reshape2, units (>= 0.8.0),\ncovr",
+        "Collate": "'aaa.R' 'shape.R' 'arc_bar.R' 'arc.R' 'autodensity.R'\n'autohistogram.R' 'autopoint.R' 'bezier.R' 'bspline.R'\n'bspline_closed.R' 'circle.R' 'concaveman.R' 'cpp11.R'\n'diagonal.R' 'diagonal_wide.R' 'ellipse.R' 'errorbar.R'\n'facet_grid_paginate.R' 'facet_matrix.R' 'facet_row.R'\n'facet_stereo.R' 'facet_wrap_paginate.R' 'facet_zoom.R'\n'ggforce-package.R' 'ggproto-classes.R' 'interpolate.R'\n'labeller.R' 'link.R' 'mark_circle.R' 'mark_ellipse.R'\n'mark_hull.R' 'mark_label.R' 'mark_rect.R' 'parallel_sets.R'\n'position-jitternormal.R' 'position_auto.R'\n'position_floatstack.R' 'regon.R' 'scale-depth.R'\n'scale-unit.R' 'sina.R' 'spiro.R' 'themes.R' 'trans.R'\n'trans_linear.R' 'utilities.R' 'voronoi.R' 'zzz.R'",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-06-18 12:00:16 UTC; thomas",
+        "Author": "Thomas Lin Pedersen [cre, aut] (ORCID:\n    <https://orcid.org/0000-0002-5147-4711>),\n  RStudio [cph]",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-06-18 12:40:02 UTC",
+        "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-06-28 02:49:08 UTC; windows",
         "Archs": "x64"
       }
     },
@@ -2522,6 +2737,66 @@
         "Repository": "CRAN",
         "Date/Publication": "2025-04-09 09:40:10 UTC",
         "Built": "R 4.4.3; ; 2025-05-28 02:33:27 UTC; windows"
+      }
+    },
+    "ggraph": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "ggraph",
+        "Type": "Package",
+        "Title": "An Implementation of Grammar of Graphics for Graphs and Networks",
+        "Version": "2.2.1",
+        "Authors@R": "\n    c(person(given = \"Thomas Lin\",\n             family = \"Pedersen\",\n             role = c(\"cre\", \"aut\"),\n             email = \"thomasp85@gmail.com\",\n             comment = c(ORCID = \"0000-0002-5147-4711\")),\n      person(given = \"RStudio\",\n             role = \"cph\"))",
+        "Maintainer": "Thomas Lin Pedersen <thomasp85@gmail.com>",
+        "Description": "The grammar of graphics as implemented in ggplot2 is a poor fit for\n    graph and network visualizations due to its reliance on tabular data input.\n    ggraph is an extension of the ggplot2 API tailored to graph visualizations\n    and provides the same flexible approach to building up plots layer by layer.",
+        "License": "MIT + file LICENSE",
+        "Encoding": "UTF-8",
+        "LazyData": "TRUE",
+        "Imports": "dplyr, ggforce (>= 0.3.1), grid, igraph (>= 1.0.0), scales,\nMASS, ggrepel, utils, stats, viridis, rlang, tidygraph,\ngraphlayouts (>= 1.1.0), withr, cli, vctrs, lifecycle, memoise",
+        "Suggests": "network, knitr, rmarkdown, purrr, tibble, seriation, deldir,\ngganimate, covr, sf, sfnetworks",
+        "LinkingTo": "cpp11",
+        "RoxygenNote": "7.3.1",
+        "Depends": "R (>= 2.10), ggplot2 (>= 3.5.0)",
+        "VignetteBuilder": "knitr",
+        "URL": "https://ggraph.data-imaginist.com,\nhttps://github.com/thomasp85/ggraph",
+        "BugReports": "https://github.com/thomasp85/ggraph/issues",
+        "NeedsCompilation": "yes",
+        "Packaged": "2024-03-07 08:24:28 UTC; thomas",
+        "Author": "Thomas Lin Pedersen [cre, aut]\n    (<https://orcid.org/0000-0002-5147-4711>),\n  RStudio [cph]",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-03-07 12:40:02 UTC",
+        "Built": "R 4.4.2; x86_64-w64-mingw32; 2025-02-18 03:47:40 UTC; windows",
+        "Archs": "x64"
+      }
+    },
+    "ggrepel": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "ggrepel",
+        "Version": "0.9.6",
+        "Authors@R": "c(\n    person(\"Kamil\", \"Slowikowski\", email = \"kslowikowski@gmail.com\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0002-2843-6370\")),\n    person(\"Alicia\", \"Schep\", role = \"ctb\", comment = c(ORCID = \"0000-0002-3915-0618\")),\n    person(\"Sean\", \"Hughes\", role = \"ctb\", comment = c(ORCID = \"0000-0002-9409-9405\")),\n    person(\"Trung Kien\", \"Dang\", role = \"ctb\", comment = c(ORCID = \"0000-0001-7562-6495\")),\n    person(\"Saulius\", \"Lukauskas\", role = \"ctb\"),\n    person(\"Jean-Olivier\", \"Irisson\", role = \"ctb\", comment = c(ORCID = \"0000-0003-4920-3880\")),\n    person(\"Zhian N\", \"Kamvar\", role = \"ctb\", comment = c(ORCID = \"0000-0003-1458-7108\")),\n    person(\"Thompson\", \"Ryan\", role = \"ctb\", comment = c(ORCID = \"0000-0002-0450-8181\")),\n    person(\"Dervieux\", \"Christophe\", role = \"ctb\", comment = c(ORCID = \"0000-0003-4474-2498\")),\n    person(\"Yutani\", \"Hiroaki\", role = \"ctb\"),\n    person(\"Pierre\", \"Gramme\", role = \"ctb\"),\n    person(\"Amir Masoud\", \"Abdol\", role = \"ctb\"),\n    person(\"Malcolm\", \"Barrett\", role = \"ctb\", comment = c(ORCID = \"0000-0003-0299-5825\")),\n    person(\"Robrecht\", \"Cannoodt\", role = \"ctb\", comment = c(ORCID = \"0000-0003-3641-729X\")),\n    person(\"Michał\", \"Krassowski\", role = \"ctb\", comment = c(ORCID = \"0000-0002-9638-7785\")),\n    person(\"Michael\", \"Chirico\", role = \"ctb\", comment = c(ORCID = \"0000-0003-0787-087X\")),\n    person(\"Pedro\", \"Aphalo\", role = \"ctb\", comment = c(ORCID = \"0000-0003-3385-972X\")),\n    person(\"Francis\", \"Barton\", role = \"ctb\")\n    )",
+        "Title": "Automatically Position Non-Overlapping Text Labels with\n'ggplot2'",
+        "Description": "Provides text and label geoms for 'ggplot2' that help to avoid\n    overlapping text labels. Labels repel away from each other and away from the\n    data points.",
+        "Depends": "R (>= 3.0.0), ggplot2 (>= 2.2.0)",
+        "Imports": "grid, Rcpp, rlang (>= 0.3.0), scales (>= 0.5.0), withr (>=\n2.5.0)",
+        "Suggests": "knitr, rmarkdown, testthat, svglite, vdiffr, gridExtra, ggpp,\npatchwork, devtools, prettydoc, ggbeeswarm, dplyr, magrittr,\nreadr, stringr",
+        "VignetteBuilder": "knitr",
+        "License": "GPL-3 | file LICENSE",
+        "URL": "https://ggrepel.slowkow.com/, https://github.com/slowkow/ggrepel",
+        "BugReports": "https://github.com/slowkow/ggrepel/issues",
+        "RoxygenNote": "7.3.1",
+        "LinkingTo": "Rcpp",
+        "Encoding": "UTF-8",
+        "NeedsCompilation": "yes",
+        "Packaged": "2024-09-07 20:12:01 UTC; ks38",
+        "Author": "Kamil Slowikowski [aut, cre] (<https://orcid.org/0000-0002-2843-6370>),\n  Alicia Schep [ctb] (<https://orcid.org/0000-0002-3915-0618>),\n  Sean Hughes [ctb] (<https://orcid.org/0000-0002-9409-9405>),\n  Trung Kien Dang [ctb] (<https://orcid.org/0000-0001-7562-6495>),\n  Saulius Lukauskas [ctb],\n  Jean-Olivier Irisson [ctb] (<https://orcid.org/0000-0003-4920-3880>),\n  Zhian N Kamvar [ctb] (<https://orcid.org/0000-0003-1458-7108>),\n  Thompson Ryan [ctb] (<https://orcid.org/0000-0002-0450-8181>),\n  Dervieux Christophe [ctb] (<https://orcid.org/0000-0003-4474-2498>),\n  Yutani Hiroaki [ctb],\n  Pierre Gramme [ctb],\n  Amir Masoud Abdol [ctb],\n  Malcolm Barrett [ctb] (<https://orcid.org/0000-0003-0299-5825>),\n  Robrecht Cannoodt [ctb] (<https://orcid.org/0000-0003-3641-729X>),\n  Michał Krassowski [ctb] (<https://orcid.org/0000-0002-9638-7785>),\n  Michael Chirico [ctb] (<https://orcid.org/0000-0003-0787-087X>),\n  Pedro Aphalo [ctb] (<https://orcid.org/0000-0003-3385-972X>),\n  Francis Barton [ctb]",
+        "Maintainer": "Kamil Slowikowski <kslowikowski@gmail.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-09-07 21:50:02 UTC",
+        "Built": "R 4.4.2; x86_64-w64-mingw32; 2025-02-16 03:48:01 UTC; windows",
+        "Archs": "x64"
       }
     },
     "ggsurvfit": {
@@ -2728,6 +3003,35 @@
         "Repository": "CRAN",
         "Date/Publication": "2024-12-17 08:10:02 UTC",
         "Built": "R 4.4.2; x86_64-w64-mingw32; 2024-12-21 00:51:29 UTC; windows",
+        "Archs": "x64"
+      }
+    },
+    "graphlayouts": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "graphlayouts",
+        "Title": "Additional Layout Algorithms for Network Visualizations",
+        "Version": "1.2.2",
+        "Authors@R": "person(\"David\", \"Schoch\", email = \"david@schochastics.net\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0003-2952-4812\"))",
+        "Description": "Several new layout algorithms to visualize networks are provided which are not part of 'igraph'. \n    Most are based on the concept of stress majorization by Gansner et al. (2004) <doi:10.1007/978-3-540-31843-9_25>. \n    Some more specific algorithms allow the user to emphasize hidden group structures in networks or focus on specific nodes.",
+        "URL": "https://github.com/schochastics/graphlayouts,\nhttps://schochastics.github.io/graphlayouts/",
+        "BugReports": "https://github.com/schochastics/graphlayouts/issues",
+        "Depends": "R (>= 3.6.0)",
+        "License": "MIT + file LICENSE",
+        "Encoding": "UTF-8",
+        "LazyData": "true",
+        "Imports": "igraph (>= 2.0.0), Rcpp",
+        "Suggests": "testthat, ggplot2, uwot, oaqc",
+        "LinkingTo": "Rcpp, RcppArmadillo",
+        "RoxygenNote": "7.3.2",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-01-23 13:37:56 UTC; david",
+        "Author": "David Schoch [aut, cre] (<https://orcid.org/0000-0003-2952-4812>)",
+        "Maintainer": "David Schoch <david@schochastics.net>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-01-23 16:20:06 UTC",
+        "Built": "R 4.4.2; x86_64-w64-mingw32; 2025-02-18 02:46:56 UTC; windows",
         "Archs": "x64"
       }
     },
@@ -3140,6 +3444,43 @@
         "Repository": "CRAN",
         "Date/Publication": "2017-05-31 08:49:59 UTC",
         "Built": "R 4.4.1; ; 2024-10-17 02:37:33 UTC; windows"
+      }
+    },
+    "igraph": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "igraph",
+        "Title": "Network Analysis and Visualization",
+        "Version": "2.1.4",
+        "Authors@R": "c(\n    person(\"Gábor\", \"Csárdi\", , \"csardi.gabor@gmail.com\", role = \"aut\",\n           comment = c(ORCID = \"0000-0001-7098-9676\")),\n    person(\"Tamás\", \"Nepusz\", , \"ntamas@gmail.com\", role = \"aut\",\n           comment = c(ORCID = \"0000-0002-1451-338X\")),\n    person(\"Vincent\", \"Traag\", role = \"aut\",\n           comment = c(ORCID = \"0000-0003-3170-3879\")),\n    person(\"Szabolcs\", \"Horvát\", , \"szhorvat@gmail.com\", role = \"aut\",\n           comment = c(ORCID = \"0000-0002-3100-523X\")),\n    person(\"Fabio\", \"Zanini\", , \"fabio.zanini@unsw.edu.au\", role = \"aut\",\n           comment = c(ORCID = \"0000-0001-7097-8539\")),\n    person(\"Daniel\", \"Noom\", role = \"aut\"),\n    person(\"Kirill\", \"Müller\", , \"kirill@cynkra.com\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0002-1416-3412\")),\n    person(\"Maëlle\", \"Salmon\", role = \"ctb\"),\n    person(\"Michael\", \"Antonov\", role = \"ctb\"),\n    person(\"Chan Zuckerberg Initiative\", role = \"fnd\")\n  )",
+        "Description": "Routines for simple graphs and network analysis. It can\n    handle large graphs very well and provides functions for generating\n    random and regular graphs, graph visualization, centrality methods and\n    much more.",
+        "License": "GPL (>= 2)",
+        "URL": "https://r.igraph.org/, https://igraph.org/,\nhttps://igraph.discourse.group/",
+        "BugReports": "https://github.com/igraph/rigraph/issues",
+        "Depends": "methods, R (>= 3.5.0)",
+        "Imports": "cli, graphics, grDevices, lifecycle, magrittr, Matrix,\npkgconfig (>= 2.0.0), rlang, stats, utils, vctrs",
+        "Suggests": "ape (>= 5.7-0.1), callr, decor, digest, igraphdata, knitr,\nrgl (>= 1.3.14), rmarkdown, scales, stats4, tcltk, testthat,\nvdiffr, withr",
+        "Enhances": "graph",
+        "LinkingTo": "cpp11 (>= 0.5.0)",
+        "VignetteBuilder": "knitr",
+        "Config/Needs/build": "roxygen2, devtools, irlba, pkgconfig,\nigraph/igraph.r2cdocs, moodymudskipper/devtag",
+        "Config/Needs/coverage": "covr",
+        "Config/Needs/website": "readr",
+        "Config/testthat/edition": "3",
+        "Config/testthat/parallel": "true",
+        "Config/testthat/start-first": "vs-es, scan, vs-operators, weakref,\nwatts.strogatz.game",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.2.9000",
+        "SystemRequirements": "libxml2 (optional), glpk (>= 4.57, optional)",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-01-22 19:28:33 UTC; kirill",
+        "Author": "Gábor Csárdi [aut] (<https://orcid.org/0000-0001-7098-9676>),\n  Tamás Nepusz [aut] (<https://orcid.org/0000-0002-1451-338X>),\n  Vincent Traag [aut] (<https://orcid.org/0000-0003-3170-3879>),\n  Szabolcs Horvát [aut] (<https://orcid.org/0000-0002-3100-523X>),\n  Fabio Zanini [aut] (<https://orcid.org/0000-0001-7097-8539>),\n  Daniel Noom [aut],\n  Kirill Müller [aut, cre] (<https://orcid.org/0000-0002-1416-3412>),\n  Maëlle Salmon [ctb],\n  Michael Antonov [ctb],\n  Chan Zuckerberg Initiative [fnd]",
+        "Maintainer": "Kirill Müller <kirill@cynkra.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-01-23 10:20:02 UTC",
+        "Built": "R 4.4.2; x86_64-w64-mingw32; 2025-02-16 03:06:31 UTC; windows",
+        "Archs": "x64"
       }
     },
     "infer": {
@@ -4571,6 +4912,40 @@
         "Archs": "x64"
       }
     },
+    "parameters": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Type": "Package",
+        "Package": "parameters",
+        "Title": "Processing of Model Parameters",
+        "Version": "0.27.0",
+        "Authors@R": "\n    c(person(given = \"Daniel\",\n             family = \"Lüdecke\",\n             role = c(\"aut\", \"cre\"),\n             email = \"officialeasystats@gmail.com\",\n             comment = c(ORCID = \"0000-0002-8895-3206\")),\n      person(given = \"Dominique\",\n             family = \"Makowski\",\n             role = \"aut\",\n             email = \"dom.makowski@gmail.com\",\n             comment = c(ORCID = \"0000-0001-5375-9967\")),\n      person(given = \"Mattan S.\",\n             family = \"Ben-Shachar\",\n             role = \"aut\",\n             email = \"matanshm@post.bgu.ac.il\",\n             comment = c(ORCID = \"0000-0002-4287-4801\")),\n      person(given = \"Indrajeet\",\n             family = \"Patil\",\n             role = \"aut\",\n             email = \"patilindrajeet.science@gmail.com\",\n             comment = c(ORCID = \"0000-0003-1995-6531\")),\n      person(given = \"Søren\",\n             family = \"Højsgaard\",\n             role = \"aut\",\n             email = \"sorenh@math.aau.dk\"),\n      person(given = \"Brenton M.\",\n             family = \"Wiernik\",\n             role = \"aut\",\n             email = \"brenton@wiernik.org\",\n             comment = c(ORCID = \"0000-0001-9560-6336\")),\n      person(given = \"Zen J.\",\n             family = \"Lau\",\n             role = \"ctb\",\n             email = \"zenjuen.lau@ntu.edu.sg\"),\n      person(given = \"Vincent\",\n             family = \"Arel-Bundock\",\n             role = \"ctb\",\n             email = \"vincent.arel-bundock@umontreal.ca\",\n             comment = c(ORCID = \"0000-0003-2042-7063\")),\n      person(given = \"Jeffrey\",\n             family = \"Girard\",\n             role = \"ctb\",\n             email = \"me@jmgirard.com\",\n             comment = c(ORCID = \"0000-0002-7359-3746\")),\n      person(given = \"Christina\",\n             family = \"Maimone\",\n             role = \"rev\",\n             email = \"christina.maimone@northwestern.edu\"),\n      person(given = \"Niels\",\n             family = \"Ohlsen\",\n             role = \"rev\"),\n      person(given = \"Douglas Ezra\",\n             family = \"Morrison\",\n             role = \"ctb\",\n             email = \"dmorrison01@ucla.edu\",\n             comment = c(ORCID = \"0000-0002-7195-830X\")),\n      person(given = \"Joseph\",\n             family = \"Luchman\",\n             role = \"ctb\",\n             email = \"jluchman@gmail.com\",\n             comment = c(ORCID = \"0000-0002-8886-9717\")))",
+        "Maintainer": "Daniel Lüdecke <officialeasystats@gmail.com>",
+        "Description": "Utilities for processing the parameters of various\n    statistical models. Beyond computing p values, CIs, and other indices\n    for a wide variety of models (see list of supported models using the\n    function 'insight::supported_models()'), this package implements\n    features like bootstrapping or simulating of parameters and models,\n    feature reduction (feature extraction and variable selection) as well\n    as functions to describe data and variable characteristics (e.g.\n    skewness, kurtosis, smoothness or distribution).",
+        "License": "GPL-3",
+        "URL": "https://easystats.github.io/parameters/",
+        "BugReports": "https://github.com/easystats/parameters/issues",
+        "Depends": "R (>= 3.6)",
+        "Imports": "bayestestR (>= 0.16.1), datawizard (>= 1.1.0), insight (>=\n1.3.1), graphics, methods, stats, utils",
+        "Suggests": "AER, afex, aod, BayesFactor (>= 0.9.12-4.7), BayesFM, bbmle,\nbetareg, BH, biglm, blme, boot, brglm2, brms, broom,\nbroom.mixed, cAIC4, car, carData, cgam, ClassDiscovery,\nclubSandwich, cluster, cobalt, coda, correlation (>= 0.8.8),\ncoxme, cplm, curl, dbscan, did, discovr, distributional, domir\n(>= 0.2.0), drc, DRR, effectsize (>= 0.8.6), EGAnet, emmeans\n(>= 1.7.0), epiR, estimatr, factoextra, FactoMineR, faraway,\nfastICA, fixest, fpc, gam, gamlss, gee, geepack, ggplot2,\nGLMMadaptive, glmmTMB (>= 1.1.10), glmtoolbox, GPArotation, gt,\nhaven, httr2, Hmisc, ivreg, knitr, lavaan, lfe, lm.beta, lme4,\nlmerTest, lmtest, logistf, logitr, logspline, lqmm, M3C,\nmarginaleffects (>= 0.26.0), modelbased (>= 0.9.0), MASS,\nMatrix, mclogit, mclust, MCMCglmm, mediation, merDeriv,\nmetaBMA, metafor, mfx, mgcv, mice (>= 3.17.0), mmrm, multcomp,\nMuMIn, mvtnorm, NbClust, nFactors, nestedLogit, nlme, nnet,\nopenxlsx, ordinal, panelr, pbkrtest, PCDimension, performance\n(>= 0.14.0), plm, PMCMRplus, poorman, posterior, PROreg (>=\n1.3.0), pscl, psych, pvclust, quantreg, randomForest,\nRcppEigen, rmarkdown, rms, rstan, rstanarm, sandwich, see (>=\n0.8.1), serp, sparsepca, survey, survival, svylme, testthat (>=\n3.2.1), tidyselect, tinytable (>= 0.1.0), TMB, truncreg,\nvdiffr, VGAM, WeightIt (>= 1.2.0), withr, WRS2",
+        "VignetteBuilder": "knitr",
+        "Encoding": "UTF-8",
+        "Language": "en-US",
+        "RoxygenNote": "7.3.2",
+        "Config/testthat/edition": "3",
+        "Config/testthat/parallel": "true",
+        "Config/Needs/website": "easystats/easystatstemplate",
+        "Config/Needs/check": "stan-dev/cmdstanr",
+        "Config/rcmdcheck/ignore-inconsequential-notes": "true",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-07-09 08:41:50 UTC; mail",
+        "Author": "Daniel Lüdecke [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-8895-3206>),\n  Dominique Makowski [aut] (ORCID:\n    <https://orcid.org/0000-0001-5375-9967>),\n  Mattan S. Ben-Shachar [aut] (ORCID:\n    <https://orcid.org/0000-0002-4287-4801>),\n  Indrajeet Patil [aut] (ORCID: <https://orcid.org/0000-0003-1995-6531>),\n  Søren Højsgaard [aut],\n  Brenton M. Wiernik [aut] (ORCID:\n    <https://orcid.org/0000-0001-9560-6336>),\n  Zen J. Lau [ctb],\n  Vincent Arel-Bundock [ctb] (ORCID:\n    <https://orcid.org/0000-0003-2042-7063>),\n  Jeffrey Girard [ctb] (ORCID: <https://orcid.org/0000-0002-7359-3746>),\n  Christina Maimone [rev],\n  Niels Ohlsen [rev],\n  Douglas Ezra Morrison [ctb] (ORCID:\n    <https://orcid.org/0000-0002-7195-830X>),\n  Joseph Luchman [ctb] (ORCID: <https://orcid.org/0000-0002-8886-9717>)",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-07-09 09:30:05 UTC",
+        "Built": "R 4.4.3; ; 2025-08-04 01:49:33 UTC; windows"
+      }
+    },
     "parsnip": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -4659,6 +5034,38 @@
         "Built": "R 4.4.3; ; 2025-08-04 04:08:06 UTC; windows"
       }
     },
+    "performance": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Type": "Package",
+        "Package": "performance",
+        "Title": "Assessment of Regression Models Performance",
+        "Version": "0.15.0",
+        "Authors@R": "\n    c(person(given = \"Daniel\",\n             family = \"Lüdecke\",\n             role = c(\"aut\", \"cre\"),\n             email = \"officialeasystats@gmail.com\",\n             comment = c(ORCID = \"0000-0002-8895-3206\")),\n      person(given = \"Dominique\",\n             family = \"Makowski\",\n             role = c(\"aut\", \"ctb\"),\n             email = \"dom.makowski@gmail.com\",\n             comment = c(ORCID = \"0000-0001-5375-9967\")),\n     person(given = \"Mattan S.\",\n             family = \"Ben-Shachar\",\n             role = c(\"aut\", \"ctb\"),\n             email = \"matanshm@post.bgu.ac.il\",\n             comment = c(ORCID = \"0000-0002-4287-4801\")),\n      person(given = \"Indrajeet\",\n             family = \"Patil\",\n             role = c(\"aut\", \"ctb\"),\n             email = \"patilindrajeet.science@gmail.com\",\n             comment = c(ORCID = \"0000-0003-1995-6531\")),\n      person(given = \"Philip\",\n             family = \"Waggoner\",\n             role = c(\"aut\", \"ctb\"),\n             email = \"philip.waggoner@gmail.com\",\n             comment = c(ORCID = \"0000-0002-7825-7573\")),\n      person(given = \"Brenton M.\",\n             family = \"Wiernik\",\n             role = c(\"aut\", \"ctb\"),\n             email = \"brenton@wiernik.org\",\n             comment = c(ORCID = \"0000-0001-9560-6336\")),\n      person(given = \"Rémi\",\n             family = \"Thériault\",\n             role = c(\"aut\", \"ctb\"),\n             email = \"remi.theriault@mail.mcgill.ca\",\n             comment = c(ORCID = \"0000-0003-4315-6788\")),\n      person(given = \"Vincent\",\n             family = \"Arel-Bundock\",\n             email = \"vincent.arel-bundock@umontreal.ca\",\n             role = \"ctb\",\n             comment = c(ORCID = \"0000-0003-2042-7063\")),\n      person(given = \"Martin\",\n             family = \"Jullum\",\n             role = \"rev\"),\n      person(given = \"gjo11\",\n             role = \"rev\"),\n      person(given = \"Etienne\",\n             family = \"Bacher\", ,\n             email = \"etienne.bacher@protonmail.com\",\n             role = \"ctb\",\n             comment = c(ORCID = \"0000-0002-9271-5075\")),\n      person(given = \"Joseph\",\n             family = \"Luchman\",\n             role = \"ctb\",\n             comment = c(ORCID = \"0000-0002-8886-9717\")))",
+        "Maintainer": "Daniel Lüdecke <officialeasystats@gmail.com>",
+        "Description": "Utilities for computing measures to assess model quality,\n    which are not directly provided by R's 'base' or 'stats' packages.\n    These include e.g. measures like r-squared, intraclass correlation\n    coefficient (Nakagawa, Johnson & Schielzeth (2017)\n    <doi:10.1098/rsif.2017.0213>), root mean squared error or functions to\n    check models for overdispersion, singularity or zero-inflation and\n    more. Functions apply to a large variety of regression models,\n    including generalized linear models, mixed effects models and Bayesian\n    models. References: Lüdecke et al. (2021) <doi:10.21105/joss.03139>.",
+        "License": "GPL-3",
+        "URL": "https://easystats.github.io/performance/",
+        "BugReports": "https://github.com/easystats/performance/issues",
+        "Depends": "R (>= 4.0)",
+        "Imports": "bayestestR (>= 0.16.0), insight (>= 1.3.1), datawizard (>=\n1.1.0), stats, methods, utils",
+        "Suggests": "AER, afex, BayesFactor, bayesplot, betareg, bigutilsr,\nblavaan, boot, brms, car, carData, CompQuadForm, correlation\n(>= 0.8.8), cplm, curl, dagitty, dbscan, DHARMa (>= 0.4.7),\ndiscovr, estimatr, fixest, flextable, forecast, ftExtra, gamm4,\nggdag, glmmTMB (>= 1.1.10), GPArotation, graphics, Hmisc,\nhttr2, ICS, ICSOutlier, ISLR, ivreg, lavaan, lme4, lmtest, loo,\nMASS, Matrix, mclogit, mclust, metadat, metafor, mgcv, mlogit,\nmodelbased, multimode, nestedLogit, nlme, nnet, nonnest2,\nordinal, parallel, parameters (>= 0.27.0), patchwork, pscl,\npsych, psychTools, quantreg, qqplotr (>= 0.0.6), randomForest,\nRcppEigen, reformulas, rempsyc, rmarkdown, rstanarm,\nrstantools, sandwich, see (>= 0.9.0), survey, survival,\ntestthat (>= 3.2.1), tweedie, VGAM, withr (>= 3.0.0)",
+        "Encoding": "UTF-8",
+        "Language": "en-US",
+        "RoxygenNote": "7.3.2",
+        "Config/testthat/edition": "3",
+        "Config/testthat/parallel": "true",
+        "Config/Needs/website": "rstudio/bslib, r-lib/pkgdown,\neasystats/easystatstemplate",
+        "Config/rcmdcheck/ignore-inconsequential-notes": "true",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-07-09 12:36:39 UTC; mail",
+        "Author": "Daniel Lüdecke [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-8895-3206>),\n  Dominique Makowski [aut, ctb] (ORCID:\n    <https://orcid.org/0000-0001-5375-9967>),\n  Mattan S. Ben-Shachar [aut, ctb] (ORCID:\n    <https://orcid.org/0000-0002-4287-4801>),\n  Indrajeet Patil [aut, ctb] (ORCID:\n    <https://orcid.org/0000-0003-1995-6531>),\n  Philip Waggoner [aut, ctb] (ORCID:\n    <https://orcid.org/0000-0002-7825-7573>),\n  Brenton M. Wiernik [aut, ctb] (ORCID:\n    <https://orcid.org/0000-0001-9560-6336>),\n  Rémi Thériault [aut, ctb] (ORCID:\n    <https://orcid.org/0000-0003-4315-6788>),\n  Vincent Arel-Bundock [ctb] (ORCID:\n    <https://orcid.org/0000-0003-2042-7063>),\n  Martin Jullum [rev],\n  gjo11 [rev],\n  Etienne Bacher [ctb] (ORCID: <https://orcid.org/0000-0002-9271-5075>),\n  Joseph Luchman [ctb] (ORCID: <https://orcid.org/0000-0002-8886-9717>)",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-07-10 10:20:02 UTC",
+        "Built": "R 4.4.3; ; 2025-08-04 01:49:34 UTC; windows"
+      }
+    },
     "pillar": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -4742,6 +5149,32 @@
         "Repository": "CRAN",
         "Date/Publication": "2023-10-02 06:50:08 UTC",
         "Built": "R 4.4.1; x86_64-w64-mingw32; 2024-10-17 02:04:35 UTC; windows",
+        "Archs": "x64"
+      }
+    },
+    "polyclip": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "polyclip",
+        "Version": "1.10-7",
+        "Date": "2024-07-23",
+        "Title": "Polygon Clipping",
+        "Authors@R": "c(person(\"Angus\", \"Johnson\", role = \"aut\", \n   \t    comment=\"C++ original, http://www.angusj.com/delphi/clipper.php\"),\n\t     person(\"Adrian\", \"Baddeley\", role = c(\"aut\", \"trl\", \"cre\"),\n\t\t     email = \"Adrian.Baddeley@curtin.edu.au\"),\n\t     person(\"Kurt\", \"Hornik\", role = \"ctb\"),\n\t     person(c(\"Brian\", \"D.\"), \"Ripley\", role = \"ctb\"),\n\t     person(\"Elliott\", \"Sales de Andrade\", role=\"ctb\"),\n\t     person(\"Paul\", \"Murrell\", role = \"ctb\"),\n\t     person(\"Ege\", \"Rubak\", role=\"ctb\"),\n\t     person(\"Mark\", \"Padgham\", role=\"ctb\"))",
+        "Maintainer": "Adrian Baddeley <Adrian.Baddeley@curtin.edu.au>",
+        "Depends": "R (>= 3.5.0)",
+        "Description": "R port of Angus Johnson's open source library 'Clipper'. Performs polygon clipping operations (intersection, union, set minus, set difference) for polygonal regions of arbitrary complexity, including holes. Computes offset polygons (spatial buffer zones, morphological dilations, Minkowski dilations) for polygonal regions and polygonal lines. Computes Minkowski Sum of general polygons. There is a function for removing self-intersections from polygon data.",
+        "License": "BSL",
+        "URL": "https://www.angusj.com,\nhttps://sourceforge.net/projects/polyclipping,\nhttps://github.com/baddstats/polyclip",
+        "BugReports": "https://github.com/baddstats/polyclip/issues",
+        "ByteCompile": "true",
+        "Note": "built from Clipper C++ version 6.4.0",
+        "NeedsCompilation": "yes",
+        "Packaged": "2024-07-22 23:24:18 UTC; adrian",
+        "Author": "Angus Johnson [aut] (C++ original,\n    http://www.angusj.com/delphi/clipper.php),\n  Adrian Baddeley [aut, trl, cre],\n  Kurt Hornik [ctb],\n  Brian D. Ripley [ctb],\n  Elliott Sales de Andrade [ctb],\n  Paul Murrell [ctb],\n  Ege Rubak [ctb],\n  Mark Padgham [ctb]",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-07-23 06:10:02 UTC",
+        "Built": "R 4.4.1; x86_64-w64-mingw32; 2024-07-26 09:05:39 UTC; windows",
         "Archs": "x64"
       }
     },
@@ -6160,6 +6593,35 @@
         "Built": "R 4.4.2; ; 2024-11-24 01:27:18 UTC; windows"
       }
     },
+    "tidygraph": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Type": "Package",
+        "Package": "tidygraph",
+        "Title": "A Tidy API for Graph Manipulation",
+        "Version": "1.3.1",
+        "Authors@R": "\n    person(\"Thomas Lin\", \"Pedersen\", , \"thomasp85@gmail.com\", role = c(\"cre\", \"aut\"),\n           comment = c(ORCID = \"0000-0002-5147-4711\"))",
+        "Maintainer": "Thomas Lin Pedersen <thomasp85@gmail.com>",
+        "Description": "A graph, while not \"tidy\" in itself, can be thought of as two\n    tidy data frames describing node and edge data respectively.\n    'tidygraph' provides an approach to manipulate these two virtual data\n    frames using the API defined in the 'dplyr' package, as well as\n    provides tidy interfaces to a lot of common graph algorithms.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://tidygraph.data-imaginist.com,\nhttps://github.com/thomasp85/tidygraph",
+        "BugReports": "https://github.com/thomasp85/tidygraph/issues",
+        "Imports": "cli, dplyr (>= 0.8.5), igraph (>= 2.0.0), lifecycle, magrittr,\npillar, R6, rlang, stats, tibble, tidyr, tools, utils",
+        "Suggests": "ape, covr, data.tree, graph, influenceR, methods, netrankr,\nNetSwan, network, seriation, testthat (>= 3.0.0)",
+        "LinkingTo": "cpp11",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.1",
+        "Config/testthat/edition": "3",
+        "NeedsCompilation": "yes",
+        "Packaged": "2024-01-30 12:17:51 UTC; thomas",
+        "Author": "Thomas Lin Pedersen [cre, aut]\n    (<https://orcid.org/0000-0002-5147-4711>)",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-01-30 13:40:02 UTC",
+        "Built": "R 4.4.2; x86_64-w64-mingw32; 2025-02-16 04:05:06 UTC; windows",
+        "Archs": "x64"
+      }
+    },
     "tidymodels": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -6450,6 +6912,35 @@
         "Repository": "CRAN",
         "Date/Publication": "2025-02-21 17:50:03 UTC",
         "Built": "R 4.4.3; ; 2025-03-04 04:04:16 UTC; windows"
+      }
+    },
+    "tweenr": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "tweenr",
+        "Type": "Package",
+        "Title": "Interpolate Data for Smooth Animations",
+        "Version": "2.0.3",
+        "Authors@R": "\n    c(person(given = \"Thomas Lin\",\n             family = \"Pedersen\",\n             role = c(\"aut\", \"cre\"),\n             email = \"thomasp85@gmail.com\",\n             comment = c(ORCID = \"0000-0002-5147-4711\")))",
+        "Maintainer": "Thomas Lin Pedersen <thomasp85@gmail.com>",
+        "Description": "In order to create smooth animation between states of data,\n    tweening is necessary. This package provides a range of functions for\n    creating tweened data that can be used as basis for animation. Furthermore \n    it adds a number of vectorized interpolaters for common R data \n    types such as numeric, date and colour.",
+        "URL": "https://github.com/thomasp85/tweenr",
+        "BugReports": "https://github.com/thomasp85/tweenr/issues",
+        "License": "MIT + file LICENSE",
+        "Encoding": "UTF-8",
+        "Depends": "R (>= 3.2.0)",
+        "Imports": "farver, magrittr, rlang, vctrs",
+        "LinkingTo": "cpp11 (>= 0.4.2)",
+        "RoxygenNote": "7.2.3",
+        "Suggests": "testthat, covr",
+        "NeedsCompilation": "yes",
+        "Packaged": "2024-02-26 13:06:33 UTC; thomas",
+        "Author": "Thomas Lin Pedersen [aut, cre]\n    (<https://orcid.org/0000-0002-5147-4711>)",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-02-26 13:50:03 UTC",
+        "Built": "R 4.4.2; x86_64-w64-mingw32; 2025-02-16 03:06:19 UTC; windows",
+        "Archs": "x64"
       }
     },
     "tzdb": {
@@ -7003,16 +7494,31 @@
   },
   "files": {
     ".RData": {
-      "checksum": "695d3020357905af57f2eea83ecfb4e8"
+      "checksum": "c2016e5ca590b7e1b71ad0c5efaaf78d"
     },
     ".RDataTmp": {
-      "checksum": "3f1f4a0bfbe61ec29f37bd273ce30a58"
+      "checksum": "fdd316cf4b6bba37b981b8495724d75d"
+    },
+    ".RDataTmp1": {
+      "checksum": "d76c009c0e1293bdce2ac6b3114385ef"
+    },
+    ".RDataTmp2": {
+      "checksum": "f951b32726c97a00f7d8449229b55230"
+    },
+    ".RDataTmp3": {
+      "checksum": "c9304d576a167c99bc47d73159b11280"
+    },
+    ".RDataTmp4": {
+      "checksum": "58c8d6eea6fc5e54fb46970006cd346a"
+    },
+    ".RDataTmp5": {
+      "checksum": "89cc96d6f866292134374318f87697c0"
+    },
+    ".RDataTmp6": {
+      "checksum": "2913e04fc7b60d543ef755e419557571"
     },
     ".secrets/c13dc354db9600c8cd9b2bd868d1bf25_cscholes@ebma.com.au": {
-      "checksum": "4dcf275ab01b3a08af64a62236290af5"
-    },
-    "_quarto.yml": {
-      "checksum": "6ae3c56672ef6e569bfe904190c155b8"
+      "checksum": "022fef7081c11549f54e60440c854d7b"
     },
     "_site/about.html": {
       "checksum": "220b0a7bab620dc4e11fdf59fe8c873c"
@@ -7107,29 +7613,107 @@
     "_site/styles.css": {
       "checksum": "e31c3cdea03dfab8a29456978017bd10"
     },
-    "about.qmd": {
-      "checksum": "a754ce02c0472c0b163d8ffb898e69ac"
+    "Baseline references": {
+      "checksum": "b06661fdfaafe234cb0e7dceb828091f"
+    },
+    "Baseline references.bib": {
+      "checksum": "b06661fdfaafe234cb0e7dceb828091f"
     },
     "grateful-refs.bib": {
-      "checksum": "2fddb4d81ad3a576575010ab5c666966"
-    },
-    "index.qmd": {
-      "checksum": "5e50a0c45077dbbca9d77119e0e5ee3c"
+      "checksum": "12c6f7d3760ae0a4dda57502486eb487"
     },
     "LICENSE": {
       "checksum": "3a3f3cea56febea828890847e3cb11d7"
-    },
-    "PCSQ references.bib": {
-      "checksum": "ebabe54ec2516a6c072536dab9e81b20"
     },
     "README.md": {
       "checksum": "98f958f07102bc028fa5108a09ef9127"
     },
     "SOFARI_Baseline.bib": {
-      "checksum": "805fe77baf659d8ebb468737b1a0d5be"
+      "checksum": "3ae3885b0a6a7bb35437a10580164a0f"
+    },
+    "SOFARI_Baseline.html": {
+      "checksum": "f796683c5afd261f8956b080f3390199"
     },
     "SOFARI_Baseline.qmd": {
-      "checksum": "6adb03862a16b54e3d4194e0ad3acb09"
+      "checksum": "295e80f965228103f1aafd13c9d19da1"
+    },
+    "SOFARI_Baseline.rmarkdown": {
+      "checksum": "9cffb0ad19f6219491a897335ab36cf9"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-cohort-1.png": {
+      "checksum": "63e179982231767e577c88838a434c33"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-cohort-breakdown-1.png": {
+      "checksum": "aac2b1af6f68f2c47f4393b88d3703ce"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-corr-plot-1.png": {
+      "checksum": "0c026b6afe39badd902a92974ce656b3"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-dag-adjust-1.png": {
+      "checksum": "a52324d17d15df0d579dc54d75c8ab18"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-dag-minadjust-1.png": {
+      "checksum": "bb2330508d6d7b07ecf9278aea86da02"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-desc-agesex-1.png": {
+      "checksum": "4263e965e90a1011b241841900a80208"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-desc-comorbidsex-1.png": {
+      "checksum": "03d7bc907b1537f2f7fd70e909f18789"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-FAOS-adjust-1.png": {
+      "checksum": "ecc017223f34dd2a76b1dab9ae2cc21e"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-missingness-1.png": {
+      "checksum": "2eb4a1c1e261eb1bca0cdcd8579aa5ee"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-simple-model1-1.png": {
+      "checksum": "d5b0603c0e5fe4b5fec5ea020333a9e3"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-stripplot-1.png": {
+      "checksum": "4409cdb773f8d6fd9ca4759f4d8fc9b0"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-strobe-1.png": {
+      "checksum": "588f84bd7f03db8acc1d96619511d630"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-visualise-1.png": {
+      "checksum": "466029bc555097bd9af1d6b66f29b2fe"
+    },
+    "SOFARI_Baseline_files/figure-html/unnamed-chunk-46-1.png": {
+      "checksum": "dbc31e06edff6d65488cbb0d7af731e2"
+    },
+    "SOFARI_Baseline_files/libs/bootstrap/bootstrap-icons.css": {
+      "checksum": "2318f137d201fbf51601fa0faba6bef7"
+    },
+    "SOFARI_Baseline_files/libs/bootstrap/bootstrap-icons.woff": {
+      "checksum": "1a51dfbe5467607389d603c02a77cd10"
+    },
+    "SOFARI_Baseline_files/libs/bootstrap/bootstrap.min.css": {
+      "checksum": "6af7fe331e124e9a3628ff5072715d11"
+    },
+    "SOFARI_Baseline_files/libs/bootstrap/bootstrap.min.js": {
+      "checksum": "e2b09c06f0e714b6144a6788a28e3950"
+    },
+    "SOFARI_Baseline_files/libs/clipboard/clipboard.min.js": {
+      "checksum": "15f52a1ee547f2bdd46e56747332ca2d"
+    },
+    "SOFARI_Baseline_files/libs/quarto-html/anchor.min.js": {
+      "checksum": "91bcf6cd1fd88fec3f109811e5fc3546"
+    },
+    "SOFARI_Baseline_files/libs/quarto-html/popper.min.js": {
+      "checksum": "3a4a291ccf3f1ea0f82b641542fd3827"
+    },
+    "SOFARI_Baseline_files/libs/quarto-html/quarto-syntax-highlighting.css": {
+      "checksum": "49bff82b9355f257417faaaa77dd1607"
+    },
+    "SOFARI_Baseline_files/libs/quarto-html/quarto.js": {
+      "checksum": "2ca82ae8ee1e5762d249c6b6c0802e30"
+    },
+    "SOFARI_Baseline_files/libs/quarto-html/tippy.css": {
+      "checksum": "ebd6f8ce46a677e1a4f5f8a8317109a9"
+    },
+    "SOFARI_Baseline_files/libs/quarto-html/tippy.umd.min.js": {
+      "checksum": "d828775275749701b48bd9d958814111"
     },
     "styles.css": {
       "checksum": "e31c3cdea03dfab8a29456978017bd10"
