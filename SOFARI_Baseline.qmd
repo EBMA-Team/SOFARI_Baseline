@@ -427,6 +427,8 @@ apply_target_terms <- memoise::memoise(function(df, target_terms, batch_size = 5
 ```
 
 ```{r}
+#| label: process-diagnosis
+
 # Function to safely process diagnosis
 safe_process_diagnosis <- function(
     snapshot_df,
