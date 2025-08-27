@@ -269,6 +269,7 @@ bind_and_clean <- function(df1, df2, cols = NULL, clean_cols = NULL, clean_fn = 
 Include a series of functions for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* (v`{r} utils::packageVersion("future")`) [@future] and *furrr* (v`{r} utils::packageVersion("furrr")`) [@furrr] to enable distributed processing of the records. The *progressr* package (v`{r} utils::packageVersion("progressr")`) [@progressr] was utlised to enable visual progress to be communicated during processing and *memoise* (v`{r} utils::packageVersion("memoise")`) [@memoise]to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
 
 ```{r}
+#| label: initial-diagnosis-func
 
 # Enable parallel processing
 future::plan(multisession)
@@ -360,7 +361,7 @@ process_batch1 <- function(batch_df) {
       # Maintain original ordering within each diagnosis
       term_sequence = row_number()
     ) |>
-    group_by(TreatmentID, SequenceID) |>
+    group_by(TreatmentID, global_id, SequenceID) |>
     mutate(
       term_count = n(),
       term_position = row_number()
@@ -411,6 +412,9 @@ tokenize_diagnosis <- memoise::memoise(function(df, stop_words = NULL, batch_siz
 ```
 
 ```{r}
+#| label: apply-targe-func
+
+
 # Term replacement logic
 apply_target_terms <- memoise::memoise(function(df, target_terms, batch_size = 500, process_batch) {
   # Ensure `process_batch` is provided
@@ -427,7 +431,7 @@ apply_target_terms <- memoise::memoise(function(df, target_terms, batch_size = 5
 ```
 
 ```{r}
-#| label: process-diagnosis
+#| label: process-diagnosis-func
 
 # Function to safely process diagnosis
 safe_process_diagnosis <- function(
@@ -503,6 +507,9 @@ safe_process_diagnosis <- function(
 Function to conduct categorisation of terms for pathology (diagnosis) stored in the registry.
 
 ```{r}
+#| label: categorise-diagnosis-func
+
+
 #' Categorize medical diagnoses with anatomical and pathological classifications
 #' @param df A dataframe containing Term2 columns
 #' @param remove_intermediate Logical, whether to remove intermediate processing columns
@@ -607,6 +614,9 @@ categorize_diagnosis_cached <- memoise::memoise(categorize_diagnosis)
 Concatenated terms for each treatment record using *tidyverse* syntax. Generated a method to cumulatively concatenate terms within a treatment record that have been split into text sequences delimited by punctuation (e.g. ";").
 
 ```{r}
+#| label: concatenate-diagnoses-func
+
+
 concatenate_diagnoses <- function(data) {
   # Sort the data by TreatmentID and SequenceRow in descending order
   data |>
@@ -625,6 +635,8 @@ concatenate_diagnoses <- function(data) {
 ```
 
 ```{r}
+#| label: concatenate-cumulative-func
+
 
 concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
   # Create a dataframe to help with tracking
@@ -697,6 +709,7 @@ concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
 Functions to generate appropriate models to present results as per RECORD \[15\] Outcomes and RECORD \[16\] Main Results unadjusted and adjusted for the primary aim.
 
 ```{r}
+#| label: faos-model-func
 
 # Main modelling function
 fit_faos_models <- function(imputed_data, 
