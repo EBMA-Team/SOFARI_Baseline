@@ -1966,7 +1966,7 @@ Raw text stored in the registry snapshot was processed with custom functions (se
 
 ```{r}
 #| echo: false
-#| label: 
+#| label: target-url
 
 
 TargetURL = "https://docs.google.com/spreadsheets/d/1f-zb_pdjH9PuFSdkMBcAdyPCP_b-YJk2Jzvrn5G6df4/edit"
@@ -1974,6 +1974,9 @@ TargetURL = "https://docs.google.com/spreadsheets/d/1f-zb_pdjH9PuFSdkMBcAdyPCP_b
 ```
 
 ```{r}
+#| label: batch-process-diagnosis1
+
+
 #| eval: true
 #| echo: false
 #| message: false
