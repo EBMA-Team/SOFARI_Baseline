@@ -1,5 +1,6 @@
 ---
 ---
+
 title: "Pain and function at baseline assessment of foot and ankle pathology: An analysis of the SOFARI Registry"
 author: "Corey Scholes"
 affiliation: "EBM Analytics"
@@ -21,6 +22,7 @@ format:
     
     
 bibliography: SOFARI_Baseline.bib
+
 ---
 
 # Analysis Preamble
@@ -133,7 +135,7 @@ knitr::kable(pkgs)
 
 ## Authorisations
 
-Pre-authorise access to registry datasets using the *gargle* package (v`{r} utils::packageVersion("gargle")`) [@gargle].
+Pre-authorise access to registry datasets using the *gargle* package (v`r .QuartoInlineRender(utils::packageVersion("gargle"))`) [@gargle].
 
 ```{r}
 #| echo: false
@@ -161,7 +163,7 @@ drive_auth(cache = ".secrets", email = TRUE)
 
 Include a series of functions to call later in the file for processing data imports.
 
-Function to retrieve files, using *googledrive* package(v`{r} utils::packageVersion("googledrive")`) [@googledrive].
+Function to retrieve files, using *googledrive* package(v`r .QuartoInlineRender(utils::packageVersion("googledrive"))`) [@googledrive].
 
 ```{r}
 #| echo: false
@@ -208,7 +210,7 @@ get_latest_snapshot <- function(base_folder_id = base_folder_id1) {
 }
 ```
 
-A general text cleaning function was constructed to apply during first import of raw data files, built on *tidyverse* (v`{r} utils::packageVersion("tidyverse")`) [@tidyverse-2] and *stringr* (v`{r} utils::packageVersion("stringr")`) [@stringr-2]. The *janitor* package (v`{r} utils::packageVersion("janitor")`) [@janitor] was utilised to clean column names in the resulting dataframe.
+A general text cleaning function was constructed to apply during first import of raw data files, built on *tidyverse* (v`r .QuartoInlineRender(utils::packageVersion("tidyverse"))`) [@tidyverse-2] and *stringr* (v`r .QuartoInlineRender(utils::packageVersion("stringr"))`) [@stringr-2]. The *janitor* package (v`r .QuartoInlineRender(utils::packageVersion("janitor"))`) [@janitor] was utilised to clean column names in the resulting dataframe.
 
 ```{r}
 #| label: clean-text-func
@@ -266,7 +268,7 @@ bind_and_clean <- function(df1, df2, cols = NULL, clean_cols = NULL, clean_fn = 
 
 ### Diagnosis
 
-Include a series of functions for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* (v`{r} utils::packageVersion("future")`) [@future] and *furrr* (v`{r} utils::packageVersion("furrr")`) [@furrr] to enable distributed processing of the records. The *progressr* package (v`{r} utils::packageVersion("progressr")`) [@progressr] was utlised to enable visual progress to be communicated during processing and *memoise* (v`{r} utils::packageVersion("memoise")`) [@memoise]to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
+Include a series of functions for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* (v`r .QuartoInlineRender(utils::packageVersion("future"))`) [@future] and *furrr* (v`r .QuartoInlineRender(utils::packageVersion("furrr"))`) [@furrr] to enable distributed processing of the records. The *progressr* package (v`r .QuartoInlineRender(utils::packageVersion("progressr"))`) [@progressr] was utlised to enable visual progress to be communicated during processing and *memoise* (v`r .QuartoInlineRender(utils::packageVersion("memoise"))`) [@memoise]to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
 
 ```{r}
 
@@ -1345,7 +1347,7 @@ Data was sourced directly from the SOFARI registry. Patient and treatment inform
 
 ### Data Import and Preparation
 
-Data was retrieved and formatted using *openxlsx* [@openxlsx2] to retrieve static snapshot files and *googlesheets4* (v`{r} utils::packageVersion("googlesheets4")`) [@googlesheets4] to retrieve live database tables. Text and code output were integrated using the *epoxy* package (v`{r} utils::packageVersion("epoxy")`) [@epoxy].
+Data was retrieved and formatted using *openxlsx* [@openxlsx2] to retrieve static snapshot files and *googlesheets4* (v`r .QuartoInlineRender(utils::packageVersion("googlesheets4"))`) [@googlesheets4] to retrieve live database tables. Text and code output were integrated using the *epoxy* package (v`r .QuartoInlineRender(utils::packageVersion("epoxy"))`) [@epoxy].
 
 Source files were specified and stored as global variables to call on in further functions.
 
@@ -1484,7 +1486,7 @@ rm(PatientTable1,
 )
 ```
 
-Process the registry snapshot by retrieving the file and use *tidyverse* to add columns, recode existing columns and create an additional identifier using *tidyr* (v`{r} utils::packageVersion("tidyr")`) [@tidyr], representing the patient and their side, to track multiple treatments for each limb. Dates were reformatted to a form appropriate for analysis using *lubridate* (v`{r} utils::packageVersion("lubridate")`) [@lubridate].
+Process the registry snapshot by retrieving the file and use *tidyverse* to add columns, recode existing columns and create an additional identifier using *tidyr* (v`r .QuartoInlineRender(utils::packageVersion("tidyr"))`) [@tidyr], representing the patient and their side, to track multiple treatments for each limb. Dates were reformatted to a form appropriate for analysis using *lubridate* (v`r .QuartoInlineRender(utils::packageVersion("lubridate"))`) [@lubridate].
 
 ```{r}
 # Get the latest snapshot file
@@ -1599,7 +1601,7 @@ Record selection was based on the following criteria;
 
 -   Diagnosis text had been retrieved at the time of analysis.
 
-The *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] was used to create a table of indications for exclusion for each record and plot a flowchart (see 13.1) indicating the flow from total records processed to the final inclusion sample for analysis.
+The *consort* package (v`r .QuartoInlineRender(utils::packageVersion("consort"))`) [@consort] was used to create a table of indications for exclusion for each record and plot a flowchart (see 13.1) indicating the flow from total records processed to the final inclusion sample for analysis.
 
 ```{r}
 STROBESub <- STROBEInput |> dplyr::select(
@@ -1919,9 +1921,6 @@ According to [@cheng2019] the PCS-SF (and perhaps the full scale as well) would 
 The FAOS subscale total scores were added to the master table.
 
 ```{r}
-#| label: mastertable-4
-
-
 MasterTable4 <- MasterTable3 |> left_join(
   FAOSTable,
   by = "TreatmentID"
@@ -1952,7 +1951,6 @@ Raw text stored in the registry snapshot was processed with custom functions (se
 
 ```{r}
 #| echo: false
-#| label: 
 
 
 TargetURL = "https://docs.google.com/spreadsheets/d/1f-zb_pdjH9PuFSdkMBcAdyPCP_b-YJk2Jzvrn5G6df4/edit"
@@ -2542,7 +2540,7 @@ Descriptives for exposure and outcome variables were summarised into tables. Uni
 
 Set up input table for statistical analysis with only variables required for models.
 
-The *ggdag* package (v`{r} utils::packageVersion("ggdag")` [@ggdag] was used to create and visualise directed acyclic graphs (in conjunction with *ggplot2*), with minimal adjustment sets to ensure correct specification of models to estimate the effect of Group on outcome variables.
+The *ggdag* package (v`r .QuartoInlineRender(utils::packageVersion("ggdag"))` [@ggdag] was used to create and visualise directed acyclic graphs (in conjunction with *ggplot2*), with minimal adjustment sets to ensure correct specification of models to estimate the effect of Group on outcome variables.
 
 ### FAOS Subscales
 
@@ -2815,7 +2813,7 @@ MasterAnalysis <- MasterTable6 |> dplyr::select(
 )
 ```
 
-Missingness was visualised with the *naniar* package (v`{r} utils::packageVersion("naniar")`) [@naniar]. It showed that patients with a diagnosis also had other missing data, predominantly PROMs data.
+Missingness was visualised with the *naniar* package (v`r .QuartoInlineRender(utils::packageVersion("naniar"))`) [@naniar]. It showed that patients with a diagnosis also had other missing data, predominantly PROMs data.
 
 ```{r}
 #| label: fig-missingness
@@ -2827,7 +2825,7 @@ vis_miss(MasterAnalysis)
 
 Investigate missing pathology
 
-The *mice* (v`{r} utils::packageVersion("mice")`) [@mice] was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
+The *mice* (v`r .QuartoInlineRender(utils::packageVersion("mice"))`) [@mice] was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
 
 ```{r}
 # First create your predictor matrix as before
@@ -2907,7 +2905,7 @@ No data linkage was performed for this analysis.
 
 Participant flow - consort package and flow chart Descriptive - gtsummary and prepared for display with knitr Outcome data - ggplot2 complete case analysis
 
-A flow chart was created with the *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary* (v`{r} utils::packageVersion("gtsummary")`) [@gtsummary]. Graphs were generated using *ggplot2* (v`{r} utils::packageVersion("ggplot2")`) [@ggplot2]. Graphs and tables were prepared for display using *knitr* (v`{r} utils::packageVersion("knitr")`) [@knitr]. A linear model was fitted to the imputed data using *stats* (v`{r} utils::packageVersion("stats")`) [@stats] with the following form.
+A flow chart was created with the *consort* package (v`r .QuartoInlineRender(utils::packageVersion("consort"))`) [@consort] to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary* (v`r .QuartoInlineRender(utils::packageVersion("gtsummary"))`) [@gtsummary]. Graphs were generated using *ggplot2* (v`r .QuartoInlineRender(utils::packageVersion("ggplot2"))`) [@ggplot2]. Graphs and tables were prepared for display using *knitr* (v`r .QuartoInlineRender(utils::packageVersion("knitr"))`) [@knitr]. A linear model was fitted to the imputed data using *stats* (v`r .QuartoInlineRender(utils::packageVersion("stats"))`) [@stats] with the following form.
 
 ```{r}
 
@@ -2916,7 +2914,7 @@ adjusted_models <- fit_adjusted_models(MasterImp)
 
 ```
 
-The model was summarised using *gtsummary*. Predicted values for all model variables were generated from the model object using *marginaleffects* (v`{r} utils::packageVersion("marginaleffects")`) [@marginaleffects].
+The model was summarised using *gtsummary*. Predicted values for all model variables were generated from the model object using *marginaleffects* (v`r .QuartoInlineRender(utils::packageVersion("marginaleffects"))`) [@marginaleffects].
 
 # Results
 
@@ -3534,3 +3532,4 @@ knitr::knit_print(subset_summary)
 Programming code is incorporated into this document.
 
 Study data may be accessed for reasonable research activities by contacting the corresponding author.
+
