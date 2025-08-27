@@ -1,5 +1,4 @@
 ---
----
 title: "Pain and function at baseline assessment of foot and ankle pathology: An analysis of the SOFARI Registry"
 author: "Corey Scholes"
 affiliation: "EBM Analytics"
@@ -361,7 +360,7 @@ process_batch1 <- function(batch_df) {
       # Maintain original ordering within each diagnosis
       term_sequence = row_number()
     ) |>
-    group_by(TreatmentID, global_id, SequenceID) |>
+    group_by(TreatmentID, SequenceID) |>
     mutate(
       term_count = n(),
       term_position = row_number()
@@ -399,7 +398,7 @@ tokenize_diagnosis <- memoise::memoise(function(df, stop_words = NULL, batch_siz
   }
   
   # Add global identifier before splitting
-  df <- df |> mutate(global_id = row_number())
+  df <- df |> dplyr::mutate(global_id = row_number())
   
   # Split the data into batches
   df_split <- split(df, ceiling(seq_len(nrow(df)) / batch_size))
@@ -412,7 +411,7 @@ tokenize_diagnosis <- memoise::memoise(function(df, stop_words = NULL, batch_siz
 ```
 
 ```{r}
-#| label: apply-targe-func
+#| label: apply-target-func
 
 
 # Term replacement logic
@@ -1986,8 +1985,6 @@ progressr::handlers("progress")
 
 # Run the processing
 with_progress({
-  # Try processing with smaller batch size and fewer workers
-# Update your safe_process_diagnosis call
 DiagTerm <- safe_process_diagnosis(
   MasterTable3,
   target_terms_url = TargetURL,
