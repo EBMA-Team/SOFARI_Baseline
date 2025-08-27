@@ -492,7 +492,7 @@ safe_process_diagnosis <- function(
   }, error = function(e) {
     message("Error in processing: ", e$message)
     # Clean up any remaining connections or resources
-    future:::ClusterRegistry("stop")
+    #future:::ClusterRegistry("stop")
     stop(e)
   })
 }
