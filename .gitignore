@@ -35,3 +35,8 @@ po/*~
 
 
 /.quarto/
+.RDataTmp2
+.RDataTmp3
+.RDataTmp4
+.RDataTmp5
+.RDataTmp6
