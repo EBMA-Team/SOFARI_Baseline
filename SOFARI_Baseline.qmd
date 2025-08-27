@@ -936,13 +936,13 @@ categorize_pathology <- function(df, config) {
       Instability = as.numeric(str_detect(term_replaced, config$pathological_patterns$instability)),
       
       # Calculate composite scores
-      pathology_sum = arthritis + injury + deformity + metatarsalgia + soft_tissue_disorder + 
-                      growth + neural + infection + impingement + instability,
-      anatomy_sum = ankle + rearfoot + midfoot + forefoot + foot,
+      PathologySum = Arthritis + Injury + Deformity + Metatarsalgia + Soft_tissue_disorder + 
+                      Growth + Neural + Infection + Impingement + Instability,
+      AnatomySum = Ankle + Rearfoot + Midfoot + Forefoot + Foot,
       
       # Final classifications
-      other = as.numeric(pathology_sum < 1 | str_detect(term_replaced, "foreign.+(body|material)")),
-      negate_pathology = as.numeric(!str_detect(term_replaced, "(?<!ab?)normal|(?<!(non|mal)-?)|nil.+pathology|\\bheal\\b|reduced|non-tender|unremarkable"))
+      Other = as.numeric(str_detect(term_replaced, "foreign.+(body|material)")),
+      NegatePathology = as.numeric(str_detect(term_replaced, "(?<!ab?)normal|(?<!(non|mal)-?)|nil.+pathology|\\bheal\\b|reduced|non-tender|unremarkable", negate = TRUE))
     )
 }
 ```
@@ -958,11 +958,11 @@ concatenate_results <- function(df) {
   sequence_level <- df |> 
     group_by(TreatmentID, SequenceID) |> 
     summarise(
-      Combined_Term = str_c(term_replaced, collapse = " "),
+      CombinedTerm = str_c(term_replaced, collapse = " "),
       # Preserve all classification columns by taking the maximum value for each sequence
-      across(c(Ankle:Other, Negate_pathology), ~ max(.x, na.rm = TRUE)),
-      pathology_sum = max(pathology_sum, na.rm = TRUE),
-      anatomy_sum = max(anatomy_sum, na.rm = TRUE),
+      across(c(Ankle:Other, NegatePathology), ~ max(.x, na.rm = TRUE)),
+      PathologySum = max(PathologySum, na.rm = TRUE),
+      AnatomySum = max(AnatomySum, na.rm = TRUE),
       .groups = "keep"
     ) |> 
     arrange(TreatmentID, SequenceID)
@@ -971,22 +971,22 @@ concatenate_results <- function(df) {
   sequence_level |> 
     group_by(TreatmentID) |> 
     mutate(
-      Cumulative_Diagnosis = accumulate(
-        Combined_Term,
+      CumulativeDiagnosis = accumulate(
+        CombinedTerm,
         ~ if_else(is.na(.x), .y, paste(.y, .x, sep = "; "))
       ) |> last(),
-      sequence_row = row_number()
+      SequenceRow = row_number()
     ) |> 
     ungroup() |> 
     select(
       TreatmentID,
       SequenceID,
-      Combined_Term,
+      CombinedTerm,
       Ankle:NegatePathology,
-      pathology_sum,
-      anatomy_sum,
-      Cumulative_Diagnosis,
-      sequence_row
+      PathologySum,
+      AnatomySum,
+      CumulativeDiagnosis,
+      SequenceRow
     )
 }
 
@@ -1039,6 +1039,162 @@ process_clinical_diagnoses <- function(
 ```
 
 
+```{r}
+
+# Step 1: Add classification logic after creating DiagTerm
+add_classification_logic <- function(diag_term_df) {
+  
+  # Step 1: Create the classification flags (like your old DiagFunc2)
+  diag_classified <- diag_term_df |>
+    mutate(
+      # Calculate classification flags
+      has_region = rowSums(across(Ankle:Foot), na.rm = TRUE),
+      has_pathology = rowSums(across(Arthritis:Instability), na.rm = TRUE),
+      RowCount1 = n(),
+      .by = TreatmentID
+    ) |>
+    mutate(
+      SequenceCat1 = if_else(
+        has_region >= 1 & has_pathology >= 1,
+        "Classified",
+        "No"
+      )
+    ) |>
+    group_by(TreatmentID) |>
+    arrange(desc(SequenceRow), .by_group = TRUE) |>
+    mutate(
+      Product = has_region * has_pathology,
+      SequenceCatLead = lead(SequenceCat1),
+      ResetFlag = case_when( 
+        lag(Product) >= 1 & Product == 0 ~ 1,
+        lag(Product) < 1 & Product < 1 ~ 1,
+        Product >= 1 & lag(Product) < 1 ~ 1,
+        SequenceRow == max(SequenceRow) & Product == 0 ~ 1,
+        SequenceRow == max(SequenceRow) & Product >= 1 ~ 0,
+        .default = 0
+      )
+    ) |>
+    ungroup()
+  
+  # Step 2: Split classified from unclassified (like DiagFunc2a/2b/2c)
+  classified_terms <- diag_classified |>
+    filter(Product > 0, ResetFlag == 0)
+  
+  # Get unclassified terms and concatenate them
+  unclassified_base <- diag_classified |>
+    filter(ResetFlag == 1) |>
+    distinct(TreatmentID, .keep_all = TRUE)
+  
+  unclassified_concatenated <- diag_classified |>
+    filter(ResetFlag == 1) |>
+    group_by(TreatmentID) |>
+    summarise(
+      # Concatenate the combined terms
+      CombinedTerm_new = str_c(CombinedTerm, collapse = "; "),
+      # Aggregate anatomy columns (take max)
+      Ankle = max(Ankle, na.rm = TRUE),
+      Rearfoot = max(Rearfoot, na.rm = TRUE),
+      Midfoot = max(Midfoot, na.rm = TRUE),
+      Forefoot = max(Forefoot, na.rm = TRUE),
+      Foot = max(Foot, na.rm = TRUE),
+      # Aggregate pathology columns (take max)
+      Arthritis = max(Arthritis, na.rm = TRUE),
+      Injury = max(Injury, na.rm = TRUE),
+      Deformity = max(Deformity, na.rm = TRUE),
+      Metatarsalgia = max(Metatarsalgia, na.rm = TRUE),
+      Soft_tissue_disorder = max(Soft_tissue_disorder, na.rm = TRUE),
+      Growth = max(Growth, na.rm = TRUE),
+      Neural = max(Neural, na.rm = TRUE),
+      Infection = max(Infection, na.rm = TRUE),
+      Impingement = max(Impingement, na.rm = TRUE),
+      Instability = max(Instability, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    # Recalculate sums
+    mutate(
+      PathologySum = rowSums(across(Arthritis:Instability), na.rm = TRUE),
+      AnatomySum = rowSums(across(Ankle:Foot), na.rm = TRUE),
+      Other = if_else(PathologySum > 0 | AnatomySum > 0, 1, 0),
+      NegatePathology = 0  # You may need to recalculate this
+    )
+  
+  # Join the concatenated terms back to the base
+  unclassified_final <- unclassified_base |>
+    select(-CombinedTerm, -(Ankle:NegatePathology)) |>
+    left_join(unclassified_concatenated, by = "TreatmentID") |>
+    rename(CombinedTerm = CombinedTerm_new)
+  
+  # Step 3: Combine classified and unclassified terms back together
+  result <- bind_rows(classified_terms, unclassified_final) |>
+    arrange(TreatmentID) |>
+    select(-(has_region:ResetFlag)) |>
+    # Recreate the cumulative diagnosis
+    group_by(TreatmentID) |>
+    mutate(
+      CumulativeDiagnosis = str_c(CombinedTerm, collapse = "; "),
+      SequenceRow = row_number()
+    ) |>
+    ungroup()
+  
+  return(result)
+}
+
+# EXECUTE THE PIPELINE:
+
+# Step 2: Apply the classification logic to your DiagTerm
+DiagTerm_with_classification <- add_classification_logic(DiagTerm)
+
+# Step 3: Filter to only keep classified terms (like your old pipeline did)
+DiagTerm_final <- DiagTerm_with_classification |>
+  mutate(
+    has_region = rowSums(across(Ankle:Foot), na.rm = TRUE),
+    has_pathology = rowSums(across(Arthritis:Instability), na.rm = TRUE)
+  ) |>
+  filter(has_region * has_pathology >= 1) |>
+  # Update sequence ID
+  mutate(
+    SequenceIDUpdate = paste(TreatmentID, SequenceRow, sep = "."),
+    .by = TreatmentID
+  ) |>
+  select(-has_region, -has_pathology)
+
+# Step 4: Now create your region and pathology summaries
+DiagRegion_new <- DiagTerm_final |>
+  select(CombinedTerm, SequenceIDUpdate, TreatmentID, Ankle:Foot) |>
+  pivot_longer(
+    cols = !c(TreatmentID, SequenceIDUpdate, CombinedTerm),
+    names_to = "Region", 
+    values_to = "RegionPresence"
+  ) |>
+  filter(RegionPresence > 0, !is.na(Region)) |>
+  mutate(
+    RegionCount = n_distinct(Region),
+    RegionCat = if_else(RegionCount > 1, "Multiple", "Isolated"),
+    .by = TreatmentID
+  ) |>
+  select(-RegionPresence)
+
+DiagPathology_new <- DiagTerm_final |>
+  select(CombinedTerm, TreatmentID, SequenceIDUpdate, Arthritis:Other) |>
+  pivot_longer(
+    cols = !c(TreatmentID, SequenceIDUpdate, CombinedTerm),
+    names_to = "Pathology",
+    values_to = "PathPresence"  
+  ) |>
+  filter(PathPresence > 0, !is.na(Pathology)) |>
+  mutate(
+    PathCount = n_distinct(Pathology),
+    PathCat = if_else(PathCount > 1, "Multiple", "Isolated"),
+    .by = TreatmentID
+  )
+
+# Step 5: Create the distinct summaries
+DiagRegion1_new <- DiagRegion_new |>
+  distinct(TreatmentID, .keep_all = TRUE)
+
+DiagPath1_new <- DiagPathology_new |>
+  distinct(TreatmentID, .keep_all = TRUE)
+```
 
 
 
@@ -2350,6 +2506,35 @@ DiagTerm <- process_clinical_diagnoses(
 
 ```
 
+```{r}
+# After creating your DiagTerm from the tokenization pipeline
+DiagTerm_final <- add_classification_logic(DiagTerm)
+```
+
+
+
+```{r}
+
+MasterTable5 <- MasterTable4 |> left_join(
+  DiagTerm |>
+      filter(SequenceRow == 1) |>  # Get one row per TreatmentID
+      dplyr::mutate(
+        RegionCat = case_when(
+          AnatomySum == 0 ~ NA_character_,
+          AnatomySum == 1 ~ "Isolated", 
+          AnatomySum > 1 ~ "Multiple"
+        ),
+        PathCat = case_when(
+          PathologySum == 0 ~ NA_character_,
+          PathologySum == 1 ~ "Isolated",
+          PathologySum > 1 ~ "Multiple"  
+        )
+      ) |>
+      dplyr::select(TreatmentID, RegionCat, PathCat),
+    by = "TreatmentID"
+  )
+
+```
 
 
 
