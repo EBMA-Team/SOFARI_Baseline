@@ -2507,16 +2507,62 @@ DiagTerm <- process_clinical_diagnoses(
 ```
 
 ```{r}
-# After creating your DiagTerm from the tokenization pipeline
-DiagTerm_final <- add_classification_logic(DiagTerm)
+DiagTermTreat <- DiagTerm |>
+  group_by(TreatmentID) |>
+  mutate(
+    # Aggregate anatomy columns - use max to get 1 if ANY term has that anatomy
+    AnkleTreat  = max(Ankle, na.rm = TRUE),
+    RearfootTreat  = max(Rearfoot, na.rm = TRUE), 
+    MidfootTreat  = max(Midfoot, na.rm = TRUE),
+    ForefootTreat  = max(Forefoot, na.rm = TRUE),
+    FootTreat  = max(Foot, na.rm = TRUE),
+    
+    # Aggregate pathology columns
+    ArthritisTreat  = max(Arthritis, na.rm = TRUE),
+    InjuryTreat = max(Injury, na.rm = TRUE),
+    DeformityTreat  = max(Deformity, na.rm = TRUE),
+    MetatarsalgiaTreat  = max(Metatarsalgia, na.rm = TRUE),
+    Soft_tissue_disorderTreat  = max(Soft_tissue_disorder, na.rm = TRUE),
+    GrowthTreat  = max(Growth, na.rm = TRUE),
+    NeuralTreat  = max(Neural, na.rm = TRUE),
+    InfectionTreat  = max(Infection, na.rm = TRUE),
+    ImpingementTreat  = max(Impingement, na.rm = TRUE),
+    InstabilityTreat  = max(Instability, na.rm = TRUE),
+    
+    # Recalculate sums
+    PathologySumTreat  = ArthritisTreat + InjuryTreat + DeformityTreat + MetatarsalgiaTreat + 
+                       Soft_tissue_disorderTreat + GrowthTreat + NeuralTreat + InfectionTreat + 
+                       ImpingementTreat + InstabilityTreat,
+    AnatomySumTreat  = AnkleTreat + RearfootTreat + MidfootTreat + ForefootTreat + FootTreat
+  ) |>
+  ungroup()
 ```
+
+
+
+```{r}
+# After creating your DiagTerm from the tokenization pipeline
+DiagTerm_final <- add_classification_logic(DiagTermTreat) |> mutate(
+  RegionCat = case_when(
+          AnatomySum == 0 ~ NA_character_,
+          AnatomySum == 1 ~ "Isolated", 
+          AnatomySum > 1 ~ "Multiple"
+        ),
+  PathCat = case_when(
+          PathologySum == 0 ~ NA_character_,
+          PathologySum == 1 ~ "Isolated",
+          PathologySum > 1 ~ "Multiple"  
+        )
+      )
+```
+
 
 
 
 ```{r}
 
 MasterTable5 <- MasterTable4 |> left_join(
-  DiagTerm |>
+  DiagTerm_final |>
       filter(SequenceRow == 1) |>  # Get one row per TreatmentID
       dplyr::mutate(
         RegionCat = case_when(
