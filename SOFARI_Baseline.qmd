@@ -1967,7 +1967,7 @@ TargetURL = "https://docs.google.com/spreadsheets/d/1f-zb_pdjH9PuFSdkMBcAdyPCP_b
 ```
 
 ```{r}
-#| label: diagnosis-term
+#| label: diagnosis-term-1
 
 #| eval: true
 #| echo: false
@@ -2202,7 +2202,7 @@ DiagRegion <- DiagFunc4 |> dplyr::select(
 ```
 
 ```{r}
-#| label: diagnosis-term
+#| label: diagnosis-pathology-1
 
 DiagPathology <- DiagFunc4 |> dplyr::select(
   Term2,
@@ -2226,6 +2226,7 @@ DiagPathology <- DiagFunc4 |> dplyr::select(
 ```
 
 ```{r}
+#| label: diagnosis-path-region
 
 DiagRegion1 <- DiagRegion |> distinct(
   TreatmentID,
@@ -2244,6 +2245,8 @@ DiagPath1 <- DiagPathology |> distinct(
 A cohort label (combining pathology and region) was created from the processed diagnosis text.
 
 ```{r}
+#| label: cohort-definition
+
 # Slice Down Snapshot based on diagnosis availability
 
 MasterTable5 <- MasterTable4 |> left_join(
@@ -2367,6 +2370,7 @@ The bilateral status of each record in the registry snapshot was calculated by g
 -   Unilateral - the record appears in the dataset with no record present for the contralateral limb
 
 ```{r}
+#| label: bilateral-definition
 
 SnapshotBilat1 <- MasterTable5 |> group_by(
   PatientID
@@ -2465,6 +2469,8 @@ SnapshotLeft2 <- SnapshotLeft1 |> rename(
 Marry back into the master table.
 
 ```{r}
+#| label: bilateral-status
+
 MasterTable6 <- left_join(
   MasterTable5,
   SnapshotLeft2 |> dplyr::select(
@@ -2795,6 +2801,8 @@ Text data was cleaned using custom functions as described in *Functions for proc
 In the record selection workflow, patients with text in the diagnosis text field were included in the final analysis number. However, there was a proportion of patients that had text that could not be categorised into an anatomical region. For the purposes of this draft analysis, these cases will be removed and a round of chart review will be performed to resolve the discrepancy between the text and the classification code.
 
 ```{r}
+#| label: define-analysis-set
+
 MasterAnalysis <- MasterTable6 |> dplyr::select(
   TreatmentID:Satisfaction_Preop,
   InjuryToPresentation,
@@ -2853,6 +2861,7 @@ Investigate missing pathology
 The *mice* (v`{r} utils::packageVersion("mice")`) [@mice] was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
 
 ```{r}
+#| label: missing-imputation
 # First create your predictor matrix as before
 predM <- mice::make.predictorMatrix(MasterAnalysis)
 
@@ -2933,6 +2942,7 @@ Participant flow - consort package and flow chart Descriptive - gtsummary and pr
 A flow chart was created with the *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary* (v`{r} utils::packageVersion("gtsummary")`) [@gtsummary]. Graphs were generated using *ggplot2* (v`{r} utils::packageVersion("ggplot2")`) [@ggplot2]. Graphs and tables were prepared for display using *knitr* (v`{r} utils::packageVersion("knitr")`) [@knitr]. A linear model was fitted to the imputed data using *stats* (v`{r} utils::packageVersion("stats")`) [@stats] with the following form.
 
 ```{r}
+#| label: run-analysis-models
 
 unadjusted_models <- fit_unadjusted_models(MasterImp)
 adjusted_models <- fit_adjusted_models(MasterImp)
@@ -3355,6 +3365,7 @@ knitr::knit_print(combined_comparisons)
 Review how isolated ankle arthritis compares to other ankle pathology and arthritis spanning multiple foot-ankle regions
 
 ```{r}
+#| label: subgroup-summary
 
 # Step 1: Pool the multiple imputations first
 # Pool imputations using mice::complete() with action = "long" for easy handling
@@ -3393,8 +3404,9 @@ pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) %>%
 ```
 
 ```{r}
+#| label: subgroup-comparison
 # Step 2: Create the comparison groups on pooled data
-ankle_comparison <- pooled_subset %>%
+ankle_comparison <- pooled_subset |>
   # Create a comparison group variable
   mutate(
     ComparisonGroup = case_when(
@@ -3408,8 +3420,8 @@ ankle_comparison <- pooled_subset %>%
   filter(ComparisonGroup %in% c("Ankle Arthritis", "Ankle Non-Arthritis", "Multiple Regions"))
 
 # Check the sample sizes
-ankle_comparison %>%
-  count(ComparisonGroup) %>%
+ankle_comparison |>
+  count(ComparisonGroup) |>
   print()
 ```
 
