@@ -268,7 +268,6 @@ bind_and_clean <- function(df1, df2, cols = NULL, clean_cols = NULL, clean_fn = 
 Include a series of functions for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* (v`{r} utils::packageVersion("future")`) [@future] and *furrr* (v`{r} utils::packageVersion("furrr")`) [@furrr] to enable distributed processing of the records. The *progressr* package (v`{r} utils::packageVersion("progressr")`) [@progressr] was utlised to enable visual progress to be communicated during processing and *memoise* (v`{r} utils::packageVersion("memoise")`) [@memoise]to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
 
 ```{r}
-#| label: initial-diagnosis-func
 
 # Enable parallel processing
 future::plan(multisession)
@@ -398,7 +397,7 @@ tokenize_diagnosis <- memoise::memoise(function(df, stop_words = NULL, batch_siz
   }
   
   # Add global identifier before splitting
-  df <- df |> dplyr::mutate(global_id = row_number())
+  df <- df |> mutate(global_id = row_number())
   
   # Split the data into batches
   df_split <- split(df, ceiling(seq_len(nrow(df)) / batch_size))
@@ -411,9 +410,6 @@ tokenize_diagnosis <- memoise::memoise(function(df, stop_words = NULL, batch_siz
 ```
 
 ```{r}
-#| label: apply-target-func
-
-
 # Term replacement logic
 apply_target_terms <- memoise::memoise(function(df, target_terms, batch_size = 500, process_batch) {
   # Ensure `process_batch` is provided
@@ -430,8 +426,6 @@ apply_target_terms <- memoise::memoise(function(df, target_terms, batch_size = 5
 ```
 
 ```{r}
-#| label: process-diagnosis-func
-
 # Function to safely process diagnosis
 safe_process_diagnosis <- function(
     snapshot_df,
@@ -495,7 +489,7 @@ safe_process_diagnosis <- function(
   }, error = function(e) {
     message("Error in processing: ", e$message)
     # Clean up any remaining connections or resources
-    #future:::ClusterRegistry("stop")
+    future:::ClusterRegistry("stop")
     stop(e)
   })
 }
@@ -506,9 +500,6 @@ safe_process_diagnosis <- function(
 Function to conduct categorisation of terms for pathology (diagnosis) stored in the registry.
 
 ```{r}
-#| label: categorise-diagnosis-func
-
-
 #' Categorize medical diagnoses with anatomical and pathological classifications
 #' @param df A dataframe containing Term2 columns
 #' @param remove_intermediate Logical, whether to remove intermediate processing columns
@@ -613,29 +604,24 @@ categorize_diagnosis_cached <- memoise::memoise(categorize_diagnosis)
 Concatenated terms for each treatment record using *tidyverse* syntax. Generated a method to cumulatively concatenate terms within a treatment record that have been split into text sequences delimited by punctuation (e.g. ";").
 
 ```{r}
-#| label: concatenate-diagnoses-func
-
-
 concatenate_diagnoses <- function(data) {
   # Sort the data by TreatmentID and SequenceRow in descending order
   data |>
-    arrange(TreatmentID, desc(SequenceRow)) |>
+    arrange(TreatmentID, desc(SequenceRow)) %>%
     group_by(TreatmentID) %>%
     mutate(
       CumulativeTerm = accumulate(Term2, 
                                  .f = function(x, y) {
                                    if (is.na(x)) y else paste(y, x, sep = "; ")
-                                 }) |> 
+                                 }) %>% 
         last()
-    ) |>
+    ) %>%
     ungroup()
 }
 
 ```
 
 ```{r}
-#| label: concatenate-cumulative-func
-
 
 concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
   # Create a dataframe to help with tracking
@@ -701,499 +687,6 @@ concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
   return(result)
 }
 
-```
-
-
-
-Update Diagnosis Functions
-
-
-```{r}
-
-#| label: setup-packages
-
-# Enable parallel processing
-future::plan(multisession)
-```
-
-```{r}
-#| label: configuration-setup
-
-# Configuration object for all patterns and rules
-create_config <- function() {
-  list(
-    # Text standardization patterns
-    text_patterns = list(
-      punctuation_normalize = c("\\.|\\. |\\: |\\, |w\\/" = ";"),
-      hash_replace = c("\\#" = "fracture"),
-      multiple_semicolon = c(";+" = ";"),
-      conjunction_replace = c("\\bwith\\b|\\band\\b|\\bas well as\\b" = ";"),
-      whitespace_normalize = c("\\s+" = " ")
-    ),
-    
-    # Classification patterns for pathology
-    anatomical_patterns = list(
-      ankle = "ankle|tibiotalar|\\bplafond\\b|dome|malleol*|weber|achilles|tendo-achilles|fibula|\\btibia\\b|gutter|perone*|syndesmo|gastrocnemius|talo-fibular|talofibular|calcaneofibular|calcaneo-fibular|gutter|(lateral|medial)\\s+ligament|tibia|deltoid|compartment.+syndrome",
-      rearfoot = "\\btarsal\\b|\\btalar(?!\\s+dome)|talus|talonavic*|plantar|rearfoot|hindfoot|trigonum|hindfeet|tarsi|calcaneus|\\bcalcaneal\\b|heel|subtalar",
-      midfoot = "metatarsus|tarsometatarsal|tarso-metatarsal|\\bmetatarsal\\b|talonavicular|navicular|cuneiform|lisfranc|cuboid|midfoot|jones|chopart",
-      forefoot = "digit*|morton*|metatarsophalangeal|phalange*|phalanx|hallux|nail|forefoot|forefeet|bunionette|hallucis|onychomycosis|paronychia|bunion|hammertoe|claw|sesamoid",
-      foot = "\\bfeet\\b|\\bfoot\\b|cavovarus|equinovarus|equinus|pes|charcot|footdrop|neuropathy"
-    ),
-    
-    pathological_patterns = list(
-      arthritis = "psoria|arthritis|osteoarthritis|rheumatoid|gout|erosion|arthropathy",
-      injury = "injury|injuries|axial|impact|crush|rotation|inversion|forced|accident|tear|torn|ruptur|avulsion|fracture|defect|(osteochondral|chondral|cartilage).+lesion|sprain|haemarthrosis|disruption|wound|laceration|penetrating|hernia|maisonneuve",
-      deformity = "malalignment|deformit|angulation|contracture|contraction|\\bvalgus\\b|varus|planovalgus|valgoplanus|dysfunction|extension|adductus|crossover|hammer|claw|bunionette|bunion|interphalangeus|(relatively|significantly).+long|relative.+long",
-      metatarsalgia = "metatarsalgia|forefoot.+overload",
-      soft_tissue_disorder = "tenosynovitis|enthesopathy|teno-synovitis|tendinopathy|tendinitis|tendonitis|tendinosis|fasciosis|fasciitis|sesamoiditis|arthrofibro|scar|tibialis posterior.+dysfunction|dysfunction tibialis posterior",
-      growth = "cyst|ganglion|neuroma|malformation|fibroma|tumour|accessory|ingrown|in_grown|coalition|(?<!(?:chondral|osteochondral|cartilage)\\s)\\blesion\\b|xanthomas|osteoma|gioma|schwannoma|chondroma|lump|villonodular|callosity|corn|mass|\\b(non|mal|delayed)[-]?union|pseudo-articulation|bone.+loss|exostosis|spur|osteophyte|onychogryphosis|bipartite|neuroma|chondromatosis",
-      neural = "foot.+drop|footdrop|nerve|neuropathy|neural|sensory|charcot|motor|pain.+syndrome|tunnel.+syndrome|neuropathic|denervation",
-      infection = "infect|osteomyelitis|cellulitis|onychomycosis|ulcer|paronychia",
-      impingement = "impingement|stiffness|os.+trigonum",
-      instability = "disloc|unstable|sublux|instability|talar.+shift|widening|maisonneuve"
-    ),
-    
-    # Exclusion patterns
-    exclusion_patterns = list(
-      ankle_exclusions = "(lateral|medial)\\s+collateral\\s+ligament",
-      numeric_exclusions = "\\d+(?!(?:st|nd|rd|th)\\b)|(left|right)",
-      negation_patterns = "(?<!ab?)normal|(?<!(non|mal)-?)|nil.+pathology|\\bheal\\b|reduced|non-tender|unremarkable"
-    )
-  )
-}
-```
-
-```{r}
-#| label: load-target-terms
-
-# Memoized function to load target terms from Google Sheets
-load_target_terms <- memoise::memoise(function(sheet_url, sheet_name = "DiagTerm", range = "A1:C") {
-  message(glue::glue("Loading target terms from {sheet_name}..."))
-  
-  terms <- googlesheets4::range_read(
-    ss = sheet_url,
-    sheet = sheet_name,
-    range = range,
-    col_names = TRUE,
-    trim_ws = TRUE
-  ) |> 
-    mutate(
-      target_term = paste0("\\b", str_escape(Term), "\\b")
-    )
-  
-  list(
-    terms = terms,
-    pattern = str_c(terms$target_term, collapse = "|")
-  )
-})
-```
-
-```{r}
-#| label: text-standardization
-
-# Unified text standardization function
-standardize_text <- function(df, config) {
-  message(glue::glue("Standardizing text for {nrow(df)} records..."))
-  
-  # Input validation
-  required_cols <- c("TreatmentID", "DiagnosisRawFinal", "DiagnosisRawPrelim")
-  missing_cols <- setdiff(required_cols, names(df))
-  
-  if (length(missing_cols) > 0) {
-    stop(glue::glue("Missing required columns: {paste(missing_cols, collapse = ', ')}"))
-  }
-  
-  df |> 
-    select(TreatmentID, DiagnosisRawFinal, DiagnosisRawPrelim) |> 
-    unite("diagnosis_raw", c(DiagnosisRawFinal, DiagnosisRawPrelim), 
-          na.rm = TRUE, remove = FALSE, sep = "; ") |> 
-    filter(str_count(str_to_lower(diagnosis_raw), "") > 1) |> 
-    mutate(
-      # Apply all text patterns sequentially
-      diagnosis_clean = reduce(
-        config$text_patterns,
-        ~ str_replace_all(.x, names(.y), .y),
-        .init = str_squish(diagnosis_raw)
-      ),
-      # Final cleanup
-      diagnosis_clean = str_trim(str_remove_all(diagnosis_clean, "^;|;$"))
-    )
-}
-```
-
-```{r}
-#| label: tokenize-and-classify
-
-# Combined tokenization and term replacement
-tokenize_and_classify <- function(df, target_terms, config, batch_size = 1000) {
-  message(glue::glue("Tokenizing and classifying {nrow(df)} diagnosis records..."))
-  
-  # Create replacement function
-  replace_function <- function(term) {
-    match <- filter(target_terms$terms, Term == term)
-    if (nrow(match) == 1) match$ReplaceTerm else term
-  }
-  
-  # Add batch and global IDs
-  df_with_ids <- df |> 
-    mutate(
-      batch_id = ceiling(row_number() / batch_size),
-      global_id = row_number()
-    )
-  
-  # Process in batches
-  result_list <- df_with_ids |> 
-    group_split(batch_id) |> 
-    map_dfr(~ {
-      batch_num <- unique(.x$batch_id)
-      message(glue::glue("Processing batch {batch_num}..."))
-      
-      .x |> 
-        # Split diagnosis into sequences
-        mutate(
-          diagnosis_lower = str_replace_all(
-            str_to_lower(diagnosis_clean),
-            "\\bwith\\b|\\band\\b|\\bas well as\\b", ";"
-          )
-        ) |> 
-        separate_rows(diagnosis_lower, sep = ";") |> 
-        mutate(
-          diagnosis_lower = str_trim(diagnosis_lower),
-          SequenceID = row_number()
-        ) |> 
-        filter(nchar(diagnosis_lower) > 0) |> 
-        
-        # Tokenize
-        unnest_tokens(
-          output = term,
-          input = diagnosis_lower,
-          token = "regex",
-          pattern = "\\s+",
-          to_lower = TRUE,
-          drop = FALSE
-        ) |> 
-        
-        # Remove stop words
-        anti_join(get_stopwords(), by = c("term" = "word")) |> 
-        
-        # Apply target term replacements
-        mutate(
-          term_replaced = map_chr(term, replace_function)
-        ) |> 
-        
-        # Filter unwanted patterns
-        filter(
-          !str_detect(term_replaced, "\\d+(?!(?:st|nd|rd|th)\\b)|(left|right)")
-        ) |> 
-        
-        # Add sequence information
-        group_by(TreatmentID, SequenceID) |> 
-        mutate(
-          term_position = row_number(),
-          term_count = n()
-        ) |> 
-        ungroup()
-    })
-  
-  # Return with proper ordering
-  result_list |> 
-    arrange(global_id, term_position)
-}
-```
-
-```{r}
-#| label: categorize-pathology
-
-# Streamlined pathology categorization
-categorize_pathology <- function(df, config) {
-  message(glue::glue("Categorizing pathology for {nrow(df)} terms..."))
-  
-  # Input validation
-  if (!"term_replaced" %in% names(df)) {
-    stop("Missing required column 'term_replaced'")
-  }
-  
-  df |> 
-    mutate(
-      # Anatomical classifications
-      Ankle = as.numeric(str_detect(term_replaced, config$anatomical_patterns$ankle) & 
-                        !str_detect(term_replaced, "(lateral|medial)\\s+collateral\\s+ligament")),
-      Rearfoot = as.numeric(str_detect(term_replaced, config$anatomical_patterns$rearfoot)),
-      Midfoot = as.numeric(str_detect(term_replaced, config$anatomical_patterns$midfoot)),
-      Forefoot = as.numeric(str_detect(term_replaced, config$anatomical_patterns$forefoot)),
-      Foot = as.numeric(str_detect(term_replaced, config$anatomical_patterns$foot)),
-      
-      # Pathological classifications  
-      Arthritis = as.numeric(str_detect(term_replaced, config$pathological_patterns$arthritis)),
-      Injury = as.numeric(str_detect(term_replaced, config$pathological_patterns$injury)),
-      Deformity = as.numeric(str_detect(term_replaced, config$pathological_patterns$deformity)),
-      Metatarsalgia = as.numeric(str_detect(term_replaced, config$pathological_patterns$metatarsalgia)),
-      Soft_tissue_disorder = as.numeric(str_detect(term_replaced, config$pathological_patterns$soft_tissue_disorder)),
-      Growth = as.numeric(str_detect(term_replaced, config$pathological_patterns$growth)),
-      Neural = as.numeric(str_detect(term_replaced, config$pathological_patterns$neural)),
-      Infection = as.numeric(str_detect(term_replaced, config$pathological_patterns$infection)),
-      Impingement = as.numeric(str_detect(term_replaced, config$pathological_patterns$impingement)),
-      Instability = as.numeric(str_detect(term_replaced, config$pathological_patterns$instability)),
-      
-      # Calculate composite scores
-      PathologySum = Arthritis + Injury + Deformity + Metatarsalgia + Soft_tissue_disorder + 
-                      Growth + Neural + Infection + Impingement + Instability,
-      AnatomySum = Ankle + Rearfoot + Midfoot + Forefoot + Foot,
-      
-      # Final classifications
-      Other = as.numeric(str_detect(term_replaced, "foreign.+(body|material)")),
-      NegatePathology = as.numeric(str_detect(term_replaced, "(?<!ab?)normal|(?<!(non|mal)-?)|nil.+pathology|\\bheal\\b|reduced|non-tender|unremarkable", negate = TRUE))
-    )
-}
-```
-
-```{r}
-#| label: concatenate-results
-
-# Simplified result concatenation - preserving all classification columns
-concatenate_results <- function(df) {
-  message(glue::glue("Concatenating results for {length(unique(df$TreatmentID))} treatments..."))
-  
-  # First, aggregate by sequence to get term combinations and max classifications
-  sequence_level <- df |> 
-    group_by(TreatmentID, SequenceID) |> 
-    summarise(
-      CombinedTerm = str_c(term_replaced, collapse = " "),
-      # Preserve all classification columns by taking the maximum value for each sequence
-      across(c(Ankle:Other, NegatePathology), ~ max(.x, na.rm = TRUE)),
-      PathologySum = max(PathologySum, na.rm = TRUE),
-      AnatomySum = max(AnatomySum, na.rm = TRUE),
-      .groups = "keep"
-    ) |> 
-    arrange(TreatmentID, SequenceID)
-  
-  # Then create the final output with row-level data (similar to your DiagTerm structure)
-  sequence_level |> 
-    group_by(TreatmentID) |> 
-    mutate(
-      CumulativeDiagnosis = accumulate(
-        CombinedTerm,
-        ~ if_else(is.na(.x), .y, paste(.y, .x, sep = "; "))
-      ) |> last(),
-      SequenceRow = row_number()
-    ) |> 
-    ungroup() |> 
-    select(
-      TreatmentID,
-      SequenceID,
-      CombinedTerm,
-      Ankle:NegatePathology,
-      PathologySum,
-      AnatomySum,
-      CumulativeDiagnosis,
-      SequenceRow
-    )
-}
-
-```
-
-```{r}
-#| label: main-pipeline
-
-# Main processing pipeline
-process_clinical_diagnoses <- function(
-    data, 
-    target_terms_url,
-    batch_size = 1000,
-    use_parallel = TRUE
-) {
-  
-  # Setup
-  config <- create_config()
-  
-  if (use_parallel) {
-    plan(multisession)
-  }
-  
-  # Input validation
-  message(glue::glue("Starting clinical diagnosis processing pipeline..."))
-  message(glue::glue("Input data: {nrow(data)} records"))
-  
-  tryCatch({
-    # Load target terms
-    target_terms <- load_target_terms(target_terms_url)
-    message(glue::glue("Loaded {nrow(target_terms$terms)} target terms"))
-    
-    # Main processing pipeline
-    result <- data |> 
-      standardize_text(config) |> 
-      tokenize_and_classify(target_terms, config, batch_size) |> 
-      categorize_pathology(config) |> 
-      concatenate_results()
-    
-    message("Processing completed successfully!")
-    message(glue::glue("Output: {nrow(result)} processed records"))
-    
-    return(result)
-    
-  }, error = function(e) {
-    message(glue::glue("Processing failed: {e$message}"))
-    stop(e)
-  })
-}
-```
-
-
-```{r}
-
-# Step 1: Add classification logic after creating DiagTerm
-add_classification_logic <- function(diag_term_df) {
-  
-  # Step 1: Create the classification flags (like your old DiagFunc2)
-  diag_classified <- diag_term_df |>
-    mutate(
-      # Calculate classification flags
-      has_region = rowSums(across(Ankle:Foot), na.rm = TRUE),
-      has_pathology = rowSums(across(Arthritis:Instability), na.rm = TRUE),
-      RowCount1 = n(),
-      .by = TreatmentID
-    ) |>
-    mutate(
-      SequenceCat1 = if_else(
-        has_region >= 1 & has_pathology >= 1,
-        "Classified",
-        "No"
-      )
-    ) |>
-    group_by(TreatmentID) |>
-    arrange(desc(SequenceRow), .by_group = TRUE) |>
-    mutate(
-      Product = has_region * has_pathology,
-      SequenceCatLead = lead(SequenceCat1),
-      ResetFlag = case_when( 
-        lag(Product) >= 1 & Product == 0 ~ 1,
-        lag(Product) < 1 & Product < 1 ~ 1,
-        Product >= 1 & lag(Product) < 1 ~ 1,
-        SequenceRow == max(SequenceRow) & Product == 0 ~ 1,
-        SequenceRow == max(SequenceRow) & Product >= 1 ~ 0,
-        .default = 0
-      )
-    ) |>
-    ungroup()
-  
-  # Step 2: Split classified from unclassified (like DiagFunc2a/2b/2c)
-  classified_terms <- diag_classified |>
-    filter(Product > 0, ResetFlag == 0)
-  
-  # Get unclassified terms and concatenate them
-  unclassified_base <- diag_classified |>
-    filter(ResetFlag == 1) |>
-    distinct(TreatmentID, .keep_all = TRUE)
-  
-  unclassified_concatenated <- diag_classified |>
-    filter(ResetFlag == 1) |>
-    group_by(TreatmentID) |>
-    summarise(
-      # Concatenate the combined terms
-      CombinedTerm_new = str_c(CombinedTerm, collapse = "; "),
-      # Aggregate anatomy columns (take max)
-      Ankle = max(Ankle, na.rm = TRUE),
-      Rearfoot = max(Rearfoot, na.rm = TRUE),
-      Midfoot = max(Midfoot, na.rm = TRUE),
-      Forefoot = max(Forefoot, na.rm = TRUE),
-      Foot = max(Foot, na.rm = TRUE),
-      # Aggregate pathology columns (take max)
-      Arthritis = max(Arthritis, na.rm = TRUE),
-      Injury = max(Injury, na.rm = TRUE),
-      Deformity = max(Deformity, na.rm = TRUE),
-      Metatarsalgia = max(Metatarsalgia, na.rm = TRUE),
-      Soft_tissue_disorder = max(Soft_tissue_disorder, na.rm = TRUE),
-      Growth = max(Growth, na.rm = TRUE),
-      Neural = max(Neural, na.rm = TRUE),
-      Infection = max(Infection, na.rm = TRUE),
-      Impingement = max(Impingement, na.rm = TRUE),
-      Instability = max(Instability, na.rm = TRUE),
-      .groups = "drop"
-    ) |>
-    # Recalculate sums
-    mutate(
-      PathologySum = rowSums(across(Arthritis:Instability), na.rm = TRUE),
-      AnatomySum = rowSums(across(Ankle:Foot), na.rm = TRUE),
-      Other = if_else(PathologySum > 0 | AnatomySum > 0, 1, 0),
-      NegatePathology = 0  # You may need to recalculate this
-    )
-  
-  # Join the concatenated terms back to the base
-  unclassified_final <- unclassified_base |>
-    select(-CombinedTerm, -(Ankle:NegatePathology)) |>
-    left_join(unclassified_concatenated, by = "TreatmentID") |>
-    rename(CombinedTerm = CombinedTerm_new)
-  
-  # Step 3: Combine classified and unclassified terms back together
-  result <- bind_rows(classified_terms, unclassified_final) |>
-    arrange(TreatmentID) |>
-    select(-(has_region:ResetFlag)) |>
-    # Recreate the cumulative diagnosis
-    group_by(TreatmentID) |>
-    mutate(
-      CumulativeDiagnosis = str_c(CombinedTerm, collapse = "; "),
-      SequenceRow = row_number()
-    ) |>
-    ungroup()
-  
-  return(result)
-}
-
-# EXECUTE THE PIPELINE:
-
-# Step 2: Apply the classification logic to your DiagTerm
-DiagTerm_with_classification <- add_classification_logic(DiagTerm)
-
-# Step 3: Filter to only keep classified terms (like your old pipeline did)
-DiagTerm_final <- DiagTerm_with_classification |>
-  mutate(
-    has_region = rowSums(across(Ankle:Foot), na.rm = TRUE),
-    has_pathology = rowSums(across(Arthritis:Instability), na.rm = TRUE)
-  ) |>
-  filter(has_region * has_pathology >= 1) |>
-  # Update sequence ID
-  mutate(
-    SequenceIDUpdate = paste(TreatmentID, SequenceRow, sep = "."),
-    .by = TreatmentID
-  ) |>
-  select(-has_region, -has_pathology)
-
-# Step 4: Now create your region and pathology summaries
-DiagRegion_new <- DiagTerm_final |>
-  select(CombinedTerm, SequenceIDUpdate, TreatmentID, Ankle:Foot) |>
-  pivot_longer(
-    cols = !c(TreatmentID, SequenceIDUpdate, CombinedTerm),
-    names_to = "Region", 
-    values_to = "RegionPresence"
-  ) |>
-  filter(RegionPresence > 0, !is.na(Region)) |>
-  mutate(
-    RegionCount = n_distinct(Region),
-    RegionCat = if_else(RegionCount > 1, "Multiple", "Isolated"),
-    .by = TreatmentID
-  ) |>
-  select(-RegionPresence)
-
-DiagPathology_new <- DiagTerm_final |>
-  select(CombinedTerm, TreatmentID, SequenceIDUpdate, Arthritis:Other) |>
-  pivot_longer(
-    cols = !c(TreatmentID, SequenceIDUpdate, CombinedTerm),
-    names_to = "Pathology",
-    values_to = "PathPresence"  
-  ) |>
-  filter(PathPresence > 0, !is.na(Pathology)) |>
-  mutate(
-    PathCount = n_distinct(Pathology),
-    PathCat = if_else(PathCount > 1, "Multiple", "Isolated"),
-    .by = TreatmentID
-  )
-
-# Step 5: Create the distinct summaries
-DiagRegion1_new <- DiagRegion_new |>
-  distinct(TreatmentID, .keep_all = TRUE)
-
-DiagPath1_new <- DiagPathology_new |>
-  distinct(TreatmentID, .keep_all = TRUE)
 ```
 
 
@@ -2464,18 +1957,12 @@ MasterTable4 <- MasterTable3 |> left_join(
 
 Raw text stored in the registry snapshot was processed with custom functions (see *Functions for Processing*). Additional processing was performed to create a *Region* label, describing the anatomical region in which the pathology affected.
 
-```{r}
-#| echo: false
-#| label: target-url
-
-
+```{r, echo = FALSE}
 TargetURL = "https://docs.google.com/spreadsheets/d/1f-zb_pdjH9PuFSdkMBcAdyPCP_b-YJk2Jzvrn5G6df4/edit"
 
 ```
 
 ```{r}
-#| label: batch-process-diagnosis1
-
 
 #| eval: true
 #| echo: false
@@ -2486,103 +1973,19 @@ TargetURL = "https://docs.google.com/spreadsheets/d/1f-zb_pdjH9PuFSdkMBcAdyPCP_b
 
 progressr::handlers("progress")
 
-# # Run the processing
-# with_progress({
-# DiagTerm <- safe_process_diagnosis(
-#   MasterTable3,
-#   target_terms_url = TargetURL,
-#   batch_size = 500,
-#   workers = 4
-# )
-# })
-
-# Example usage
-DiagTerm <- process_clinical_diagnoses(
-  data = MasterTable3,
+# Run the processing
+with_progress({
+  # Try processing with smaller batch size and fewer workers
+# Update your safe_process_diagnosis call
+DiagTerm <- safe_process_diagnosis(
+  MasterTable2,
   target_terms_url = TargetURL,
-  batch_size = 750,
-  use_parallel = TRUE
+  batch_size = 500,
+  workers = 4
 )
+})
 
 ```
-
-```{r}
-DiagTermTreat <- DiagTerm |>
-  group_by(TreatmentID) |>
-  mutate(
-    # Aggregate anatomy columns - use max to get 1 if ANY term has that anatomy
-    AnkleTreat  = max(Ankle, na.rm = TRUE),
-    RearfootTreat  = max(Rearfoot, na.rm = TRUE), 
-    MidfootTreat  = max(Midfoot, na.rm = TRUE),
-    ForefootTreat  = max(Forefoot, na.rm = TRUE),
-    FootTreat  = max(Foot, na.rm = TRUE),
-    
-    # Aggregate pathology columns
-    ArthritisTreat  = max(Arthritis, na.rm = TRUE),
-    InjuryTreat = max(Injury, na.rm = TRUE),
-    DeformityTreat  = max(Deformity, na.rm = TRUE),
-    MetatarsalgiaTreat  = max(Metatarsalgia, na.rm = TRUE),
-    Soft_tissue_disorderTreat  = max(Soft_tissue_disorder, na.rm = TRUE),
-    GrowthTreat  = max(Growth, na.rm = TRUE),
-    NeuralTreat  = max(Neural, na.rm = TRUE),
-    InfectionTreat  = max(Infection, na.rm = TRUE),
-    ImpingementTreat  = max(Impingement, na.rm = TRUE),
-    InstabilityTreat  = max(Instability, na.rm = TRUE),
-    
-    # Recalculate sums
-    PathologySumTreat  = ArthritisTreat + InjuryTreat + DeformityTreat + MetatarsalgiaTreat + 
-                       Soft_tissue_disorderTreat + GrowthTreat + NeuralTreat + InfectionTreat + 
-                       ImpingementTreat + InstabilityTreat,
-    AnatomySumTreat  = AnkleTreat + RearfootTreat + MidfootTreat + ForefootTreat + FootTreat
-  ) |>
-  ungroup()
-```
-
-
-
-```{r}
-# After creating your DiagTerm from the tokenization pipeline
-DiagTerm_final <- add_classification_logic(DiagTermTreat) |> mutate(
-  RegionCat = case_when(
-          AnatomySum == 0 ~ NA_character_,
-          AnatomySum == 1 ~ "Isolated", 
-          AnatomySum > 1 ~ "Multiple"
-        ),
-  PathCat = case_when(
-          PathologySum == 0 ~ NA_character_,
-          PathologySum == 1 ~ "Isolated",
-          PathologySum > 1 ~ "Multiple"  
-        )
-      )
-```
-
-
-
-
-```{r}
-
-MasterTable5 <- MasterTable4 |> left_join(
-  DiagTerm_final |>
-      filter(SequenceRow == 1) |>  # Get one row per TreatmentID
-      dplyr::mutate(
-        RegionCat = case_when(
-          AnatomySum == 0 ~ NA_character_,
-          AnatomySum == 1 ~ "Isolated", 
-          AnatomySum > 1 ~ "Multiple"
-        ),
-        PathCat = case_when(
-          PathologySum == 0 ~ NA_character_,
-          PathologySum == 1 ~ "Isolated",
-          PathologySum > 1 ~ "Multiple"  
-        )
-      ) |>
-      dplyr::select(TreatmentID, RegionCat, PathCat),
-    by = "TreatmentID"
-  )
-
-```
-
-
 
 ```{r}
 # Group by sequence
@@ -2618,6 +2021,7 @@ DiagTreatment <- DiagSequence |> group_by(
 ```
 
 ```{r}
+
 #| eval: true
 #| echo: false
 #| message: false
