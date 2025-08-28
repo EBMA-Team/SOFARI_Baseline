@@ -4121,6 +4121,31 @@
         "Archs": "x64"
       }
     },
+    "lmtest": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "lmtest",
+        "Title": "Testing Linear Regression Models",
+        "Version": "0.9-40",
+        "Date": "2022-03-21",
+        "Authors@R": "c(person(given = \"Torsten\", family = \"Hothorn\", role = \"aut\", email = \"Torsten.Hothorn@R-project.org\",\n                    comment = c(ORCID = \"0000-0001-8301-0471\")),\n             person(given = \"Achim\", family = \"Zeileis\", role = c(\"aut\", \"cre\"), email = \"Achim.Zeileis@R-project.org\",\n                    comment = c(ORCID = \"0000-0003-0918-3766\")),\n             person(given = c(\"Richard\", \"W.\"), family = \"Farebrother\", role = \"aut\", comment = \"pan.f\"),\n             person(given = \"Clint\", family = \"Cummins\", role = \"aut\", comment = \"pan.f\"),\n             person(given = \"Giovanni\", family = \"Millo\", role = \"ctb\"),\n             person(given = \"David\", family = \"Mitchell\", role = \"ctb\"))",
+        "Description": "A collection of tests, data sets, and examples\n for diagnostic checking in linear regression models. Furthermore,\n some generic tools for inference in parametric models are provided.",
+        "LazyData": "yes",
+        "Depends": "R (>= 3.0.0), stats, zoo",
+        "Suggests": "car, strucchange, sandwich, dynlm, stats4, survival, AER",
+        "Imports": "graphics",
+        "License": "GPL-2 | GPL-3",
+        "NeedsCompilation": "yes",
+        "Packaged": "2022-03-21 20:25:17 UTC; zeileis",
+        "Author": "Torsten Hothorn [aut] (<https://orcid.org/0000-0001-8301-0471>),\n  Achim Zeileis [aut, cre] (<https://orcid.org/0000-0003-0918-3766>),\n  Richard W. Farebrother [aut] (pan.f),\n  Clint Cummins [aut] (pan.f),\n  Giovanni Millo [ctb],\n  David Mitchell [ctb]",
+        "Maintainer": "Achim Zeileis <Achim.Zeileis@R-project.org>",
+        "Repository": "CRAN",
+        "Date/Publication": "2022-03-21 23:00:02 UTC",
+        "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-08-25 01:35:02 UTC; windows",
+        "Archs": "x64"
+      }
+    },
     "lubridate": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -6095,6 +6120,31 @@
         "Built": "R 4.4.2; ; 2024-11-24 02:51:41 UTC; windows"
       }
     },
+    "sandwich": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "sandwich",
+        "Version": "3.1-1",
+        "Date": "2024-09-16",
+        "Title": "Robust Covariance Matrix Estimators",
+        "Authors@R": "c(person(given = \"Achim\", family = \"Zeileis\", role = c(\"aut\", \"cre\"), email = \"Achim.Zeileis@R-project.org\", comment = c(ORCID = \"0000-0003-0918-3766\")),\n             person(given = \"Thomas\", family = \"Lumley\", role = \"aut\", email = \"t.lumley@auckland.ac.nz\", comment = c(ORCID = \"0000-0003-4255-5437\")),\n\t     person(given = \"Nathaniel\", family = \"Graham\", role = \"ctb\", email = \"npgraham1@gmail.com\", comment = c(ORCID = \"0009-0002-1215-5256\")),\n\t     person(given = \"Susanne\", family = \"Koell\", role = \"ctb\"))",
+        "Description": "Object-oriented software for model-robust covariance matrix estimators. Starting out from the basic \n             robust Eicker-Huber-White sandwich covariance methods include: heteroscedasticity-consistent (HC)\n\t     covariances for cross-section data; heteroscedasticity- and autocorrelation-consistent (HAC)\n\t     covariances for time series data (such as Andrews' kernel HAC, Newey-West, and WEAVE estimators);\n\t     clustered covariances (one-way and multi-way); panel and panel-corrected covariances;\n\t     outer-product-of-gradients covariances; and (clustered) bootstrap covariances. All methods are\n\t     applicable to (generalized) linear model objects fitted by lm() and glm() but can also be adapted\n\t     to other classes through S3 methods. Details can be found in Zeileis et al. (2020) <doi:10.18637/jss.v095.i01>,\n\t     Zeileis (2004) <doi:10.18637/jss.v011.i10> and Zeileis (2006) <doi:10.18637/jss.v016.i09>.",
+        "Depends": "R (>= 3.0.0)",
+        "Imports": "stats, utils, zoo",
+        "Suggests": "AER, car, geepack, lattice, lme4, lmtest, MASS, multiwayvcov,\nparallel, pcse, plm, pscl, scatterplot3d, stats4, strucchange,\nsurvival",
+        "License": "GPL-2 | GPL-3",
+        "URL": "https://sandwich.R-Forge.R-project.org/",
+        "BugReports": "https://sandwich.R-Forge.R-project.org/contact.html",
+        "NeedsCompilation": "no",
+        "Packaged": "2024-09-15 20:36:02 UTC; zeileis",
+        "Author": "Achim Zeileis [aut, cre] (<https://orcid.org/0000-0003-0918-3766>),\n  Thomas Lumley [aut] (<https://orcid.org/0000-0003-4255-5437>),\n  Nathaniel Graham [ctb] (<https://orcid.org/0009-0002-1215-5256>),\n  Susanne Koell [ctb]",
+        "Maintainer": "Achim Zeileis <Achim.Zeileis@R-project.org>",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-09-15 21:50:01 UTC",
+        "Built": "R 4.4.2; ; 2025-02-18 02:21:14 UTC; windows"
+      }
+    },
     "sass": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -7490,11 +7540,36 @@
         "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-05-28 00:40:18 UTC; windows",
         "Archs": "x64"
       }
+    },
+    "zoo": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "zoo",
+        "Version": "1.8-14",
+        "Date": "2025-04-09",
+        "Title": "S3 Infrastructure for Regular and Irregular Time Series (Z's\nOrdered Observations)",
+        "Authors@R": "c(person(given = \"Achim\", family = \"Zeileis\", role = c(\"aut\", \"cre\"), email = \"Achim.Zeileis@R-project.org\",\n                    comment = c(ORCID = \"0000-0003-0918-3766\")),\n             person(given = \"Gabor\", family = \"Grothendieck\", role = \"aut\", email = \"ggrothendieck@gmail.com\"),\n             person(given = c(\"Jeffrey\", \"A.\"), family = \"Ryan\", role = \"aut\", email = \"jeff.a.ryan@gmail.com\"),\n             person(given = c(\"Joshua\", \"M.\"), family = \"Ulrich\", role = \"ctb\", email = \"josh.m.ulrich@gmail.com\"),\n             person(given = \"Felix\", family = \"Andrews\", role = \"ctb\", email = \"felix@nfrac.org\"))",
+        "Description": "An S3 class with methods for totally ordered indexed\n             observations. It is particularly aimed at irregular time series\n             of numeric vectors/matrices and factors. zoo's key design goals\n             are independence of a particular index/date/time class and\n             consistency with ts and base R by providing methods to extend\n             standard generics.",
+        "Depends": "R (>= 3.1.0), stats",
+        "Suggests": "AER, coda, chron, ggplot2 (>= 3.5.0), mondate, scales,\nstinepack, strucchange, timeDate, timeSeries, tinyplot, tis,\ntseries, xts",
+        "Imports": "utils, graphics, grDevices, lattice (>= 0.20-27)",
+        "License": "GPL-2 | GPL-3",
+        "URL": "https://zoo.R-Forge.R-project.org/",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-04-09 16:51:51 UTC; zeileis",
+        "Author": "Achim Zeileis [aut, cre] (<https://orcid.org/0000-0003-0918-3766>),\n  Gabor Grothendieck [aut],\n  Jeffrey A. Ryan [aut],\n  Joshua M. Ulrich [ctb],\n  Felix Andrews [ctb]",
+        "Maintainer": "Achim Zeileis <Achim.Zeileis@R-project.org>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-04-10 06:40:02 UTC",
+        "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-05-28 01:21:40 UTC; windows",
+        "Archs": "x64"
+      }
     }
   },
   "files": {
     ".RData": {
-      "checksum": "c2016e5ca590b7e1b71ad0c5efaaf78d"
+      "checksum": "e984005f4568b958c2e688f14c5b2e74"
     },
     ".RDataTmp": {
       "checksum": "fdd316cf4b6bba37b981b8495724d75d"
@@ -7518,7 +7593,7 @@
       "checksum": "2913e04fc7b60d543ef755e419557571"
     },
     ".secrets/c13dc354db9600c8cd9b2bd868d1bf25_cscholes@ebma.com.au": {
-      "checksum": "022fef7081c11549f54e60440c854d7b"
+      "checksum": "5bb0b84f1e910f35570ef79ef82b79f8"
     },
     "_site/about.html": {
       "checksum": "220b0a7bab620dc4e11fdf59fe8c873c"
@@ -7635,16 +7710,13 @@
       "checksum": "f796683c5afd261f8956b080f3390199"
     },
     "SOFARI_Baseline.qmd": {
-      "checksum": "295e80f965228103f1aafd13c9d19da1"
-    },
-    "SOFARI_Baseline.rmarkdown": {
-      "checksum": "9cffb0ad19f6219491a897335ab36cf9"
+      "checksum": "1c54634a63e66062f85df30a72691920"
     },
     "SOFARI_Baseline_files/figure-html/fig-cohort-1.png": {
       "checksum": "63e179982231767e577c88838a434c33"
     },
     "SOFARI_Baseline_files/figure-html/fig-cohort-breakdown-1.png": {
-      "checksum": "aac2b1af6f68f2c47f4393b88d3703ce"
+      "checksum": "616ddb1b2e9371ceccbd1287ae415ed4"
     },
     "SOFARI_Baseline_files/figure-html/fig-corr-plot-1.png": {
       "checksum": "0c026b6afe39badd902a92974ce656b3"
@@ -7653,7 +7725,7 @@
       "checksum": "a52324d17d15df0d579dc54d75c8ab18"
     },
     "SOFARI_Baseline_files/figure-html/fig-dag-minadjust-1.png": {
-      "checksum": "bb2330508d6d7b07ecf9278aea86da02"
+      "checksum": "8c84bba582f16ebdadab90ae5ce2ac07"
     },
     "SOFARI_Baseline_files/figure-html/fig-desc-agesex-1.png": {
       "checksum": "4263e965e90a1011b241841900a80208"
@@ -7665,19 +7737,19 @@
       "checksum": "ecc017223f34dd2a76b1dab9ae2cc21e"
     },
     "SOFARI_Baseline_files/figure-html/fig-missingness-1.png": {
-      "checksum": "2eb4a1c1e261eb1bca0cdcd8579aa5ee"
+      "checksum": "84c7ddb5f46d5f6bf2d378c422a4cd0b"
     },
     "SOFARI_Baseline_files/figure-html/fig-simple-model1-1.png": {
       "checksum": "d5b0603c0e5fe4b5fec5ea020333a9e3"
     },
     "SOFARI_Baseline_files/figure-html/fig-stripplot-1.png": {
-      "checksum": "4409cdb773f8d6fd9ca4759f4d8fc9b0"
+      "checksum": "43d6d0ca9eb52d14e871928bcbad7ac6"
     },
     "SOFARI_Baseline_files/figure-html/fig-strobe-1.png": {
-      "checksum": "588f84bd7f03db8acc1d96619511d630"
+      "checksum": "7cf378c50242637c1357157b41bec569"
     },
     "SOFARI_Baseline_files/figure-html/fig-visualise-1.png": {
-      "checksum": "466029bc555097bd9af1d6b66f29b2fe"
+      "checksum": "73441c048d56d627d572b96b1faec142"
     },
     "SOFARI_Baseline_files/figure-html/unnamed-chunk-46-1.png": {
       "checksum": "dbc31e06edff6d65488cbb0d7af731e2"

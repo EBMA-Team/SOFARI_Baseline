@@ -55,6 +55,8 @@ Load up required packages in advance. Citations are applied to each library at f
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
+  "sandwich",
+  "lmtest",
   "ggdag",
   "effectsize",
   "purrr",
@@ -607,15 +609,15 @@ Concatenated terms for each treatment record using *tidyverse* syntax. Generated
 concatenate_diagnoses <- function(data) {
   # Sort the data by TreatmentID and SequenceRow in descending order
   data |>
-    arrange(TreatmentID, desc(SequenceRow)) %>%
-    group_by(TreatmentID) %>%
+    arrange(TreatmentID, desc(SequenceRow)) |>
+    group_by(TreatmentID) |>
     mutate(
       CumulativeTerm = accumulate(Term2, 
                                  .f = function(x, y) {
                                    if (is.na(x)) y else paste(y, x, sep = "; ")
-                                 }) %>% 
+                                 }) |> 
         last()
-    ) %>%
+    ) |>
     ungroup()
 }
 
@@ -689,9 +691,6 @@ concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
 
 ```
 
-
-
-
 ### Modelling
 
 Functions to generate appropriate models to present results as per RECORD \[15\] Outcomes and RECORD \[16\] Main Results unadjusted and adjusted for the primary aim.
@@ -699,7 +698,6 @@ Functions to generate appropriate models to present results as per RECORD \[15\]
 ```{r}
 #| label: faos-model-func
 
-# Main modelling function
 fit_faos_models <- function(imputed_data, 
                            outcomes = c("FAOS_Pain_TotalScore_Preop", 
                                       "FAOS_Symptom_TotalScore_Preop",
@@ -707,16 +705,26 @@ fit_faos_models <- function(imputed_data,
                                       "FAOS_Sport_TotalScore_Preop",
                                       "FAOS_Quality_TotalScore_Preop"),
                            predictor = "Region",
-                           model_type = c("minimal", "unadjusted", "fully_adjusted"),
+                           model_type = c("minimal", "unadjusted", "fully_adjusted", "arthritis_adjusted"),
                            covariate = NULL,  # For minimal models - which covariate to focus on
                            minimal_adjusters = c("AgeAtInitialExam", "Sex2"),
-                           full_covariates = c("Region","AgeAtInitialExam", "Sex2", 
-                                             "SRCQTotalScore", "SmokingStatus")
+                           full_covariates = c("AgeAtInitialExam", "Sex2", 
+                                             "SRCQTotalScore", "SmokingStatus"),
+                           arthritis_covariates = c("Region", "AgeAtInitialExam", "Sex2", "SmokingStatus"),
+                           arthritis_predictor = "Arthritis",
+                           cluster_var = "PatientID",  # Parameter for clustering variable
+                           robust_se = TRUE             # Default to robust SE for population-average effects
                            ) {
   
   model_type <- match.arg(model_type)
   
-# Build formula as string (not formula object) to avoid environment issues
+  # Load required libraries for robust standard errors
+  if(robust_se) {
+    if(!require(sandwich)) stop("sandwich package required for robust standard errors")
+    if(!require(lmtest)) stop("lmtest package required for robust standard errors")
+  }
+  
+  # Build formula as string (not formula object) to avoid environment issues
   build_formula_string <- function(outcome, type, covariate = NULL) {
     switch(type,
            "minimal" = {
@@ -730,13 +738,17 @@ fit_faos_models <- function(imputed_data,
            },
            "unadjusted" = paste(outcome, "~", predictor),
            "fully_adjusted" = {
-             all_terms <- c(full_covariates)
+             all_terms <- c(predictor, full_covariates)
+             paste(outcome, "~", paste(all_terms, collapse = " + "))
+           },
+           "arthritis_adjusted" = {
+             all_terms <- c(arthritis_predictor, arthritis_covariates)
              paste(outcome, "~", paste(all_terms, collapse = " + "))
            }
     )
   }
   
-   # Fit models for all outcomes
+  # Fit models for all outcomes
   model_results <- list()
   
   for(outcome in outcomes) {
@@ -744,14 +756,101 @@ fit_faos_models <- function(imputed_data,
     
     formula_string <- build_formula_string(outcome, model_type, covariate)
     
-    # Convert to formula inside the with() call to ensure correct environment
-    model_results[[outcome_name]] <- with(
+    # Fit standard linear model
+    base_model <- with(
       imputed_data,
       exp = lm(as.formula(formula_string))
     )
+    
+    # Apply robust standard errors if requested
+    if(robust_se && !is.null(cluster_var)) {
+      # Store both original model and robust results
+      robust_coeftest <- coeftest(base_model, vcov = vcovCL(base_model, cluster = imputed_data[[cluster_var]]))
+      
+      model_results[[outcome_name]] <- list(
+        model = base_model,
+        robust_summary = robust_coeftest,
+        robust_confint = confint(robust_coeftest)
+      )
+    } else {
+      model_results[[outcome_name]] <- base_model
+    }
   }
   
   return(model_results)
+}
+
+# Alternative approach: More flexible function that can fit multiple model types at once
+fit_faos_models_multi <- function(imputed_data, 
+                                 outcomes = c("FAOS_Pain_TotalScore_Preop", 
+                                            "FAOS_Symptom_TotalScore_Preop",
+                                            "FAOS_DailyLiving_TotalScore_Preop", 
+                                            "FAOS_Sport_TotalScore_Preop",
+                                            "FAOS_Quality_TotalScore_Preop"),
+                                 model_configs = list(
+                                   fully_adjusted = list(
+                                     predictor = "Region",
+                                     covariates = c("AgeAtInitialExam", "Sex2", 
+                                                   "SRCQTotalScore", "SmokingStatus")
+                                   ),
+                                   arthritis_adjusted = list(
+                                     predictor = "Arthritis", 
+                                     covariates = c("Region", "AgeAtInitialExam", "Sex2", "SmokingStatus")
+                                   )
+                                 ),
+                                 cluster_var = "patient_id",  # Parameter for clustering variable
+                                 robust_se = TRUE             # Default to robust SE for population-average effects
+                                 ) {
+  
+  # Load required libraries for robust standard errors
+  if(robust_se) {
+    if(!require(sandwich)) stop("sandwich package required for robust standard errors")
+    if(!require(lmtest)) stop("lmtest package required for robust standard errors")
+  }
+  
+  # Build formula string for a given configuration
+  build_formula_string <- function(outcome, config) {
+    all_terms <- unique(c(config$predictor, config$covariates))
+    paste(outcome, "~", paste(all_terms, collapse = " + "))
+  }
+  
+  # Fit models for all outcomes and configurations
+  all_results <- list()
+  
+  for(config_name in names(model_configs)) {
+    config <- model_configs[[config_name]]
+    model_results <- list()
+    
+    for(outcome in outcomes) {
+      outcome_name <- gsub("FAOS_(.+)_TotalScore_Preop", "\\1", outcome)
+      
+      formula_string <- build_formula_string(outcome, config)
+      
+      # Fit standard linear model
+      base_model <- with(
+        imputed_data,
+        exp = lm(as.formula(formula_string))
+      )
+      
+      # Apply robust standard errors if requested
+      if(robust_se && !is.null(cluster_var)) {
+        # Store both original model and robust results
+        robust_coeftest <- coeftest(base_model, vcov = vcovCL(base_model, cluster = imputed_data[[cluster_var]]))
+        
+        model_results[[outcome_name]] <- list(
+          model = base_model,
+          robust_summary = robust_coeftest,
+          robust_confint = confint(robust_coeftest)
+        )
+      } else {
+        model_results[[outcome_name]] <- base_model
+      }
+    }
+    
+    all_results[[config_name]] <- model_results
+  }
+  
+  return(all_results)
 }
 
 ```
@@ -759,9 +858,9 @@ fit_faos_models <- function(imputed_data,
 ```{r}
 #| label: model-table-func
 
-#Main function to create regression tables from model lists
+# Main function to create regression tables from model lists
 create_faos_regression_table <- function(model_list, 
-                                        table_type = c("unadjusted", "minimally_adjusted", "fully_adjusted"),
+                                        table_type = c("unadjusted", "minimally_adjusted", "fully_adjusted", "arthritis_adjusted"),
                                         custom_labels = NULL,
                                         estimate_digits = 2,
                                         pvalue_digits = 3) {
@@ -778,15 +877,19 @@ create_faos_regression_table <- function(model_list,
       VR12_Mental_TotalScore_Preop ~ "VR12 Mental Component"
     ),
     "fully_adjusted" = list(
-      Region ~ "Region"
-      #Arthritis ~ "Arthritis"
-      # AgeAtInitialExam ~ "Age at Initial Exam", 
-      # Sex2 ~ "Sex",
-      # BilateralPath ~ "Bilateral Pathology",
-      # SRCQTotalScore ~ "Self-Reported Comorbidities",
-      # VR12_Mental_TotalScore_Preop ~ "VR12 Mental Component",
-      # PCSSF_TotalScore_Preop ~ "Pain Catastrophizing Scale"
+      Region ~ "Diagnostic Group"
+    ),
+    "arthritis_adjusted" = list(
+      Arthritis ~ "Arthritis"
     )
+  )
+  
+  # Determine which variables to include based on table type
+  include_vars <- switch(table_type,
+    "unadjusted" = "Region",
+    "minimally_adjusted" = c("AgeAtInitialExam", "Sex2", "SRCQTotalScore", "VR12_Mental_TotalScore_Preop"),
+    "fully_adjusted" = "Region",  # Only show Region, other covariates are adjusted for but not displayed
+    "arthritis_adjusted" = "Arthritis"  # Only show Arthritis, other covariates are adjusted for but not displayed
   )
   
   # Use custom labels if provided, otherwise use defaults
@@ -794,14 +897,25 @@ create_faos_regression_table <- function(model_list,
   
   # Create individual regression tables
   regression_tables <- map2(model_list, names(model_list), function(model, subscale_name) {
+    
+    # Determine which variables should be shown on single row (for binary/categorical vars)
+    single_row_vars <- switch(table_type,
+      "unadjusted" = NULL,  # Region has multiple levels, show all
+      "minimally_adjusted" = c("Sex2"),  # Show only one level for Sex if it's binary
+      "fully_adjusted" = NULL,  # Region has multiple levels, show all
+      "arthritis_adjusted" = "Arthritis"  # Show only "Yes" level for Arthritis (binary)
+    )
+    
+    
     gtsummary::tbl_regression(
       model,
       tidy_fun = pool_and_tidy_mice,
-      include = "Region",
+      include = include_vars,
       label = labels_to_use,
       estimate_fun = function(x) style_number(x, digits = estimate_digits),
       pvalue_fun = function(x) style_pvalue(x, digits = pvalue_digits),
-      add_estimate_to_reference_rows = TRUE
+      add_estimate_to_reference_rows = TRUE,
+      show_single_row = all_of(single_row_vars)
     )
   })
   
@@ -821,6 +935,29 @@ create_faos_regression_table <- function(model_list,
     group_header = group_headers
   )
   
+  # For arthritis tables, modify to remove redundant "Arthritis" labels
+  if(table_type == "arthritis_adjusted") {
+    # Create tables without group headers for arthritis tables
+    stacked_table <- tbl_stack(regression_tables)  # No group_header argument
+    
+    # Modify to show subscale names as the main labels
+    stacked_table <- stacked_table |>
+      modify_header(label ~ "**FAOS Subscale**") |>
+      modify_table_body(
+        ~.x |> 
+          mutate(
+            label = rep(group_headers, each = 1),  # Use subscale names as labels
+            row_type = "label"
+          )
+      )
+  } else {
+    # For other table types, use group headers normally
+    stacked_table <- tbl_stack(
+      regression_tables,
+      group_header = group_headers
+    )
+  }
+  
   return(stacked_table)
 }
 ```
@@ -830,16 +967,9 @@ create_faos_regression_table <- function(model_list,
 # Convenience wrapper functions for each model type
 
 # 1. Create unadjusted regression table
-create_unadjusted_table <- function(unadjusted_models, 
-                                   table_caption = "Summary of regression assessing the effect of region on FAOS (unadjusted)") {
+create_unadjusted_table <- function(unadjusted_models) {
   
   table <- create_faos_regression_table(unadjusted_models, table_type = "unadjusted")
-  
-  # Add caption if in Quarto/RMarkdown context
-  if(!is.null(table_caption)) {
-    table <- table %>%
-      modify_caption(table_caption)
-  }
   
   return(table)
 }
@@ -854,7 +984,15 @@ create_descriptive_table <- function(descriptive_models,
     "AgeAtInitialExam" = list(AgeAtInitialExam ~ "Age at Initial Exam", Sex2 ~ "Sex"),
     "SRCQTotalScore" = list(SRCQTotalScore ~ "Self-Reported Comorbidities", 
                            AgeAtInitialExam ~ "Age at Initial Exam", Sex2 ~ "Sex"),
-    "VR12_Mental_TotalScore_Preop" = list(VR12_Mental_TotalScore_Preop ~ "VR12 Mental", Sex2 ~ "Sex")
+    "VR12_Mental_TotalScore_Preop" = list(VR12_Mental_TotalScore_Preop ~ "VR12 Mental", 
+                                         AgeAtInitialExam ~ "Age at Initial Exam", Sex2 ~ "Sex")
+  )
+  
+  # Custom include variables for descriptive tables
+  include_vars <- switch(covariate_focus,
+    "AgeAtInitialExam" = c("AgeAtInitialExam", "Sex2"),
+    "SRCQTotalScore" = c("SRCQTotalScore", "AgeAtInitialExam", "Sex2"),
+    "VR12_Mental_TotalScore_Preop" = c("VR12_Mental_TotalScore_Preop", "AgeAtInitialExam", "Sex2")
   )
   
   table <- create_faos_regression_table(descriptive_models, 
@@ -867,52 +1005,80 @@ create_descriptive_table <- function(descriptive_models,
       "SRCQTotalScore" = "comorbidities", 
       "VR12_Mental_TotalScore_Preop" = "mental health component"
     )
-    table_caption <- paste("FAOS scores by", covariate_name, "(minimally adjusted)")
   }
-  
-  table <- table %>%
-    modify_caption(table_caption)
   
   return(table)
 }
 
 # 3. Create fully adjusted table (main analysis)
-create_adjusted_table <- function(adjusted_models,
-                                 table_caption = "Summary of regression assessing the effect of region on FAOS (fully adjusted)") {
+create_adjusted_table <- function(adjusted_models) {
   
   table <- create_faos_regression_table(adjusted_models, table_type = "fully_adjusted")
-  
-  if(!is.null(table_caption)) {
-    table <- table %>%
-      modify_caption(table_caption)
-  }
   
   return(table)
 }
 
-# Batch function to create all three table types at once
-create_all_faos_tables <- function(unadjusted_models, 
-                                  descriptive_models_list,  # Named list with covariate as key
-                                  adjusted_models) {
+# 4. Create arthritis adjusted table (secondary analysis)
+create_arthritis_table <- function(arthritis_models) {
   
-  # Create unadjusted table
-  unadjusted_table <- create_unadjusted_table(unadjusted_models)
+  table <- create_faos_regression_table(arthritis_models, table_type = "arthritis_adjusted")
   
-  # Create descriptive tables for each covariate
-  descriptive_tables <- map2(descriptive_models_list, names(descriptive_models_list), 
-                            function(models, covariate) {
-    create_descriptive_table(models, covariate)
+  return(table)
+}
+
+# Alternative approach: More flexible function that handles different predictors
+create_custom_regression_table <- function(model_list, 
+                                         predictor_var,
+                                         covariate_vars = NULL,
+                                         custom_labels = NULL,
+                                         estimate_digits = 2,
+                                         pvalue_digits = 3) {
+  
+  # Determine which variables to include
+  include_vars <- c(predictor_var, covariate_vars)
+  
+  # Default labels if none provided
+  if(is.null(custom_labels)) {
+    custom_labels <- switch(predictor_var,
+      "Region" = list(Region ~ "Diagnostic Group"),
+      "Arthritis" = list(Arthritis ~ "Arthritis"),
+      # Add other predictors as needed
+    )
+  }
+  
+  # Create individual regression tables
+  regression_tables <- map2(model_list, names(model_list), function(model, subscale_name) {
+    gtsummary::tbl_regression(
+      model,
+      tidy_fun = pool_and_tidy_mice,
+      include = include_vars,
+      label = custom_labels,
+      estimate_fun = function(x) style_number(x, digits = estimate_digits),
+      pvalue_fun = function(x) style_pvalue(x, digits = pvalue_digits),
+      add_estimate_to_reference_rows = TRUE
+    )
   })
   
-  # Create adjusted table  
-  adjusted_table <- create_adjusted_table(adjusted_models)
+  # Create group headers
+  group_headers <- case_when(
+    names(model_list) == "Pain" ~ "Pain",
+    names(model_list) == "Symptom" ~ "Symptoms", 
+    names(model_list) == "DailyLiving" ~ "Activities of Daily Living",
+    names(model_list) == "Sport" ~ "Sport and Recreation",
+    names(model_list) == "Quality" ~ "Quality of Life",
+    TRUE ~ names(model_list)
+  )
   
-  return(list(
-    unadjusted = unadjusted_table,
-    descriptive = descriptive_tables,
-    adjusted = adjusted_table
-  ))
+  # Stack the tables
+  stacked_table <- tbl_stack(
+    regression_tables,
+    group_header = group_headers
+  )
+  
+  return(stacked_table)
 }
+
+
 ```
 
 ```{r}
@@ -1412,6 +1578,15 @@ Clinical and statistical hypotheses presented in tabular format
 +-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 Clinical and statistical hypotheses for question 1 and 2. μ₁ᵢ and μ₂ᵢ represent the adjusted mean scores for subscale i in the specific region group and other regions group, respectively.
+:::
+
+The hypotheses presented in @tbl-hypotheses posit that the variables of interest will be associated with *clinically important* differences in FAOS subscales. One study [@tapaninaho2022] examined changes in FAOS after foot and ankle surgery in a relatively small sample (N = 134) and reported the following MIC differences using logistic modeling on each subscale separately.
+
+Another small study [@desai2019]
+
+::: {#tbl-mcid}
+\
+Minimal important changes in FAOS after surgery
 :::
 
 # Methods
@@ -2420,7 +2595,7 @@ min_count <- 10
 
 # Basic counts
   basic_counts1 <- MasterTable5 |>
-    count(Cohort2, sort = TRUE) %>%
+    count(Cohort2, sort = TRUE) |>
     mutate(
       percentage = n / sum(n) * 100,
       cumulative_percentage = cumsum(percentage)
@@ -2661,59 +2836,41 @@ Descriptives for exposure and outcome variables were summarised into tables. Uni
 
 Set up input table for statistical analysis with only variables required for models.
 
-The *ggdag* package (v`{r} utils::packageVersion("ggdag")` [@ggdag] was used to create and visualise directed acyclic graphs (in conjunction with *ggplot2*), with minimal adjustment sets to ensure correct specification of models to estimate the effect of Group on outcome variables.
-
-### FAOS Subscales
+The *ggdag* package was used to create and visualise directed acyclic graphs (in conjunction with *ggplot2*), with minimal adjustment sets to ensure correct specification of models to estimate the effect of Group on outcome variables.
 
 ::: {#tbl-adjustset}
-+--------------------+------------------------------------------+--------------+------------------------------+
-| Category           | Variable                                 | Source       | Available in present dataset |
-+--------------------+------------------------------------------+--------------+------------------------------+
-| Patient Factor     | Sex (Male)                               | Acuna et al  | ✅                           |
-|                    |                                          |              |                              |
-|                    |                                          | Badawy et al |                              |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Age at surgery                           | Acuna et al  | ✅                           |
-|                    |                                          |              |                              |
-|                    |                                          | Badawy et al |                              |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Body mass index                          | Acuna et al  | ✅                           |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | ASA - Class 3                            | Acuna et al  | ❌                           |
-|                    |                                          |              |                              |
-|                    |                                          | Badawy et al |                              |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Functional status                        | Acuna et al  | ❌                           |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Preoperative haematocrit, sodium and INR | Acuna et al  | ❌                           |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Smoking history                          | Acuna et al  | ✅                           |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Hypertension (requiring medication)      | Acuna et al  | ✅\*                         |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Weight loss within previous 6 months     | Acuna et al  | ❌                           |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Diagnosis other than OA                  | Badawy et al | ✅†                          |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Previous knee surgery                    | Badawy et al | ❌                           |
-+--------------------+------------------------------------------+--------------+------------------------------+
-| Managament Factors | Perioperative complications              | Badawy et al | ✅                           |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Use of navigation                        | Badawy et al | ✅                           |
-+--------------------+------------------------------------------+--------------+------------------------------+
-|                    | Implant Brand                            | Badawy et al | ✅                           |
-+--------------------+------------------------------------------+--------------+------------------------------+
++------------------------+---------------+------------------------------+
+| Variable               | Source        | Available in present dataset |
++------------------------+---------------+------------------------------+
+| Sex                    |               | ✅                           |
++------------------------+---------------+------------------------------+
+| Age at surgery         |               | ✅                           |
++------------------------+---------------+------------------------------+
+| Comorbidities          |               | ✅ (SRCQ Score)              |
++------------------------+---------------+------------------------------+
+| Functional status      |               | ✅                           |
++------------------------+---------------+------------------------------+
+| Smoking history        |               | ✅                           |
++------------------------+---------------+------------------------------+
+| Mental state           |               | ✅ (VR12 MCS)                |
++------------------------+---------------+------------------------------+
+| Pain catastrophising   |               | ✅                           |
++------------------------+---------------+------------------------------+
+| Presence of arthritis  |               | ✅                           |
++------------------------+---------------+------------------------------+
+| Bilateral presentation |               | ✅                           |
++------------------------+---------------+------------------------------+
 
-Summary of potential adjustment set for *Procedure Duration* retrieved from the literature.
+Summary of potential adjustment set for *FAOS Subscales* against anatomical *region* of pathology retrieved from the literature.
 :::
 
 A brief literature review was conducted to identify potential factors that should be adjusted for when assessing the effect of *Region* and *Arthritis* on *FAOS subcales* in the present sample. @tbl-adjustset.
 
 ```{r}
-#| label: fig-dag-adjust
-#| fig-cap: "Directed acyclic graph of baseline FAOS in foot and ankle pathology"
+#| label: fig-dag-adjust-1
+#| fig-cap: "Directed acyclic graph of baseline FAOS against anatomical region in foot and ankle pathology"
 
-DAGFAOS <- ggdag::dagify(FAOS ~ Region + Arthritis + Age + Sex + ComorbidityScore + Smoking + Bilateral + MentalScore + PainCatastrophise,
+DAGFAOS1 <- ggdag::dagify(FAOS ~ Region + Arthritis + Age + Sex + ComorbidityScore + Smoking + Bilateral + MentalScore + PainCatastrophise,
           Region ~ Age + Sex + Smoking + ComorbidityScore,
           Arthritis ~ Bilateral + Age + Sex + Smoking,
           Smoking ~ Age + Sex,
@@ -2737,7 +2894,7 @@ DAGFAOS <- ggdag::dagify(FAOS ~ Region + Arthritis + Age + Sex + ComorbidityScor
 )
 
 # Create a tidy version of the DAG and apply custom labels
-tidy_dag1 <- ggdag::tidy_dagitty(DAGFAOS, layout = "auto") |> 
+tidy_dag1 <- ggdag::tidy_dagitty(DAGFAOS1, layout = "auto") |> 
   mutate(label = case_when(
     name == "FAOS" ~ "FAOS",
     name == "SmokingStatus" ~ "Smoking History",
@@ -2805,9 +2962,6 @@ knitr::knit_print(dagraw)
 
 ```
 
-
-
-
 ```{r}
 #| label: fig-dag-minadjust
 #| fig-cap: "Calculated minimum adjustment set for modelling FAOS against anatomical region in foot-ankle pathology"
@@ -2872,7 +3026,6 @@ dagmin <- ggdag_adjustment_set(
 knitr::knit_print(dagmin)
 
 ```
-
 
 ### RECORD \[12.1\] Data access
 
@@ -3034,8 +3187,10 @@ A flow chart was created with the *consort* package (v`{r} utils::packageVersion
 ```{r}
 #| label: run-analysis-models
 
-unadjusted_models <- fit_unadjusted_models(MasterImp)
-adjusted_models <- fit_adjusted_models(MasterImp)
+adjusted_models <- fit_faos_models(MasterImp, model_type = "unadjusted")
+adjusted_models <- fit_faos_models(MasterImp, model_type = "fully_adjusted")
+arthritis_models <- fit_faos_models(MasterImp, model_type = "arthritis_adjusted")
+
 
 ```
 
@@ -3101,7 +3256,7 @@ min_count <- 10
 
 # Basic counts
   basic_counts2 <- MasterAnalysis |> 
-    count(Region,Arthritis, sort = TRUE) %>%
+    count(Region,Arthritis, sort = TRUE) |>
     mutate(
       percentage = n / sum(n) * 100,
       cumulative_percentage = cumsum(percentage)
@@ -3198,7 +3353,6 @@ knitr::knit_print(TblDemo)
 
 ```
 
-
 ```{r}
 #| label: complete-demographics
 #| eval: false
@@ -3213,7 +3367,7 @@ completed_datasets <- mice::complete(MasterImp, "all")
 
 # Transform each dataset
 transformed_datasets <- map(completed_datasets, ~ {
-  .x %>% 
+  .x |> 
     mutate(
       Provider2 = case_when(
         Provider == "AW" ~ "A",
@@ -3221,7 +3375,7 @@ transformed_datasets <- map(completed_datasets, ~ {
         Provider == "MS2" ~ "C",
         Provider == "RM" ~ "D"
       )
-    ) %>% 
+    ) |> 
     dplyr::select(!(c(TreatmentID, PatientID, Provider)))
 })
 
@@ -3287,22 +3441,20 @@ TblDemo2 <- gtsummary::tbl_summary(
     all_categorical() ~ "{p}% ({n})"
   ),
   missing = "no"
-) %>%
-  gtsummary::add_n() %>%
-  gtsummary::add_overall() %>%
+) |>
+  gtsummary::add_n() |>
+  gtsummary::add_overall() |>
   gtsummary::add_ci(
     statistic = list(
       all_categorical() ~ "{conf.low} - {conf.high}",
       all_continuous() ~ "{conf.low} - {conf.high}"
     ),
     conf.level = 0.99
-  ) %>%
+  ) |>
   gtsummary::add_stat_label(location = "row")
 
 knitr::knit_print(TblDemo2)
 ```
-
-
 
 ## RECORD \[15\] Outcome data
 
@@ -3465,6 +3617,15 @@ knitr::knit_print(combined_comparisons)
 
 ```
 
+```{r}
+#| label: tbl-FAOS-arthritis
+#| tbl-cap: "Summary of regression assessing the effect of arthritis on FAOS adjusted for confounders"
+
+
+arthritis_table <- create_arthritis_table(arthritis_models)
+knitr::knit_print(arthritis_table)
+```
+
 ## RECORD \[17\] Other analyses
 
 <!--# Report other analyses done—eg analyses of subgroups and interactions, and sensitivity analyses -->
@@ -3478,9 +3639,9 @@ Review how isolated ankle arthritis compares to other ankle pathology and arthri
 
 # Step 1: Pool the multiple imputations first
 # Pool imputations using mice::complete() with action = "long" for easy handling
-pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) %>%
+pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) |>
   # Calculate pooled estimates for each row across all imputations
-  group_by(.id) %>%
+  group_by(.id) |>
   summarise(
     # Keep categorical/character variables from first imputation
     TreatmentID = first(TreatmentID),
@@ -3507,7 +3668,7 @@ pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) %>%
     FAOS_Sport_TotalScore_Preop = mean(FAOS_Sport_TotalScore_Preop, na.rm = TRUE),
     FAOS_Quality_TotalScore_Preop = mean(FAOS_Quality_TotalScore_Preop, na.rm = TRUE),
     .groups = 'drop'
-  ) %>%
+  ) |>
   select(-.id)
 
 ```
@@ -3524,7 +3685,7 @@ ankle_comparison <- pooled_subset |>
       Region == "Multiple" ~ "Multiple Regions",
       TRUE ~ "Other"  # This captures all other combinations
     )
-  ) %>%
+  ) |>
   # Filter to keep only the three groups of interest
   filter(ComparisonGroup %in% c("Ankle Arthritis", "Ankle Non-Arthritis", "Multiple Regions"))
 
@@ -3561,8 +3722,8 @@ EtaSquared <- function(data, variable, by, ...) {
 # Function to calculate largest raw difference on response scale
 MaxRawDifference <- function(data, variable, by, ...) {
   # Calculate group means
-  group_means <- data %>%
-    group_by(!!sym(by)) %>%
+  group_means <- data |>
+    group_by(!!sym(by)) |>
     summarise(mean_val = mean(!!sym(variable), na.rm = TRUE), .groups = 'drop')
   
   # Find all pairwise differences
@@ -3597,12 +3758,12 @@ MaxRawDifference <- function(data, variable, by, ...) {
 }
 
 # Step 3: Summary statistics using gtsummary on pooled data
-subset_summary <- ankle_comparison %>%
+subset_summary <- ankle_comparison |>
   select(ComparisonGroup, AgeAtInitialExam, Sex2, 
          VR12_Physical_TotalScore_Preop, VR12_Mental_TotalScore_Preop,
          FAOS_Symptom_TotalScore_Preop, FAOS_Pain_TotalScore_Preop, 
          FAOS_DailyLiving_TotalScore_Preop, FAOS_Sport_TotalScore_Preop, 
-         FAOS_Quality_TotalScore_Preop, SRCQTotalScore, PCSSF_TotalScore_Preop) %>%
+         FAOS_Quality_TotalScore_Preop, SRCQTotalScore, PCSSF_TotalScore_Preop) |>
   tbl_summary(
     by = ComparisonGroup,
     statistic = list(
@@ -3629,9 +3790,9 @@ subset_summary <- ankle_comparison %>%
   add_p(test = list(
     all_continuous() ~ "oneway.test",
     all_categorical() ~ "chisq.test"
-  )) %>%
-  add_stat(fns = all_continuous() ~ EtaSquared) %>%
-  add_stat(fns = all_continuous() ~ MaxRawDifference) %>%
+  )) |>
+  add_stat(fns = all_continuous() ~ EtaSquared) |>
+  add_stat(fns = all_continuous() ~ MaxRawDifference) |>
   add_overall() |>
   modify_header(
     label ~ "**Characteristic**",
