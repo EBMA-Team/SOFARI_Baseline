@@ -1536,6 +1536,10 @@ No data linkage to another data was performed for this analysis.
 
 <!--# Explain the scientific background and rationale for the investigation being reported -->
 
+The incorporation of patient-reported outcome measures into routine clinical foot and ankle orthopaedic practice holds a great deal of promise for better serving patients with appropriate treatments for the broad range of conditions that present for review.
+
+The FAOS [@roos2001] is a 42-question patient-reported outcome measure tailored to general foot and ankle conditions and one of a few scores available for foot and ankle in which its measurement properties have been evaluated according to COSMIN-criteria [@palmen2025].
+
 ## RECORD \[3\] Objectives
 
 <!--# State specific objectives, including any prespecified hypotheses -->
@@ -1580,14 +1584,7 @@ Clinical and statistical hypotheses presented in tabular format
 Clinical and statistical hypotheses for question 1 and 2. μ₁ᵢ and μ₂ᵢ represent the adjusted mean scores for subscale i in the specific region group and other regions group, respectively.
 :::
 
-The hypotheses presented in @tbl-hypotheses posit that the variables of interest will be associated with *clinically important* differences in FAOS subscales. One study [@tapaninaho2022] examined changes in FAOS after foot and ankle surgery in a relatively small sample (N = 134) and reported the following MIC differences using logistic modeling on each subscale separately.
-
-Another small study [@desai2019]
-
-::: {#tbl-mcid}
-\
-Minimal important changes in FAOS after surgery
-:::
+The hypotheses presented in @tbl-hypotheses posit that the variables of interest will be associated with *clinically important* differences in FAOS subscales. For the purposes of the present analysis the approach of [@fatima2022] is replicated here and a general threshold of 8 points is used as a threshold to identify an important difference due to the variables of interest. However, this is provided with some caveats given the evolution of our understanding of these metrics over time. It should be noted that the minimal clinically important difference for the FAOS is sensitive to a range of factors (diagnosis, followup duration) [@sierevelt2024], baseline score [@sierevelt2015] and calculation methods [@Tenan2021]. Broadly speaking, the MCID for the FAOS may range somewhere between \<4 for the *Symptoms* subscale to 11.7 for the ADL subscale [@tapaninaho2022], with some variation reported in other studies investigating MCID in FAOS [@sierevelt2015; @desai2019].
 
 # Methods
 
@@ -2839,27 +2836,27 @@ Set up input table for statistical analysis with only variables required for mod
 The *ggdag* package was used to create and visualise directed acyclic graphs (in conjunction with *ggplot2*), with minimal adjustment sets to ensure correct specification of models to estimate the effect of Group on outcome variables.
 
 ::: {#tbl-adjustset}
-+------------------------+---------------+------------------------------+
-| Variable               | Source        | Available in present dataset |
-+------------------------+---------------+------------------------------+
-| Sex                    |               | ✅                           |
-+------------------------+---------------+------------------------------+
-| Age at surgery         |               | ✅                           |
-+------------------------+---------------+------------------------------+
-| Comorbidities          |               | ✅ (SRCQ Score)              |
-+------------------------+---------------+------------------------------+
-| Functional status      |               | ✅                           |
-+------------------------+---------------+------------------------------+
-| Smoking history        |               | ✅                           |
-+------------------------+---------------+------------------------------+
-| Mental state           |               | ✅ (VR12 MCS)                |
-+------------------------+---------------+------------------------------+
-| Pain catastrophising   |               | ✅                           |
-+------------------------+---------------+------------------------------+
-| Presence of arthritis  |               | ✅                           |
-+------------------------+---------------+------------------------------+
-| Bilateral presentation |               | ✅                           |
-+------------------------+---------------+------------------------------+
++------------------------+----------------+------------------------------+
+| Variable               | Source         | Available in present dataset |
++------------------------+----------------+------------------------------+
+| Sex                    |                | ✅                           |
++------------------------+----------------+------------------------------+
+| Age at surgery         |                | ✅                           |
++------------------------+----------------+------------------------------+
+| Comorbidities          |                | ✅ (SRCQ Score)              |
++------------------------+----------------+------------------------------+
+| Functional status      |                | ✅                           |
++------------------------+----------------+------------------------------+
+| Smoking history        |                | ✅                           |
++------------------------+----------------+------------------------------+
+| Mental state           |                | ✅ (VR12 MCS)                |
++------------------------+----------------+------------------------------+
+| Pain catastrophising   |                | ✅                           |
++------------------------+----------------+------------------------------+
+| Presence of arthritis  |                | ✅                           |
++------------------------+----------------+------------------------------+
+| Bilateral presentation |                | ✅                           |
++------------------------+----------------+------------------------------+
 
 Summary of potential adjustment set for *FAOS Subscales* against anatomical *region* of pathology retrieved from the literature.
 :::
@@ -3824,6 +3821,12 @@ knitr::knit_print(subset_summary)
 ## RECORD \[20\] Interpretation
 
 <!--# Give a cautious overall interpretation of results considering objectives, limitations, multiplicity of analyses, results from similar studies, and other relevant evidence -->
+
+::: {#fig-comparison}
+![](Alexandre et al 2024 Table 7.png)
+
+Summary of FAOS subscales from [@alexandre2024]
+:::
 
 ## RECORD \[21\] Generalisability
 
