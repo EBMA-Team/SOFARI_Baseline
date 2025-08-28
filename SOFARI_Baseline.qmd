@@ -710,7 +710,7 @@ fit_faos_models <- function(imputed_data,
                            model_type = c("minimal", "unadjusted", "fully_adjusted"),
                            covariate = NULL,  # For minimal models - which covariate to focus on
                            minimal_adjusters = c("AgeAtInitialExam", "Sex2"),
-                           full_covariates = c("AgeAtInitialExam", "Sex2", 
+                           full_covariates = c("Region","AgeAtInitialExam", "Sex2", 
                                              "SRCQTotalScore", "SmokingStatus")
                            ) {
   
@@ -924,7 +924,8 @@ create_faos_plots <- function(models,
                                          "age_arthritis", "region_distribution"),
                              x_var = NULL,
                              color_var = NULL,
-                             x_label = NULL) {
+                             x_label = NULL,
+                             subscale_names = NULL) {
   
   plot_type <- match.arg(plot_type)
   
@@ -949,8 +950,20 @@ create_faos_plots <- function(models,
   if(!is.null(color_var)) config$color_var <- color_var
   if(!is.null(x_label)) config$x_label <- x_label
   
+  # Handle subscale names
+  if(is.null(subscale_names)) {
+    # Use original model names if no custom names provided
+    plot_subscale_names <- names(models)
+  } else {
+    # Validate that subscale_names length matches models length
+    if(length(subscale_names) != length(models)) {
+      stop("Length of subscale_names must match length of models")
+    }
+    plot_subscale_names <- subscale_names
+  }
+  
   # Create plots
-  plots <- map2(models, names(models), function(model, subscale_name) {
+  plots <- map2(models, plot_subscale_names, function(model, subscale_name) {
     
     pred_grid <- marginaleffects::predictions(model)
     
@@ -966,7 +979,7 @@ create_faos_plots <- function(models,
         stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7, fill = "steelblue") +
         stat_dotsinterval(side = "right", scale = 0.7, slab_linewidth = NA, fill = "steelblue") +
         labs(
-          y = paste("Predicted FAOS", subscale_name, "Score"),
+          y = paste("Predicted", subscale_name),
           x = config$x_label
         ) +
         theme_minimal() +
@@ -986,7 +999,7 @@ create_faos_plots <- function(models,
         scale_fill_brewer(palette = "Set2") +
         scale_color_brewer(palette = "Dark2") +
         labs(
-          y = paste("Predicted FAOS", subscale_name, "Score"),
+          y = paste("Predicted", subscale_name),
           x = config$x_label
         ) +
         theme_minimal()
@@ -3339,7 +3352,10 @@ knitr::knit_print(adjusted_table)
 #| label: fig-FAOS-adjust
 #| tbl-cap: "Adjusted FAOS subscales across anatomical regions adjusted for potential confounders"
 
-adjusted_region_plots <- create_faos_plots(adjusted_models, plot_type = "region_distribution")
+adjusted_region_plots <- create_faos_plots(
+  adjusted_models,
+  plot_type = "region_distribution",
+  subscale_names = c("Pain", "Symptoms", "Daily", "Sport", "Quality"))
 
 
 (adjusted_region_plots$Pain + adjusted_region_plots$Symptom + adjusted_region_plots$Daily + adjusted_region_plots$Sport + adjusted_region_plots$Quality) + patchwork::plot_layout(ncol = 2)
