@@ -916,16 +916,19 @@ create_all_faos_tables <- function(unadjusted_models,
 ```
 
 ```{r}
-#| label: model-plot-func
+#| label: faos-plot-func
 
-# Plotting function that works with any model type
+
+# Improved plotting function with better scaling and appearance
 create_faos_plots <- function(models, 
                              plot_type = c("age_sex", "comorbidities_sex", "mental_sex", 
                                          "age_arthritis", "region_distribution"),
                              x_var = NULL,
                              color_var = NULL,
                              x_label = NULL,
-                             subscale_names = NULL) {
+                             subscale_names = NULL,
+                             fixed_y_scale = TRUE,
+                             show_points = FALSE) {
   
   plot_type <- match.arg(plot_type)
   
@@ -952,27 +955,40 @@ create_faos_plots <- function(models,
   
   # Handle subscale names
   if(is.null(subscale_names)) {
-    # Use original model names if no custom names provided
     plot_subscale_names <- names(models)
   } else {
-    # Validate that subscale_names length matches models length
     if(length(subscale_names) != length(models)) {
       stop("Length of subscale_names must match length of models")
     }
     plot_subscale_names <- subscale_names
   }
   
-  # Create plots
-  plots <- map2(models, plot_subscale_names, function(model, subscale_name) {
-    
+  # Get predictions for all models first to determine common y-scale
+  all_predictions <- map(models, function(model) {
     pred_grid <- marginaleffects::predictions(model)
     
     # Apply filter if specified
     if(!is.null(config$filter_condition)) {
       pred_grid <- pred_grid |> filter(eval(parse(text = config$filter_condition)))
     }
+    return(pred_grid)
+  })
+  
+  # Calculate common y-axis limits if fixed scale is requested
+  if(fixed_y_scale && plot_type != "region_distribution") {
+    all_estimates <- map_dfr(all_predictions, ~data.frame(
+      estimate = .x$estimate
+    ))
     
-    # Create base plot
+    y_min <- min(all_estimates$estimate, na.rm = TRUE)
+    y_max <- max(all_estimates$estimate, na.rm = TRUE)
+    y_range <- y_max - y_min
+    y_limits <- c(y_min - 0.05 * y_range, y_max + 0.05 * y_range)
+  }
+  
+  # Create plots
+  plots <- map2(all_predictions, plot_subscale_names, function(pred_grid, subscale_name) {
+    
     if(plot_type == "region_distribution") {
       # Special handling for region distribution plots
       ggplot(data = pred_grid, mapping = aes(x = !!sym(config$x_var), y = estimate)) +
@@ -986,23 +1002,33 @@ create_faos_plots <- function(models,
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
       
     } else {
-      # Standard continuous variable plots
+      # Standard continuous variable plots using model predictions
       p <- ggplot(pred_grid, aes(x = !!sym(config$x_var), y = estimate))
       
       if(!is.null(config$color_var)) {
         p <- p + aes(color = !!sym(config$color_var), fill = !!sym(config$color_var))
       }
       
+      # Apply geom_smooth to the predicted points (no individual points shown)
       p <- p +
-        geom_point(alpha = 0.1) +
-        geom_smooth(method = "loess", se = TRUE) +
+        geom_smooth(method = "loess", se = TRUE, level = 0.99, alpha = 0.3, linewidth = 0.8) +
         scale_fill_brewer(palette = "Set2") +
         scale_color_brewer(palette = "Dark2") +
         labs(
           y = paste("Predicted", subscale_name),
           x = config$x_label
         ) +
-        theme_minimal()
+        theme_minimal() +
+        theme(
+          legend.position = "bottom",
+          panel.grid.minor = element_blank(),
+          strip.text = element_text(face = "bold")
+        )
+      
+      # Apply fixed y-scale if requested
+      if(fixed_y_scale) {
+        p <- p + coord_cartesian(ylim = y_limits)
+      }
       
       if(!is.null(config$color_var)) {
         p <- p + labs(color = str_to_title(gsub("2$", "", config$color_var)), 
@@ -1015,6 +1041,57 @@ create_faos_plots <- function(models,
   
   return(plots)
 }
+
+# Alternative function to create a combined plot using patchwork
+create_combined_faos_plot <- function(models, 
+                                    plot_type = "age_sex",
+                                    subscale_names = NULL,
+                                    ncol = 3,
+                                    fixed_y_scale = TRUE) {
+  
+  # Create individual plots
+  plots <- create_faos_plots(
+    models = models,
+    plot_type = plot_type,
+    subscale_names = subscale_names,
+    fixed_y_scale = fixed_y_scale,
+    show_points = FALSE
+  )
+  
+  # Combine using patchwork (requires library(patchwork))
+  if(requireNamespace("patchwork", quietly = TRUE)) {
+    combined_plot <- patchwork::wrap_plots(plots, ncol = ncol) +
+      patchwork::plot_annotation(
+        title = paste("FAOS Subscale Predictions by", str_to_title(gsub("_", " ", plot_type))),
+        theme = theme(plot.title = element_text(size = 16, face = "bold"))
+      )
+    return(combined_plot)
+  } else {
+    warning("patchwork package not available. Returning list of individual plots.")
+    return(plots)
+  }
+}
+
+# Usage examples:
+# 1. Create plots with improved defaults
+# age_plots <- create_faos_plots(age_models, plot_type = "age_sex")
+
+# 2. Create plots with custom subscale names and consistent scaling
+# age_plots <- create_faos_plots(
+#   age_models, 
+#   plot_type = "age_sex",
+#   subscale_names = c("Pain", "Symptoms", "Daily Living", "Sport", "Quality of Life"),
+#   fixed_y_scale = TRUE
+# )
+
+# 3. Create a combined plot (requires patchwork package)
+# combined_age_plot <- create_combined_faos_plot(
+#   age_models,
+#   plot_type = "age_sex", 
+#   subscale_names = c("Pain", "Symptoms", "Daily Living", "Sport", "Quality of Life"),
+#   ncol = 3
+# )
+
 
 ```
 
@@ -3237,10 +3314,17 @@ knitr::knit_print(TblDemo2)
 
 # For descriptive plots - Age relationship (minimally adjusted for sex only)
 age_models <- fit_descriptive_models(MasterImp, covariate = "AgeAtInitialExam")
-age_plots <- create_faos_plots(age_models, plot_type = "age_sex")
 
-(age_plots$Pain + age_plots$Symptom + age_plots$Daily + age_plots$Sport + age_plots$Quality) + patchwork::plot_layout(ncol = 2)
 
+combined_age_plot <- create_combined_faos_plot(
+  age_models,
+  plot_type = "age_sex",
+  subscale_names = c("Pain", "Symptoms", "Daily Living", "Sport", "Quality of Life"),
+  ncol = 3
+)
+
+
+knitr::knit_print(combined_age_plot)
 
 ```
 
@@ -3250,9 +3334,18 @@ age_plots <- create_faos_plots(age_models, plot_type = "age_sex")
 
 
 comorbidity_models <- fit_descriptive_models(MasterImp, covariate = "SRCQTotalScore")
-comorbidity_plots <- create_faos_plots(comorbidity_models, plot_type = "comorbidities_sex")
 
-(comorbidity_plots$Pain + comorbidity_plots$Symptom + comorbidity_plots$Daily + comorbidity_plots$Sport + comorbidity_plots$Quality) + patchwork::plot_layout(ncol = 2)
+
+
+combined_comorbid_plot <- create_combined_faos_plot(
+  comorbidity_models,
+  plot_type = "comorbidities_sex",
+  subscale_names = c("Pain", "Symptoms", "Daily Living", "Sport", "Quality of Life"),
+  ncol = 3
+)
+
+
+knitr::knit_print(combined_comorbid_plot)
 
 ```
 
