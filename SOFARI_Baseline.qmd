@@ -1957,12 +1957,17 @@ MasterTable4 <- MasterTable3 |> left_join(
 
 Raw text stored in the registry snapshot was processed with custom functions (see *Functions for Processing*). Additional processing was performed to create a *Region* label, describing the anatomical region in which the pathology affected.
 
-```{r, echo = FALSE}
+```{r}
+#| label: targeturl
+#| echo: false
+
+
 TargetURL = "https://docs.google.com/spreadsheets/d/1f-zb_pdjH9PuFSdkMBcAdyPCP_b-YJk2Jzvrn5G6df4/edit"
 
 ```
 
 ```{r}
+#| label: diagnosis-term
 
 #| eval: true
 #| echo: false
@@ -1988,6 +1993,7 @@ DiagTerm <- safe_process_diagnosis(
 ```
 
 ```{r}
+#| label: diagnosis-sequence
 # Group by sequence
 
 DiagSequence <- DiagTerm |> tidyr::unite(
@@ -2021,6 +2027,7 @@ DiagTreatment <- DiagSequence |> group_by(
 ```
 
 ```{r}
+#| label: diagnosis-categorise
 
 #| eval: true
 #| echo: false
@@ -2053,6 +2060,9 @@ DiagFunc1 <- categorize_diagnosis(
 ```
 
 ```{r}
+#| label: diagnosis-flag-fragments
+
+
 DiagFunc2 <- DiagFunc1 |> 
   mutate(
     RowCount1 = n(),
@@ -2087,6 +2097,8 @@ DiagFunc2 <- DiagFunc1 |>
 ```
 
 ```{r}
+#| label: diagnosis-reduce-fragments
+
 DiagFunc2a <- DiagFunc2 |> filter(
   Product > 0,
   ResetFlag == 0
@@ -2130,6 +2142,7 @@ DiagFunc3 <- bind_rows(
 ```
 
 ```{r}
+#| label: diagnosis-categorise-treatments
 #| eval: true
 #| echo: false
 #| message: false
@@ -2163,6 +2176,9 @@ DiagFunc4 <- categorize_diagnosis(
 ```
 
 ```{r}
+#| label: diagnosis-region-1
+
+
 DiagRegion <- DiagFunc4 |> dplyr::select(
   Term2,
   SequenceIDUpdate,
@@ -2186,6 +2202,8 @@ DiagRegion <- DiagFunc4 |> dplyr::select(
 ```
 
 ```{r}
+#| label: diagnosis-term
+
 DiagPathology <- DiagFunc4 |> dplyr::select(
   Term2,
   TreatmentID,
@@ -3082,6 +3100,9 @@ knitr::knit_print(TblDemo)
 
 
 ```{r}
+#| label: complete-demographics
+#| eval: false
+
 library(mice)
 library(gtsummary)
 library(dplyr)
