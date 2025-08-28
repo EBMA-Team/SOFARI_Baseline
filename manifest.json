@@ -6142,7 +6142,7 @@
         "Maintainer": "Achim Zeileis <Achim.Zeileis@R-project.org>",
         "Repository": "CRAN",
         "Date/Publication": "2024-09-15 21:50:01 UTC",
-        "Built": "R 4.4.2; ; 2025-02-18 02:21:14 UTC; windows"
+        "Built": "R 4.4.3; ; 2025-08-25 01:55:59 UTC; windows"
       }
     },
     "sass": {
@@ -7569,28 +7569,7 @@
   },
   "files": {
     ".RData": {
-      "checksum": "e984005f4568b958c2e688f14c5b2e74"
-    },
-    ".RDataTmp": {
-      "checksum": "fdd316cf4b6bba37b981b8495724d75d"
-    },
-    ".RDataTmp1": {
-      "checksum": "d76c009c0e1293bdce2ac6b3114385ef"
-    },
-    ".RDataTmp2": {
-      "checksum": "f951b32726c97a00f7d8449229b55230"
-    },
-    ".RDataTmp3": {
-      "checksum": "c9304d576a167c99bc47d73159b11280"
-    },
-    ".RDataTmp4": {
-      "checksum": "58c8d6eea6fc5e54fb46970006cd346a"
-    },
-    ".RDataTmp5": {
-      "checksum": "89cc96d6f866292134374318f87697c0"
-    },
-    ".RDataTmp6": {
-      "checksum": "2913e04fc7b60d543ef755e419557571"
+      "checksum": "994b4931e2c9a3f3e93c8b0137567c4e"
     },
     ".secrets/c13dc354db9600c8cd9b2bd868d1bf25_cscholes@ebma.com.au": {
       "checksum": "5bb0b84f1e910f35570ef79ef82b79f8"
@@ -7688,6 +7667,9 @@
     "_site/styles.css": {
       "checksum": "e31c3cdea03dfab8a29456978017bd10"
     },
+    "Alexandre et al 2024 Table 7.png": {
+      "checksum": "6afe73ae1afc6d9df168a5ad3d2b2b78"
+    },
     "Baseline references": {
       "checksum": "b06661fdfaafe234cb0e7dceb828091f"
     },
@@ -7704,13 +7686,13 @@
       "checksum": "98f958f07102bc028fa5108a09ef9127"
     },
     "SOFARI_Baseline.bib": {
-      "checksum": "3ae3885b0a6a7bb35437a10580164a0f"
+      "checksum": "20573ea32590731013f8cd8365c1a053"
     },
     "SOFARI_Baseline.html": {
       "checksum": "f796683c5afd261f8956b080f3390199"
     },
     "SOFARI_Baseline.qmd": {
-      "checksum": "1c54634a63e66062f85df30a72691920"
+      "checksum": "466c9f1b78f7892183de2083623d05ca"
     },
     "SOFARI_Baseline_files/figure-html/fig-cohort-1.png": {
       "checksum": "63e179982231767e577c88838a434c33"
