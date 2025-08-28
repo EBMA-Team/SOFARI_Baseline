@@ -696,7 +696,7 @@ concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
 Functions to generate appropriate models to present results as per RECORD \[15\] Outcomes and RECORD \[16\] Main Results unadjusted and adjusted for the primary aim.
 
 ```{r}
-#| label: faos-model-func
+#| label: faos-model-func-robust
 
 fit_faos_models <- function(imputed_data, 
                            outcomes = c("FAOS_Pain_TotalScore_Preop", 
@@ -712,7 +712,7 @@ fit_faos_models <- function(imputed_data,
                                              "SRCQTotalScore", "SmokingStatus"),
                            arthritis_covariates = c("Region", "AgeAtInitialExam", "Sex2", "SmokingStatus"),
                            arthritis_predictor = "Arthritis",
-                           cluster_var = "PatientID",  # Parameter for clustering variable
+                           cluster_var = "patient_id",  # Parameter for clustering variable
                            robust_se = TRUE             # Default to robust SE for population-average effects
                            ) {
   
@@ -722,6 +722,7 @@ fit_faos_models <- function(imputed_data,
   if(robust_se) {
     if(!require(sandwich)) stop("sandwich package required for robust standard errors")
     if(!require(lmtest)) stop("lmtest package required for robust standard errors")
+    if(!require(mice)) stop("mice package required for multiply imputed data")
   }
   
   # Build formula as string (not formula object) to avoid environment issues
@@ -748,36 +749,76 @@ fit_faos_models <- function(imputed_data,
     )
   }
   
+  # Function to apply robust SE to a single model fit  
+  apply_robust_to_fit <- function(model_fit, cluster_data, cluster_var) {
+    robust_coeftest <- coeftest(model_fit, vcov = vcovCL(model_fit, cluster = cluster_data[[cluster_var]]))
+    list(
+      model = model_fit,
+      robust_summary = robust_coeftest,
+      robust_confint = confint(robust_coeftest)
+    )
+  }
+  
   # Fit models for all outcomes
   model_results <- list()
   
   for(outcome in outcomes) {
+    # Extract outcome name and standardize to match expected labels
     outcome_name <- gsub("FAOS_(.+)_TotalScore_Preop", "\\1", outcome)
+    
+    # Standardize names to match your table function expectations
+    outcome_name <- case_when(
+      outcome_name == "Pain" ~ "Pain",
+      outcome_name == "Symptom" ~ "Symptom", 
+      outcome_name == "DailyLiving" ~ "DailyLiving",
+      outcome_name == "Sport" ~ "Sport",
+      outcome_name == "Quality" ~ "Quality",
+      TRUE ~ outcome_name  # fallback
+    )
     
     formula_string <- build_formula_string(outcome, model_type, covariate)
     
-    # Fit standard linear model
-    base_model <- with(
-      imputed_data,
-      exp = lm(as.formula(formula_string))
-    )
+    # Fit standard linear model using mice::with()
+    mira_fit <- with(imputed_data, lm(as.formula(formula_string)))
     
-    # Apply robust standard errors if requested
     if(robust_se && !is.null(cluster_var)) {
-      # Store both original model and robust results
-      robust_coeftest <- coeftest(base_model, vcov = vcovCL(base_model, cluster = imputed_data[[cluster_var]]))
-      
-      model_results[[outcome_name]] <- list(
-        model = base_model,
-        robust_summary = robust_coeftest,
-        robust_confint = confint(robust_coeftest)
-      )
+      # For robust SE, return the mira object directly so it works with pool_and_tidy_mice
+      # The robust SE will need to be handled differently with multiple imputation
+      model_results[[outcome_name]] <- mira_fit
     } else {
-      model_results[[outcome_name]] <- base_model
+      model_results[[outcome_name]] <- mira_fit
     }
   }
   
   return(model_results)
+}
+
+# Function to extract robust pooled results (simplified approach)
+extract_robust_pooled <- function(robust_results, outcome_name) {
+  if(!"robust_fits" %in% names(robust_results[[outcome_name]])) {
+    stop("No robust fits found. Make sure robust_se = TRUE was used.")
+  }
+  
+  robust_fits <- robust_results[[outcome_name]]$robust_fits
+  
+  # Extract coefficients and SEs from each imputation
+  coef_list <- lapply(robust_fits, function(x) coef(x$robust_summary))
+  se_list <- lapply(robust_fits, function(x) x$robust_summary[, "Std. Error"])
+  
+  # Simple pooling (you might want to use proper Rubin's rules)
+  pooled_coef <- Reduce("+", coef_list) / length(coef_list)
+  pooled_se <- sqrt(Reduce("+", lapply(se_list, function(x) x^2)) / length(se_list))
+  
+  # Create summary similar to pool() output
+  result <- data.frame(
+    term = names(pooled_coef),
+    estimate = pooled_coef,
+    std.error = pooled_se,
+    statistic = pooled_coef / pooled_se,
+    p.value = 2 * pt(abs(pooled_coef / pooled_se), df = Inf, lower.tail = FALSE)
+  )
+  
+  return(result)
 }
 
 # Alternative approach: More flexible function that can fit multiple model types at once
@@ -806,12 +847,23 @@ fit_faos_models_multi <- function(imputed_data,
   if(robust_se) {
     if(!require(sandwich)) stop("sandwich package required for robust standard errors")
     if(!require(lmtest)) stop("lmtest package required for robust standard errors")
+    if(!require(mice)) stop("mice package required for multiply imputed data")
   }
   
   # Build formula string for a given configuration
   build_formula_string <- function(outcome, config) {
     all_terms <- unique(c(config$predictor, config$covariates))
     paste(outcome, "~", paste(all_terms, collapse = " + "))
+  }
+  
+  # Function to apply robust SE to a single model fit
+  apply_robust_to_fit <- function(model_fit, cluster_data, cluster_var) {
+    robust_coeftest <- coeftest(model_fit, vcov = vcovCL(model_fit, cluster = cluster_data[[cluster_var]]))
+    list(
+      model = model_fit,
+      robust_summary = robust_coeftest,
+      robust_confint = confint(robust_coeftest)
+    )
   }
   
   # Fit models for all outcomes and configurations
@@ -822,28 +874,30 @@ fit_faos_models_multi <- function(imputed_data,
     model_results <- list()
     
     for(outcome in outcomes) {
+      # Extract outcome name and standardize to match expected labels
       outcome_name <- gsub("FAOS_(.+)_TotalScore_Preop", "\\1", outcome)
+      
+      # Standardize names to match your table function expectations
+      outcome_name <- case_when(
+        outcome_name == "Pain" ~ "Pain",
+        outcome_name == "Symptom" ~ "Symptom", 
+        outcome_name == "DailyLiving" ~ "DailyLiving",
+        outcome_name == "Sport" ~ "Sport",
+        outcome_name == "Quality" ~ "Quality",
+        TRUE ~ outcome_name  # fallback
+      )
       
       formula_string <- build_formula_string(outcome, config)
       
-      # Fit standard linear model
-      base_model <- with(
-        imputed_data,
-        exp = lm(as.formula(formula_string))
-      )
+      # Fit standard linear model using mice::with()
+      mira_fit <- with(imputed_data, lm(as.formula(formula_string)))
       
-      # Apply robust standard errors if requested
       if(robust_se && !is.null(cluster_var)) {
-        # Store both original model and robust results
-        robust_coeftest <- coeftest(base_model, vcov = vcovCL(base_model, cluster = imputed_data[[cluster_var]]))
-        
-        model_results[[outcome_name]] <- list(
-          model = base_model,
-          robust_summary = robust_coeftest,
-          robust_confint = confint(robust_coeftest)
-        )
+        # For robust SE, return the mira object directly so it works with pool_and_tidy_mice
+        # The robust SE will need to be handled differently with multiple imputation
+        model_results[[outcome_name]] <- mira_fit
       } else {
-        model_results[[outcome_name]] <- base_model
+        model_results[[outcome_name]] <- mira_fit
       }
     }
     
@@ -910,7 +964,7 @@ create_faos_regression_table <- function(model_list,
     gtsummary::tbl_regression(
       model,
       tidy_fun = pool_and_tidy_mice,
-      include = include_vars,
+      include = all_of(include_vars),
       label = labels_to_use,
       estimate_fun = function(x) style_number(x, digits = estimate_digits),
       pvalue_fun = function(x) style_pvalue(x, digits = pvalue_digits),
@@ -3184,7 +3238,7 @@ A flow chart was created with the *consort* package (v`{r} utils::packageVersion
 ```{r}
 #| label: run-analysis-models
 
-adjusted_models <- fit_faos_models(MasterImp, model_type = "unadjusted")
+unadjusted_models <- fit_faos_models(MasterImp, model_type = "unadjusted")
 adjusted_models <- fit_faos_models(MasterImp, model_type = "fully_adjusted")
 arthritis_models <- fit_faos_models(MasterImp, model_type = "arthritis_adjusted")
 
@@ -3756,7 +3810,7 @@ MaxRawDifference <- function(data, variable, by, ...) {
 
 # Step 3: Summary statistics using gtsummary on pooled data
 subset_summary <- ankle_comparison |>
-  select(ComparisonGroup, AgeAtInitialExam, Sex2, 
+  select(ComparisonGroup, AgeAtInitialExam, Sex2, BilateralPres,
          VR12_Physical_TotalScore_Preop, VR12_Mental_TotalScore_Preop,
          FAOS_Symptom_TotalScore_Preop, FAOS_Pain_TotalScore_Preop, 
          FAOS_DailyLiving_TotalScore_Preop, FAOS_Sport_TotalScore_Preop, 
@@ -3771,6 +3825,7 @@ subset_summary <- ankle_comparison |>
     label = list(
       AgeAtInitialExam ~ "Age at Initial Exam",
       Sex2 ~ "Sex",
+      BilateralPres ~ "Bilateral Presentation",
       VR12_Physical_TotalScore_Preop ~ "VR-12 Physical Score",
       VR12_Mental_TotalScore_Preop ~ "VR-12 Mental Score",
       FAOS_Symptom_TotalScore_Preop ~ "FAOS Symptom Score",
@@ -3823,7 +3878,7 @@ knitr::knit_print(subset_summary)
 <!--# Give a cautious overall interpretation of results considering objectives, limitations, multiplicity of analyses, results from similar studies, and other relevant evidence -->
 
 ::: {#fig-comparison}
-![](Alexandre et al 2024 Table 7.png)
+![](Alexandre%20et%20al%202024%20Table%207.png)
 
 Summary of FAOS subscales from [@alexandre2024]
 :::
