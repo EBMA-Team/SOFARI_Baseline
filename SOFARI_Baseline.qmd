@@ -24,17 +24,19 @@ bibliography: SOFARI_Baseline.bib
 
 # Analysis Preamble
 
-This analysis is to replicate a study describing the distribution of pain catastrophizing in patients presenting for surgical review of hip pathology [@hampton2019].
+The following analysis has been drafted to provided all necessary information to support the findings presented. It represents a collaborative effort drawing on data collected by the SOFARI clinical quality registry.
 
 ## Reporting
 
 The study was reported according to the RECORD guidelines [@Benchimol2015] and companion checklist.
 
-The analysis was conducted in RStudio IDE (RStudio 2024.12.0+467 "Kousa Dogwood" Release) using *Rbase* [@base], *quarto* [@quarto] and attached packages to perform the following;
+The analysis was conducted in RStudio IDE (RStudio 2025.05.0+496 "Mariposa Orchid" Release) using *Rbase*, *quarto* and attached packages to perform the following;
 
 -   Data import and preparation
 
 -   Sample selection
+
+    -   Processing of diagnosis raw text
 
 -   Describe and address missingness
 
@@ -134,7 +136,7 @@ knitr::kable(pkgs)
 
 ## Authorisations
 
-Pre-authorise access to registry datasets using the *gargle* package (v`{r} utils::packageVersion("gargle")`) [@gargle].
+Pre-authorise access to registry datasets using the *gargle* package.
 
 ```{r}
 #| echo: false
@@ -162,7 +164,7 @@ drive_auth(cache = ".secrets", email = TRUE)
 
 Include a series of functions to call later in the file for processing data imports.
 
-Function to retrieve files, using *googledrive* package(v`{r} utils::packageVersion("googledrive")`) [@googledrive].
+Function to retrieve files, using the *googledrive* package.
 
 ```{r}
 #| echo: false
@@ -209,7 +211,7 @@ get_latest_snapshot <- function(base_folder_id = base_folder_id1) {
 }
 ```
 
-A general text cleaning function was constructed to apply during first import of raw data files, built on *tidyverse* (v`{r} utils::packageVersion("tidyverse")`) [@tidyverse-2] and *stringr* (v`{r} utils::packageVersion("stringr")`) [@stringr-2]. The *janitor* package (v`{r} utils::packageVersion("janitor")`) [@janitor] was utilised to clean column names in the resulting dataframe.
+A general text cleaning function was constructed to apply during first import of raw data files, built on *tidyverse* and *stringr*. The *janitor* package was utilised to clean column names in the resulting dataframe.
 
 ```{r}
 #| label: clean-text-func
@@ -267,7 +269,7 @@ bind_and_clean <- function(df1, df2, cols = NULL, clean_cols = NULL, clean_fn = 
 
 ### Diagnosis
 
-Include a series of functions for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* (v`{r} utils::packageVersion("future")`) [@future] and *furrr* (v`{r} utils::packageVersion("furrr")`) [@furrr] to enable distributed processing of the records. The *progressr* package (v`{r} utils::packageVersion("progressr")`) [@progressr] was utlised to enable visual progress to be communicated during processing and *memoise* (v`{r} utils::packageVersion("memoise")`) [@memoise]to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
+Include a series of functions for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* and *furrr* to enable distributed processing of the records. The *progressr* package was utlised to enable visual progress to be communicated during processing and *memoise* to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
 
 ```{r}
 
@@ -3239,8 +3241,18 @@ A flow chart was created with the *consort* package (v`{r} utils::packageVersion
 #| label: run-analysis-models
 
 unadjusted_models <- fit_faos_models(MasterImp, model_type = "unadjusted")
-adjusted_models <- fit_faos_models(MasterImp, model_type = "fully_adjusted")
-arthritis_models <- fit_faos_models(MasterImp, model_type = "arthritis_adjusted")
+
+adjusted_models <- fit_faos_models(
+  MasterImp, 
+  model_type = "fully_adjusted", 
+  cluster_var = "PatientID"
+  )
+arthritis_models <- fit_faos_models(
+  MasterImp, 
+  model_type = "arthritis_adjusted", 
+  cluster_var = "PatientID"
+  )
+
 
 
 ```
@@ -3660,7 +3672,7 @@ adjusted_region_plots <- create_faos_plots(
 
 ```{r}
 #| label: tbl-pwc-faospain
-#| tbl-cap: "Pairwise comparisons between regions for model-predicted averages of FAOS Pain"
+#| tbl-cap: "Pairwise comparisons between regions for model-predicted averages of FAOS subscales"
 
 
 combined_comparisons <- create_faos_comparisons(adjusted_models, combined = TRUE, fdr_correction = TRUE)
