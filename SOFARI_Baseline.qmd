@@ -57,7 +57,7 @@ Load up required packages in advance. Citations are applied to each library at f
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
-  "estimator",
+  "estimatr",
   "ggdag",
   "effectsize",
   "purrr",
@@ -713,7 +713,7 @@ fit_faos_models <- function(imputed_data,
                                              "SRCQTotalScore", "SmokingStatus"),
                            arthritis_covariates = c("Region", "AgeAtInitialExam", "Sex2", "SmokingStatus"),
                            arthritis_predictor = "Arthritis",
-                           cluster_var = "patient_id",  # Parameter for clustering variable
+                           cluster_var = "PatientID",  # Parameter for clustering variable
                            robust_se = TRUE             # Default to robust SE for population-average effects
                            ) {
   
