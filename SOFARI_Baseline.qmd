@@ -1603,19 +1603,13 @@ The FAOS [@roos2001] is a 42-question patient-reported outcome measure tailored 
 PICOS question format
 
 ::: {#tbl-questions}
-+--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Component    | Question 1                                                                                                                           | Question 2                                                                                                                           |
-+==============+======================================================================================================================================+======================================================================================================================================+
-| Population   | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW |
-+--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Intervention | with pathology affecting a specific region of the foot or ankle                                                                      | with any form of arthritis identified in the diagnosis derived from clinical notes                                                   |
-+--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Comparator   | compared to pathology affecting other regions of the foot and ankle                                                                  | compared to those that do not                                                                                                        |
-+--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Outcome      | how do the FAOS subscales differ?                                                                                                    | how do the FAOS subscales differ?                                                                                                    |
-+--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Study Design | Cross-sectional analysis of a multi-site clinical quality registry                                                                   | Cross-sectional analysis of a multi-site clinical quality registry                                                                   |
-+--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Component | Question 1 | Question 2 |
+|----|----|----|
+| Population | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW |
+| Intervention | with pathology affecting a specific region of the foot or ankle | with any form of arthritis identified in the diagnosis derived from clinical notes |
+| Comparator | compared to pathology affecting other regions of the foot and ankle | compared to those that do not |
+| Outcome | how do the FAOS subscales differ? | how do the FAOS subscales differ? |
+| Study Design | Cross-sectional analysis of a multi-site clinical quality registry | Cross-sectional analysis of a multi-site clinical quality registry |
 
 Analysis questions presented in PICOS format
 :::
@@ -2892,27 +2886,18 @@ Set up input table for statistical analysis with only variables required for mod
 The *ggdag* package was used to create and visualise directed acyclic graphs (in conjunction with *ggplot2*), with minimal adjustment sets to ensure correct specification of models to estimate the effect of Group on outcome variables.
 
 ::: {#tbl-adjustset}
-+------------------------+----------------+------------------------------+
-| Variable               | Source         | Available in present dataset |
-+------------------------+----------------+------------------------------+
-| Sex                    |                | ✅                           |
-+------------------------+----------------+------------------------------+
-| Age at surgery         |                | ✅                           |
-+------------------------+----------------+------------------------------+
-| Comorbidities          |                | ✅ (SRCQ Score)              |
-+------------------------+----------------+------------------------------+
-| Functional status      |                | ✅                           |
-+------------------------+----------------+------------------------------+
-| Smoking history        |                | ✅                           |
-+------------------------+----------------+------------------------------+
-| Mental state           |                | ✅ (VR12 MCS)                |
-+------------------------+----------------+------------------------------+
-| Pain catastrophising   |                | ✅                           |
-+------------------------+----------------+------------------------------+
-| Presence of arthritis  |                | ✅                           |
-+------------------------+----------------+------------------------------+
-| Bilateral presentation |                | ✅                           |
-+------------------------+----------------+------------------------------+
+|                        |        |                              |
+|------------------------|--------|------------------------------|
+| Variable               | Source | Available in present dataset |
+| Sex                    |        | ✅                           |
+| Age at surgery         |        | ✅                           |
+| Comorbidities          |        | ✅ (SRCQ Score)              |
+| Functional status      |        | ✅                           |
+| Smoking history        |        | ✅                           |
+| Mental state           |        | ✅ (VR12 MCS)                |
+| Pain catastrophising   |        | ✅                           |
+| Presence of arthritis  |        | ✅                           |
+| Bilateral presentation |        | ✅                           |
 
 Summary of potential adjustment set for *FAOS Subscales* against anatomical *region* of pathology retrieved from the literature.
 :::
