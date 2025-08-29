@@ -57,8 +57,7 @@ Load up required packages in advance. Citations are applied to each library at f
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
-  "sandwich",
-  "lmtest",
+  "estimator",
   "ggdag",
   "effectsize",
   "purrr",
@@ -720,10 +719,9 @@ fit_faos_models <- function(imputed_data,
   
   model_type <- match.arg(model_type)
   
-  # Load required libraries for robust standard errors
+  # Load required library
   if(robust_se) {
-    if(!require(sandwich)) stop("sandwich package required for robust standard errors")
-    if(!require(lmtest)) stop("lmtest package required for robust standard errors")
+    if(!require(estimatr)) stop("estimatr package required for robust standard errors")
     if(!require(mice)) stop("mice package required for multiply imputed data")
   }
   
@@ -751,16 +749,6 @@ fit_faos_models <- function(imputed_data,
     )
   }
   
-  # Function to apply robust SE to a single model fit  
-  apply_robust_to_fit <- function(model_fit, cluster_data, cluster_var) {
-    robust_coeftest <- coeftest(model_fit, vcov = vcovCL(model_fit, cluster = cluster_data[[cluster_var]]))
-    list(
-      model = model_fit,
-      robust_summary = robust_coeftest,
-      robust_confint = confint(robust_coeftest)
-    )
-  }
-  
   # Fit models for all outcomes
   model_results <- list()
   
@@ -780,134 +768,22 @@ fit_faos_models <- function(imputed_data,
     
     formula_string <- build_formula_string(outcome, model_type, covariate)
     
-    # Fit standard linear model using mice::with()
-    mira_fit <- with(imputed_data, lm(as.formula(formula_string)))
-    
     if(robust_se && !is.null(cluster_var)) {
-      # For robust SE, return the mira object directly so it works with pool_and_tidy_mice
-      # The robust SE will need to be handled differently with multiple imputation
-      model_results[[outcome_name]] <- mira_fit
+      # Fit with clustered robust standard errors using estimatr
+      mira_fit <- with(imputed_data, 
+                       lm_robust(as.formula(formula_string), 
+                                clusters = get(cluster_var)))
     } else {
-      model_results[[outcome_name]] <- mira_fit
+      # Standard linear model
+      mira_fit <- with(imputed_data, lm(as.formula(formula_string)))
     }
+    
+    model_results[[outcome_name]] <- mira_fit
   }
   
   return(model_results)
 }
 
-# Function to extract robust pooled results (simplified approach)
-extract_robust_pooled <- function(robust_results, outcome_name) {
-  if(!"robust_fits" %in% names(robust_results[[outcome_name]])) {
-    stop("No robust fits found. Make sure robust_se = TRUE was used.")
-  }
-  
-  robust_fits <- robust_results[[outcome_name]]$robust_fits
-  
-  # Extract coefficients and SEs from each imputation
-  coef_list <- lapply(robust_fits, function(x) coef(x$robust_summary))
-  se_list <- lapply(robust_fits, function(x) x$robust_summary[, "Std. Error"])
-  
-  # Simple pooling (you might want to use proper Rubin's rules)
-  pooled_coef <- Reduce("+", coef_list) / length(coef_list)
-  pooled_se <- sqrt(Reduce("+", lapply(se_list, function(x) x^2)) / length(se_list))
-  
-  # Create summary similar to pool() output
-  result <- data.frame(
-    term = names(pooled_coef),
-    estimate = pooled_coef,
-    std.error = pooled_se,
-    statistic = pooled_coef / pooled_se,
-    p.value = 2 * pt(abs(pooled_coef / pooled_se), df = Inf, lower.tail = FALSE)
-  )
-  
-  return(result)
-}
-
-# Alternative approach: More flexible function that can fit multiple model types at once
-fit_faos_models_multi <- function(imputed_data, 
-                                 outcomes = c("FAOS_Pain_TotalScore_Preop", 
-                                            "FAOS_Symptom_TotalScore_Preop",
-                                            "FAOS_DailyLiving_TotalScore_Preop", 
-                                            "FAOS_Sport_TotalScore_Preop",
-                                            "FAOS_Quality_TotalScore_Preop"),
-                                 model_configs = list(
-                                   fully_adjusted = list(
-                                     predictor = "Region",
-                                     covariates = c("AgeAtInitialExam", "Sex2", 
-                                                   "SRCQTotalScore", "SmokingStatus")
-                                   ),
-                                   arthritis_adjusted = list(
-                                     predictor = "Arthritis", 
-                                     covariates = c("Region", "AgeAtInitialExam", "Sex2", "SmokingStatus")
-                                   )
-                                 ),
-                                 cluster_var = "patient_id",  # Parameter for clustering variable
-                                 robust_se = TRUE             # Default to robust SE for population-average effects
-                                 ) {
-  
-  # Load required libraries for robust standard errors
-  if(robust_se) {
-    if(!require(sandwich)) stop("sandwich package required for robust standard errors")
-    if(!require(lmtest)) stop("lmtest package required for robust standard errors")
-    if(!require(mice)) stop("mice package required for multiply imputed data")
-  }
-  
-  # Build formula string for a given configuration
-  build_formula_string <- function(outcome, config) {
-    all_terms <- unique(c(config$predictor, config$covariates))
-    paste(outcome, "~", paste(all_terms, collapse = " + "))
-  }
-  
-  # Function to apply robust SE to a single model fit
-  apply_robust_to_fit <- function(model_fit, cluster_data, cluster_var) {
-    robust_coeftest <- coeftest(model_fit, vcov = vcovCL(model_fit, cluster = cluster_data[[cluster_var]]))
-    list(
-      model = model_fit,
-      robust_summary = robust_coeftest,
-      robust_confint = confint(robust_coeftest)
-    )
-  }
-  
-  # Fit models for all outcomes and configurations
-  all_results <- list()
-  
-  for(config_name in names(model_configs)) {
-    config <- model_configs[[config_name]]
-    model_results <- list()
-    
-    for(outcome in outcomes) {
-      # Extract outcome name and standardize to match expected labels
-      outcome_name <- gsub("FAOS_(.+)_TotalScore_Preop", "\\1", outcome)
-      
-      # Standardize names to match your table function expectations
-      outcome_name <- case_when(
-        outcome_name == "Pain" ~ "Pain",
-        outcome_name == "Symptom" ~ "Symptom", 
-        outcome_name == "DailyLiving" ~ "DailyLiving",
-        outcome_name == "Sport" ~ "Sport",
-        outcome_name == "Quality" ~ "Quality",
-        TRUE ~ outcome_name  # fallback
-      )
-      
-      formula_string <- build_formula_string(outcome, config)
-      
-      # Fit standard linear model using mice::with()
-      mira_fit <- with(imputed_data, lm(as.formula(formula_string)))
-      
-      if(robust_se && !is.null(cluster_var)) {
-        # For robust SE, return the mira object directly so it works with pool_and_tidy_mice
-        # The robust SE will need to be handled differently with multiple imputation
-        model_results[[outcome_name]] <- mira_fit
-      } else {
-        model_results[[outcome_name]] <- mira_fit
-      }
-    }
-    
-    all_results[[config_name]] <- model_results
-  }
-  
-  return(all_results)
-}
 
 ```
 
@@ -1367,8 +1243,8 @@ create_faos_comparisons <- function(model_list,
                                    comparison_type = "pairwise",
                                    conf_level = 0.95,
                                    decimals = 3,
-                                   fdr_correction = TRUE,
-                                   table_caption = "Pairwise comparisons between regions for model-predicted FAOS scores") {
+                                   fdr_correction = TRUE
+                                   ) {
   
   if(combined) {
     # Create one combined table with all FAOS subscales
@@ -1414,10 +1290,6 @@ create_faos_comparisons <- function(model_list,
       result <- all_comparisons |>
         gt(groupname_col = "subscale") |>
         fmt_number(columns = c(estimate, std.error, p.value.raw, p.value.fdr), decimals = 3) |>
-        tab_header(
-          title = table_caption,
-          subtitle = "P-values adjusted for multiple comparisons using Benjamini-Hochberg FDR correction"
-        ) |>
         cols_label(
           contrast = "Contrast",
           estimate = "Estimate",
@@ -1431,7 +1303,7 @@ create_faos_comparisons <- function(model_list,
           locations = cells_body(rows =  p.value.fdr < 0.05)
         ) |>
         tab_footnote(
-          footnote = "FDR correction applied across all 75 comparisons (15 region pairs × 5 FAOS subscales)",
+          footnote = "P-values adjusted for multiple comparisons using Benjamini-Hochberg FDR correction)",
           locations = cells_column_labels(columns = p.value.fdr)
         ) |>
         tab_options(
@@ -1603,13 +1475,19 @@ The FAOS [@roos2001] is a 42-question patient-reported outcome measure tailored 
 PICOS question format
 
 ::: {#tbl-questions}
-| Component | Question 1 | Question 2 |
-|----|----|----|
-| Population | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW |
-| Intervention | with pathology affecting a specific region of the foot or ankle | with any form of arthritis identified in the diagnosis derived from clinical notes |
-| Comparator | compared to pathology affecting other regions of the foot and ankle | compared to those that do not |
-| Outcome | how do the FAOS subscales differ? | how do the FAOS subscales differ? |
-| Study Design | Cross-sectional analysis of a multi-site clinical quality registry | Cross-sectional analysis of a multi-site clinical quality registry |
++-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Component             | Question 1                                                                                                                           | Question 2                                                                                                                           |
++=======================+======================================================================================================================================+======================================================================================================================================+
+| Population            | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW |
++-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Intervention          | with pathology affecting a specific region of the foot or ankle                                                                      | with any form of arthritis identified in the diagnosis derived from clinical notes                                                   |
++-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Comparator            | compared to pathology affecting other regions of the foot and ankle                                                                  | compared to those that do not                                                                                                        |
++-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Outcome               | how do the FAOS subscales differ?                                                                                                    | how do the FAOS subscales differ?                                                                                                    |
++-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Study Design          | Cross-sectional analysis of a multi-site clinical quality registry                                                                   | Cross-sectional analysis of a multi-site clinical quality registry                                                                   |
++-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
 
 Analysis questions presented in PICOS format
 :::
@@ -3298,7 +3176,7 @@ Summarising the sample by anatomical region showed the ankle to be most common p
 
 ```{r}
 #| label: fig-cohort-breakdown
-#| fig-cap: "Breakdown of sample by diagnostic group - region labels."
+#| fig-cap: "Breakdown of sample by diagnostic group (region) labels and presence of arthritis."
 
 min_count <- 10
 
@@ -3328,7 +3206,7 @@ min_count <- 10
               vjust = -0.5, size = 3) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-    labs(title = "Distribution of Diagnostic Groups",
+    labs(
          x = "Region",
          y = "Count")
   
@@ -3410,98 +3288,7 @@ library(gtsummary)
 library(dplyr)
 library(purrr)
 
-# Get all completed datasets from your imputed object
-completed_datasets <- mice::complete(MasterImp, "all")
 
-# Transform each dataset
-transformed_datasets <- map(completed_datasets, ~ {
-  .x |> 
-    mutate(
-      Provider2 = case_when(
-        Provider == "AW" ~ "A",
-        Provider == "MS1" ~ "B",
-        Provider == "MS2" ~ "C",
-        Provider == "RM" ~ "D"
-      )
-    ) |> 
-    dplyr::select(!(c(TreatmentID, PatientID, Provider)))
-})
-
-# Pool the data
-pooled_data <- transformed_datasets[[1]]  # Start with first dataset as template
-
-# Get variable names
-var_names <- names(pooled_data)
-
-# Pool each variable
-for (var in var_names) {
-  if (is.numeric(pooled_data[[var]])) {
-    # For numeric variables: average across all imputations
-    values_matrix <- map_dfc(transformed_datasets, ~ .x[[var]]) 
-    pooled_data[[var]] <- rowMeans(values_matrix, na.rm = TRUE)
-  } else {
-    # For categorical variables: take the most frequent value for each row
-    n_rows <- nrow(pooled_data)
-    pooled_values <- character(n_rows)
-    
-    for (row in 1:n_rows) {
-      # Get values from all imputations for this row
-      row_values <- map_chr(transformed_datasets, ~ as.character(.x[[var]][row]))
-      # Find most frequent value
-      tab <- table(row_values)
-      pooled_values[row] <- names(tab)[which.max(tab)]
-    }
-    
-    # Preserve factor structure if original was factor
-    if (is.factor(transformed_datasets[[1]][[var]])) {
-      pooled_data[[var]] <- factor(pooled_values, levels = levels(transformed_datasets[[1]][[var]]))
-    } else {
-      pooled_data[[var]] <- pooled_values
-    }
-  }
-}
-
-# Now create your gtsummary table
-TblDemo2 <- gtsummary::tbl_summary(
-  pooled_data,
-  by = "Region",
-  label = list(
-    Provider2 ~ "Provider",
-    AgeAtInitialExam ~ "Age",
-    InjuryToPresentation ~ "Onset to Presentation (Days)",
-    BilateralPres ~ "Bilateral",
-    Arthritis ~ "Arthritis",
-    Sex2 ~ "Female",
-    Satisfaction_Preop ~ "Symptom Satisfaction",
-    VR12_Mental_TotalScore_Preop ~ "Mental Score",
-    SRCQTotalScore ~ "Comorbidity Score",
-    PCSSF_TotalScore_Preop ~ "Pain Catastrophising",
-    SmokingStatus_Preop ~ "Smoking History"
-  ),
-  type = list(
-    Sex2 ~ "dichotomous"
-  ),
-  value = list(
-    Sex2 ~ "Female"
-  ),
-  statistic = list(
-    all_continuous() ~ "{mean} ({sd})",
-    all_categorical() ~ "{p}% ({n})"
-  ),
-  missing = "no"
-) |>
-  gtsummary::add_n() |>
-  gtsummary::add_overall() |>
-  gtsummary::add_ci(
-    statistic = list(
-      all_categorical() ~ "{conf.low} - {conf.high}",
-      all_continuous() ~ "{conf.low} - {conf.high}"
-    ),
-    conf.level = 0.99
-  ) |>
-  gtsummary::add_stat_label(location = "row")
-
-knitr::knit_print(TblDemo2)
 ```
 
 ## RECORD \[15\] Outcome data
@@ -3557,7 +3344,7 @@ knitr::knit_print(combined_comorbid_plot)
 arthritis_models <- fit_descriptive_models(MasterImp, covariate = "AgeAtInitialExam")
 arthritis_plots <- create_faos_plots(arthritis_models, plot_type = "age_arthritis")
 
-(arthritis_plots$Pain + arthritis_plots$Symptom + arthritis_plots$Daily + arthritis_plots$Sport + arthritis_plots$Quality) + patchwork::plot_layout(ncol = 2)
+(arthritis_plots$Pain + arthritis_plots$Symptom + arthritis_plots$Daily + arthritis_plots$Sport + arthritis_plots$Quality) + patchwork::plot_layout(ncol = 3)
 ```
 
 Correlation matrix for FAOS subscales
@@ -3651,7 +3438,7 @@ adjusted_region_plots <- create_faos_plots(
   subscale_names = c("Pain", "Symptoms", "Daily", "Sport", "Quality"))
 
 
-(adjusted_region_plots$Pain + adjusted_region_plots$Symptom + adjusted_region_plots$Daily + adjusted_region_plots$Sport + adjusted_region_plots$Quality) + patchwork::plot_layout(ncol = 2)
+(adjusted_region_plots$Pain + adjusted_region_plots$Symptom + adjusted_region_plots$Daily + adjusted_region_plots$Sport + adjusted_region_plots$Quality) + patchwork::plot_layout(ncol = 3)
 
 ```
 
@@ -3685,7 +3472,7 @@ Review how isolated ankle arthritis compares to other ankle pathology and arthri
 ```{r}
 #| label: subgroup-summary
 
-# Step 1: Pool the multiple imputations first
+#  Pool the multiple imputations first
 # Pool imputations using mice::complete() with action = "long" for easy handling
 pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) |>
   # Calculate pooled estimates for each row across all imputations
@@ -3723,7 +3510,7 @@ pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) |>
 
 ```{r}
 #| label: subgroup-comparison
-# Step 2: Create the comparison groups on pooled data
+#  Create the comparison groups on pooled data
 ankle_comparison <- pooled_subset |>
   # Create a comparison group variable
   mutate(
@@ -3737,10 +3524,6 @@ ankle_comparison <- pooled_subset |>
   # Filter to keep only the three groups of interest
   filter(ComparisonGroup %in% c("Ankle Arthritis", "Ankle Non-Arthritis", "Multiple Regions"))
 
-# Check the sample sizes
-ankle_comparison |>
-  count(ComparisonGroup) |>
-  print()
 ```
 
 ```{r}
