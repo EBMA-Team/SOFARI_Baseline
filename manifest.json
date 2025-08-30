@@ -994,34 +994,6 @@
         "Built": "R 4.4.3; ; 2025-05-28 04:02:55 UTC; windows"
       }
     },
-    "broom.mixed": {
-      "Source": "CRAN",
-      "Repository": "https://cran.csiro.au",
-      "description": {
-        "Package": "broom.mixed",
-        "Type": "Package",
-        "Title": "Tidying Methods for Mixed Models",
-        "Version": "0.2.9.6",
-        "Authors@R": "c(\n    person(\"Ben\", \"Bolker\", email = \"bolker@mcmaster.ca\",\n        role = c(\"aut\", \"cre\"),\n        comment=c(ORCID=\"0000-0002-2127-0443\")),\n    person(\"David\", \"Robinson\", email = \"admiral.david@gmail.com\",\n        role = \"aut\"),\n    person(\"Dieter\", \"Menne\", role = \"ctb\"),\n    person(\"Jonah\", \"Gabry\", role = \"ctb\"),\n    person(\"Paul\", \"Buerkner\", role = \"ctb\"),\n    person(\"Christopher\", \"Hua\", role = \"ctb\"),\n    person(\"William\", \"Petry\", role = \"ctb\",\n       comment=c(ORCID=\"0000-0002-5230-5987\")),\n    person(\"Joshua\", \"Wiley\", role = \"ctb\",\n       comment=c(ORCID=\"0000-0002-0271-6702\")),\n    person(\"Patrick\", \"Kennedy\", role = \"ctb\"),\n    person(\"Eduard\", \"Szöcs\", role = \"ctb\",\n       comment=c(ORCID = \"0000-0001-5376-1194\", sponsor = \"BASF SE\")),\n    person(\"Indrajeet\", \"Patil\", role=\"ctb\"),\n    person(\"Vincent\", \"Arel-Bundock\",\n          email = \"vincent.arel-bundock@umontreal.ca\",\n          role = \"ctb\",\n      comment = c(ORCID = \"0000-0003-2042-7063\")),\n    person(\"Bill\", \"Denney\", role = \"ctb\"),\n    person(\"Cory\", \"Brunson\", role = \"ctb\"),\n    person(\"Joe\", \"Wasserman\", role = \"ctb\",\n        comment = c(ORCID = \"0000-0002-9705-1853\")),\n    person(\"Alexey\", \"Stukalov\", role = \"ctb\"),\n    person(\"Matthieu\", \"Bruneaux\", role = \"ctb\")\n    )",
-        "Maintainer": "Ben Bolker <bolker@mcmaster.ca>",
-        "Description": "Convert fitted objects from various R mixed-model packages\n    into tidy data frames along the lines of the 'broom' package.\n    The package provides three\n    S3 generics for each model: tidy(), which summarizes a model's statistical findings such as\n    coefficients of a regression; augment(), which adds columns to the original\n    data such as predictions, residuals and cluster assignments; and glance(), which\n    provides a one-row summary of model-level statistics.",
-        "Imports": "broom, coda, dplyr, forcats, methods, nlme, purrr, stringr,\ntibble, tidyr, furrr",
-        "Suggests": "brms, dotwhisker, knitr, testthat, gamlss, gamlss.data,\nggplot2, GLMMadaptive, glmmADMB, glmmTMB, lmerTest, lme4,\nMatrix, MCMCglmm, mediation, mgcv, ordinal, pander, pbkrtest,\nposterior, rstan, rstanarm, rstantools, R2jags, TMB, rmarkdown",
-        "URL": "https://github.com/bbolker/broom.mixed",
-        "BugReports": "https://github.com/bbolker/broom.mixed/issues",
-        "License": "GPL-3",
-        "Encoding": "UTF-8",
-        "Additional_repositories": "http://bbolker.github.io/drat",
-        "VignetteBuilder": "knitr",
-        "RoxygenNote": "7.3.2",
-        "NeedsCompilation": "no",
-        "Packaged": "2024-10-14 13:17:45 UTC; bolker",
-        "Author": "Ben Bolker [aut, cre] (<https://orcid.org/0000-0002-2127-0443>),\n  David Robinson [aut],\n  Dieter Menne [ctb],\n  Jonah Gabry [ctb],\n  Paul Buerkner [ctb],\n  Christopher Hua [ctb],\n  William Petry [ctb] (<https://orcid.org/0000-0002-5230-5987>),\n  Joshua Wiley [ctb] (<https://orcid.org/0000-0002-0271-6702>),\n  Patrick Kennedy [ctb],\n  Eduard Szöcs [ctb] (<https://orcid.org/0000-0001-5376-1194>, BASF SE),\n  Indrajeet Patil [ctb],\n  Vincent Arel-Bundock [ctb] (<https://orcid.org/0000-0003-2042-7063>),\n  Bill Denney [ctb],\n  Cory Brunson [ctb],\n  Joe Wasserman [ctb] (<https://orcid.org/0000-0002-9705-1853>),\n  Alexey Stukalov [ctb],\n  Matthieu Bruneaux [ctb]",
-        "Repository": "CRAN",
-        "Date/Publication": "2024-10-15 22:20:02 UTC",
-        "Built": "R 4.4.2; ; 2024-11-24 03:40:57 UTC; windows"
-      }
-    },
     "bslib": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -1403,28 +1375,6 @@
         "Date/Publication": "2025-03-21 19:00:02 UTC",
         "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-03-31 01:52:08 UTC; windows",
         "Archs": "x64"
-      }
-    },
-    "coda": {
-      "Source": "CRAN",
-      "Repository": "https://cran.csiro.au",
-      "description": {
-        "Package": "coda",
-        "Version": "0.19-4.1",
-        "Date": "2020-09-30",
-        "Title": "Output Analysis and Diagnostics for MCMC",
-        "Authors@R": "c(person(\"Martyn\", \"Plummer\", role=c(\"aut\",\"cre\",\"trl\"),\n       \t            email=\"martyn.plummer@gmail.com\"),\n             person(\"Nicky\", \"Best\", role=\"aut\"),\n             person(\"Kate\", \"Cowles\", role=\"aut\"),\n             person(\"Karen\", \"Vines\", role=\"aut\"),\n             person(\"Deepayan\", \"Sarkar\", role=\"aut\"),\n\t     person(\"Douglas\", \"Bates\", role=\"aut\"),\n             person(\"Russell\", \"Almond\", role=\"aut\"),\n\t     person(\"Arni\", \"Magnusson\", role=\"aut\"))",
-        "Depends": "R (>= 2.14.0)",
-        "Imports": "lattice",
-        "Description": "Provides functions for summarizing and plotting the\n\toutput from Markov Chain Monte Carlo (MCMC) simulations, as\n\twell as diagnostic tests of convergence to the equilibrium\n\tdistribution of the Markov chain.",
-        "License": "GPL (>= 2)",
-        "NeedsCompilation": "no",
-        "Packaged": "2024-01-31 09:50:53 UTC; ripley",
-        "Author": "Martyn Plummer [aut, cre, trl],\n  Nicky Best [aut],\n  Kate Cowles [aut],\n  Karen Vines [aut],\n  Deepayan Sarkar [aut],\n  Douglas Bates [aut],\n  Russell Almond [aut],\n  Arni Magnusson [aut]",
-        "Maintainer": "Martyn Plummer <martyn.plummer@gmail.com>",
-        "Repository": "CRAN",
-        "Date/Publication": "2024-01-31 09:52:36 UTC",
-        "Built": "R 4.4.2; ; 2024-11-24 01:25:51 UTC; windows"
       }
     },
     "codetools": {
@@ -2106,6 +2056,37 @@
         "Repository": "CRAN",
         "Date/Publication": "2023-09-20 00:00:02 UTC",
         "Built": "R 4.4.2; ; 2024-11-24 02:58:13 UTC; windows"
+      }
+    },
+    "estimatr": {
+      "Source": "CRAN",
+      "Repository": "https://cran.csiro.au",
+      "description": {
+        "Package": "estimatr",
+        "Type": "Package",
+        "Title": "Fast Estimators for Design-Based Inference",
+        "Version": "1.0.6",
+        "Authors@R": "c(person(\"Graeme\", \"Blair\", email = \"graeme.blair@gmail.com\", role = c(\"aut\", \"cre\")),\n             person(\"Jasper\", \"Cooper\", email = \"jjc2247@columbia.edu\", role = c(\"aut\")),\n             person(\"Alexander\", \"Coppock\", email = \"alex.coppock@yale.edu\", role = c(\"aut\")),\n             person(\"Macartan\", \"Humphreys\", email = \"macartan@gmail.com\", role = c(\"aut\")),\n             person(\"Luke\", \"Sonnet\", email = \"luke.sonnet@gmail.com\", role = c(\"aut\")),\n             person(\"Neal\", \"Fultz\", email = \"nfultz@gmail.com\", role = c(\"ctb\")),\n             person(\"Lily\", \"Medina\", email = \"lilymiru@gmail.com\", role = c(\"ctb\")),\n             person(\"Russell\", \"Lenth\", email = \"russell-lenth@uiowa.edu\", role = c(\"ctb\")),\n             person(\"Molly\", \"Offer-Westort\", email = \"mollyow@uchicago.edu\", role = c(\"ctb\")))",
+        "Description": "Fast procedures for small set of commonly-used, design-appropriate estimators with robust standard errors and confidence intervals. Includes estimators for linear regression, instrumental variables regression, difference-in-means, Horvitz-Thompson estimation, and regression improving precision of experimental estimates by interacting treatment with centered pre-treatment covariates introduced by Lin (2013) <doi:10.1214/12-AOAS583>.",
+        "URL": "https://declaredesign.org/r/estimatr/,\nhttps://github.com/DeclareDesign/estimatr",
+        "BugReports": "https://github.com/DeclareDesign/estimatr/issues",
+        "License": "MIT + file LICENSE",
+        "Depends": "R (>= 3.6.0)",
+        "Imports": "Formula, generics, methods, Rcpp (>= 0.12.16), rlang (>=\n0.2.0)",
+        "LinkingTo": "Rcpp, RcppEigen",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.2",
+        "LazyData": "true",
+        "Suggests": "fabricatr (>= 0.10.0), randomizr (>= 0.20.0), AER,\nclubSandwich, emmeans (>= 1.4), estimability, margins,\nmodelsummary, prediction, RcppEigen, sandwich, stargazer,\ntestthat, car",
+        "Enhances": "texreg",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-02-28 18:37:05 UTC; gblair",
+        "Author": "Graeme Blair [aut, cre],\n  Jasper Cooper [aut],\n  Alexander Coppock [aut],\n  Macartan Humphreys [aut],\n  Luke Sonnet [aut],\n  Neal Fultz [ctb],\n  Lily Medina [ctb],\n  Russell Lenth [ctb],\n  Molly Offer-Westort [ctb]",
+        "Maintainer": "Graeme Blair <graeme.blair@gmail.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-02-28 19:30:02 UTC",
+        "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-08-27 01:55:59 UTC; windows",
+        "Archs": "x64"
       }
     },
     "evaluate": {
@@ -4121,31 +4102,6 @@
         "Archs": "x64"
       }
     },
-    "lmtest": {
-      "Source": "CRAN",
-      "Repository": "https://cran.csiro.au",
-      "description": {
-        "Package": "lmtest",
-        "Title": "Testing Linear Regression Models",
-        "Version": "0.9-40",
-        "Date": "2022-03-21",
-        "Authors@R": "c(person(given = \"Torsten\", family = \"Hothorn\", role = \"aut\", email = \"Torsten.Hothorn@R-project.org\",\n                    comment = c(ORCID = \"0000-0001-8301-0471\")),\n             person(given = \"Achim\", family = \"Zeileis\", role = c(\"aut\", \"cre\"), email = \"Achim.Zeileis@R-project.org\",\n                    comment = c(ORCID = \"0000-0003-0918-3766\")),\n             person(given = c(\"Richard\", \"W.\"), family = \"Farebrother\", role = \"aut\", comment = \"pan.f\"),\n             person(given = \"Clint\", family = \"Cummins\", role = \"aut\", comment = \"pan.f\"),\n             person(given = \"Giovanni\", family = \"Millo\", role = \"ctb\"),\n             person(given = \"David\", family = \"Mitchell\", role = \"ctb\"))",
-        "Description": "A collection of tests, data sets, and examples\n for diagnostic checking in linear regression models. Furthermore,\n some generic tools for inference in parametric models are provided.",
-        "LazyData": "yes",
-        "Depends": "R (>= 3.0.0), stats, zoo",
-        "Suggests": "car, strucchange, sandwich, dynlm, stats4, survival, AER",
-        "Imports": "graphics",
-        "License": "GPL-2 | GPL-3",
-        "NeedsCompilation": "yes",
-        "Packaged": "2022-03-21 20:25:17 UTC; zeileis",
-        "Author": "Torsten Hothorn [aut] (<https://orcid.org/0000-0001-8301-0471>),\n  Achim Zeileis [aut, cre] (<https://orcid.org/0000-0003-0918-3766>),\n  Richard W. Farebrother [aut] (pan.f),\n  Clint Cummins [aut] (pan.f),\n  Giovanni Millo [ctb],\n  David Mitchell [ctb]",
-        "Maintainer": "Achim Zeileis <Achim.Zeileis@R-project.org>",
-        "Repository": "CRAN",
-        "Date/Publication": "2022-03-21 23:00:02 UTC",
-        "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-08-25 01:35:02 UTC; windows",
-        "Archs": "x64"
-      }
-    },
     "lubridate": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -6120,31 +6076,6 @@
         "Built": "R 4.4.2; ; 2024-11-24 02:51:41 UTC; windows"
       }
     },
-    "sandwich": {
-      "Source": "CRAN",
-      "Repository": "https://cran.csiro.au",
-      "description": {
-        "Package": "sandwich",
-        "Version": "3.1-1",
-        "Date": "2024-09-16",
-        "Title": "Robust Covariance Matrix Estimators",
-        "Authors@R": "c(person(given = \"Achim\", family = \"Zeileis\", role = c(\"aut\", \"cre\"), email = \"Achim.Zeileis@R-project.org\", comment = c(ORCID = \"0000-0003-0918-3766\")),\n             person(given = \"Thomas\", family = \"Lumley\", role = \"aut\", email = \"t.lumley@auckland.ac.nz\", comment = c(ORCID = \"0000-0003-4255-5437\")),\n\t     person(given = \"Nathaniel\", family = \"Graham\", role = \"ctb\", email = \"npgraham1@gmail.com\", comment = c(ORCID = \"0009-0002-1215-5256\")),\n\t     person(given = \"Susanne\", family = \"Koell\", role = \"ctb\"))",
-        "Description": "Object-oriented software for model-robust covariance matrix estimators. Starting out from the basic \n             robust Eicker-Huber-White sandwich covariance methods include: heteroscedasticity-consistent (HC)\n\t     covariances for cross-section data; heteroscedasticity- and autocorrelation-consistent (HAC)\n\t     covariances for time series data (such as Andrews' kernel HAC, Newey-West, and WEAVE estimators);\n\t     clustered covariances (one-way and multi-way); panel and panel-corrected covariances;\n\t     outer-product-of-gradients covariances; and (clustered) bootstrap covariances. All methods are\n\t     applicable to (generalized) linear model objects fitted by lm() and glm() but can also be adapted\n\t     to other classes through S3 methods. Details can be found in Zeileis et al. (2020) <doi:10.18637/jss.v095.i01>,\n\t     Zeileis (2004) <doi:10.18637/jss.v011.i10> and Zeileis (2006) <doi:10.18637/jss.v016.i09>.",
-        "Depends": "R (>= 3.0.0)",
-        "Imports": "stats, utils, zoo",
-        "Suggests": "AER, car, geepack, lattice, lme4, lmtest, MASS, multiwayvcov,\nparallel, pcse, plm, pscl, scatterplot3d, stats4, strucchange,\nsurvival",
-        "License": "GPL-2 | GPL-3",
-        "URL": "https://sandwich.R-Forge.R-project.org/",
-        "BugReports": "https://sandwich.R-Forge.R-project.org/contact.html",
-        "NeedsCompilation": "no",
-        "Packaged": "2024-09-15 20:36:02 UTC; zeileis",
-        "Author": "Achim Zeileis [aut, cre] (<https://orcid.org/0000-0003-0918-3766>),\n  Thomas Lumley [aut] (<https://orcid.org/0000-0003-4255-5437>),\n  Nathaniel Graham [ctb] (<https://orcid.org/0009-0002-1215-5256>),\n  Susanne Koell [ctb]",
-        "Maintainer": "Achim Zeileis <Achim.Zeileis@R-project.org>",
-        "Repository": "CRAN",
-        "Date/Publication": "2024-09-15 21:50:01 UTC",
-        "Built": "R 4.4.3; ; 2025-08-25 01:55:59 UTC; windows"
-      }
-    },
     "sass": {
       "Source": "CRAN",
       "Repository": "https://cran.csiro.au",
@@ -7540,39 +7471,17 @@
         "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-05-28 00:40:18 UTC; windows",
         "Archs": "x64"
       }
-    },
-    "zoo": {
-      "Source": "CRAN",
-      "Repository": "https://cran.csiro.au",
-      "description": {
-        "Package": "zoo",
-        "Version": "1.8-14",
-        "Date": "2025-04-09",
-        "Title": "S3 Infrastructure for Regular and Irregular Time Series (Z's\nOrdered Observations)",
-        "Authors@R": "c(person(given = \"Achim\", family = \"Zeileis\", role = c(\"aut\", \"cre\"), email = \"Achim.Zeileis@R-project.org\",\n                    comment = c(ORCID = \"0000-0003-0918-3766\")),\n             person(given = \"Gabor\", family = \"Grothendieck\", role = \"aut\", email = \"ggrothendieck@gmail.com\"),\n             person(given = c(\"Jeffrey\", \"A.\"), family = \"Ryan\", role = \"aut\", email = \"jeff.a.ryan@gmail.com\"),\n             person(given = c(\"Joshua\", \"M.\"), family = \"Ulrich\", role = \"ctb\", email = \"josh.m.ulrich@gmail.com\"),\n             person(given = \"Felix\", family = \"Andrews\", role = \"ctb\", email = \"felix@nfrac.org\"))",
-        "Description": "An S3 class with methods for totally ordered indexed\n             observations. It is particularly aimed at irregular time series\n             of numeric vectors/matrices and factors. zoo's key design goals\n             are independence of a particular index/date/time class and\n             consistency with ts and base R by providing methods to extend\n             standard generics.",
-        "Depends": "R (>= 3.1.0), stats",
-        "Suggests": "AER, coda, chron, ggplot2 (>= 3.5.0), mondate, scales,\nstinepack, strucchange, timeDate, timeSeries, tinyplot, tis,\ntseries, xts",
-        "Imports": "utils, graphics, grDevices, lattice (>= 0.20-27)",
-        "License": "GPL-2 | GPL-3",
-        "URL": "https://zoo.R-Forge.R-project.org/",
-        "NeedsCompilation": "yes",
-        "Packaged": "2025-04-09 16:51:51 UTC; zeileis",
-        "Author": "Achim Zeileis [aut, cre] (<https://orcid.org/0000-0003-0918-3766>),\n  Gabor Grothendieck [aut],\n  Jeffrey A. Ryan [aut],\n  Joshua M. Ulrich [ctb],\n  Felix Andrews [ctb]",
-        "Maintainer": "Achim Zeileis <Achim.Zeileis@R-project.org>",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-04-10 06:40:02 UTC",
-        "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-05-28 01:21:40 UTC; windows",
-        "Archs": "x64"
-      }
     }
   },
   "files": {
     ".RData": {
-      "checksum": "994b4931e2c9a3f3e93c8b0137567c4e"
+      "checksum": "4f15688a52b65c0fcb40694f925c5c1d"
+    },
+    ".RDataTmp": {
+      "checksum": "13329e2c5ff80c6bf75314c28e4c13a6"
     },
     ".secrets/c13dc354db9600c8cd9b2bd868d1bf25_cscholes@ebma.com.au": {
-      "checksum": "5bb0b84f1e910f35570ef79ef82b79f8"
+      "checksum": "d3f42101620ba0d6e8fe67d27b78200a"
     },
     "_site/about.html": {
       "checksum": "220b0a7bab620dc4e11fdf59fe8c873c"
@@ -7676,8 +7585,11 @@
     "Baseline references.bib": {
       "checksum": "b06661fdfaafe234cb0e7dceb828091f"
     },
+    "faos_model_cache/6e7ed6ca9f3c9651": {
+      "checksum": "b1356f1a6f2ec6f8c4e501fd53b87870"
+    },
     "grateful-refs.bib": {
-      "checksum": "12c6f7d3760ae0a4dda57502486eb487"
+      "checksum": "9bd249093a929fd7cac5137c564730b5"
     },
     "LICENSE": {
       "checksum": "3a3f3cea56febea828890847e3cb11d7"
@@ -7689,10 +7601,10 @@
       "checksum": "20573ea32590731013f8cd8365c1a053"
     },
     "SOFARI_Baseline.html": {
-      "checksum": "f796683c5afd261f8956b080f3390199"
+      "checksum": "4ad9a160c2a532c160c6d276eaf91ee1"
     },
     "SOFARI_Baseline.qmd": {
-      "checksum": "466c9f1b78f7892183de2083623d05ca"
+      "checksum": "35c6aa5b32515aa983ec82b7e4b172d0"
     },
     "SOFARI_Baseline_files/figure-html/fig-cohort-1.png": {
       "checksum": "63e179982231767e577c88838a434c33"
@@ -7701,22 +7613,25 @@
       "checksum": "616ddb1b2e9371ceccbd1287ae415ed4"
     },
     "SOFARI_Baseline_files/figure-html/fig-corr-plot-1.png": {
-      "checksum": "0c026b6afe39badd902a92974ce656b3"
+      "checksum": "4f9bf26ba45f6c253001180d59c8a693"
+    },
+    "SOFARI_Baseline_files/figure-html/fig-dag-adjust-1-1.png": {
+      "checksum": "a52324d17d15df0d579dc54d75c8ab18"
     },
     "SOFARI_Baseline_files/figure-html/fig-dag-adjust-1.png": {
       "checksum": "a52324d17d15df0d579dc54d75c8ab18"
     },
     "SOFARI_Baseline_files/figure-html/fig-dag-minadjust-1.png": {
-      "checksum": "8c84bba582f16ebdadab90ae5ce2ac07"
+      "checksum": "bcd6fb2f8209715d278284de483c4375"
     },
     "SOFARI_Baseline_files/figure-html/fig-desc-agesex-1.png": {
-      "checksum": "4263e965e90a1011b241841900a80208"
+      "checksum": "7d2a00966f5c2028bb2d82aaca117784"
     },
     "SOFARI_Baseline_files/figure-html/fig-desc-comorbidsex-1.png": {
-      "checksum": "03d7bc907b1537f2f7fd70e909f18789"
+      "checksum": "30b64bcdc84cb039b251850d90f2aeb0"
     },
     "SOFARI_Baseline_files/figure-html/fig-FAOS-adjust-1.png": {
-      "checksum": "ecc017223f34dd2a76b1dab9ae2cc21e"
+      "checksum": "3dedca84091a2172f161d6c06eeea89b"
     },
     "SOFARI_Baseline_files/figure-html/fig-missingness-1.png": {
       "checksum": "84c7ddb5f46d5f6bf2d378c422a4cd0b"
