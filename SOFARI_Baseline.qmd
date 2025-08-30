@@ -57,6 +57,8 @@ Load up required packages in advance. Citations are applied to each library at f
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
+  "digest",
+  "rlang",
   "estimatr",
   "ggdag",
   "effectsize",
@@ -98,13 +100,10 @@ pacman::p_load(
   "marginaleffects",
   "patchwork",
   "naniar",
-  "quantreg",
   "broom",
   "broom.helpers",
   "labelled",
   "epoxy",
-  "broom.mixed",
-  "lme4",
   "janitor",
   "progressr",
   "DT",
@@ -699,7 +698,7 @@ Functions to generate appropriate models to present results as per RECORD \[15\]
 ```{r}
 #| label: faos-model-func-robust
 
-fit_faos_models <- function(imputed_data, 
+fit_faos_models_with_progress <- function(imputed_data, 
                            outcomes = c("FAOS_Pain_TotalScore_Preop", 
                                       "FAOS_Symptom_TotalScore_Preop",
                                       "FAOS_DailyLiving_TotalScore_Preop", 
@@ -707,83 +706,368 @@ fit_faos_models <- function(imputed_data,
                                       "FAOS_Quality_TotalScore_Preop"),
                            predictor = "Region",
                            model_type = c("minimal", "unadjusted", "fully_adjusted", "arthritis_adjusted"),
-                           covariate = NULL,  # For minimal models - which covariate to focus on
+                           covariate = NULL,
                            minimal_adjusters = c("AgeAtInitialExam", "Sex2"),
                            full_covariates = c("AgeAtInitialExam", "Sex2", 
                                              "SRCQTotalScore", "SmokingStatus"),
                            arthritis_covariates = c("Region", "AgeAtInitialExam", "Sex2", "SmokingStatus"),
                            arthritis_predictor = "Arthritis",
-                           cluster_var = "PatientID",  # Parameter for clustering variable
-                           robust_se = TRUE             # Default to robust SE for population-average effects
-                           ) {
+                           cluster_var = "PatientID",
+                           robust_se = TRUE,
+                           use_parallel = TRUE,
+                           show_progress = TRUE) {
   
+  # Input validation
   model_type <- match.arg(model_type)
   
-  # Load required library
-  if(robust_se) {
-    if(!require(estimatr)) stop("estimatr package required for robust standard errors")
-    if(!require(mice)) stop("mice package required for multiply imputed data")
+  # Check required packages
+  required_packages <- c("mice")
+  if (robust_se) required_packages <- c(required_packages, "estimatr")
+  if (use_parallel) required_packages <- c(required_packages, "future", "furrr")
+  
+  missing_packages <- required_packages %>%
+    map_lgl(~!requireNamespace(.x, quietly = TRUE)) %>%
+    keep(isTRUE)
+  
+  if (length(missing_packages) > 0) {
+    stop("Required packages missing: ", paste(names(missing_packages), collapse = ", "))
   }
   
-  # Build formula as string (not formula object) to avoid environment issues
+  # Validate inputs
+  if (model_type == "minimal" && is.null(covariate)) {
+    stop("covariate must be specified for minimal models")
+  }
+  
+  # Helper function to build formula strings
   build_formula_string <- function(outcome, type, covariate = NULL) {
-    switch(type,
-           "minimal" = {
-             if(is.null(covariate)) stop("covariate must be specified for minimal models")
-             adjusters <- setdiff(minimal_adjusters, covariate)  # Don't adjust for the covariate itself
-             if(length(adjusters) > 0) {
-               paste(outcome, "~", covariate, "+", paste(adjusters, collapse = " + "))
-             } else {
-               paste(outcome, "~", covariate)
-             }
-           },
-           "unadjusted" = paste(outcome, "~", predictor),
-           "fully_adjusted" = {
-             all_terms <- c(predictor, full_covariates)
-             paste(outcome, "~", paste(all_terms, collapse = " + "))
-           },
-           "arthritis_adjusted" = {
-             all_terms <- c(arthritis_predictor, arthritis_covariates)
-             paste(outcome, "~", paste(all_terms, collapse = " + "))
-           }
+    
+    formula_terms <- switch(type,
+      "minimal" = {
+        adjusters <- minimal_adjusters %>% 
+          discard(~ .x == covariate)
+        c(covariate, adjusters) %>% 
+          compact()
+      },
+      "unadjusted" = predictor,
+      "fully_adjusted" = c(predictor, full_covariates) %>% unique(),
+      "arthritis_adjusted" = c(arthritis_predictor, arthritis_covariates) %>% unique()
+    )
+    
+    str_c(outcome, " ~ ", str_c(formula_terms, collapse = " + "))
+  }
+  
+  # Helper function to standardize outcome names
+  standardize_outcome_name <- function(outcome) {
+    extracted <- str_extract(outcome, "(?<=FAOS_)[^_]+")
+    case_when(
+      extracted == "Pain" ~ "Pain",
+      extracted == "Symptom" ~ "Symptom", 
+      extracted == "DailyLiving" ~ "DailyLiving",
+      extracted == "Sport" ~ "Sport",
+      extracted == "Quality" ~ "Quality",
+      TRUE ~ extracted
     )
   }
   
-  # Fit models for all outcomes
-  model_results <- list()
-  
-  for(outcome in outcomes) {
-    # Extract outcome name and standardize to match expected labels
-    outcome_name <- gsub("FAOS_(.+)_TotalScore_Preop", "\\1", outcome)
-    
-    # Standardize names to match your table function expectations
-    outcome_name <- case_when(
-      outcome_name == "Pain" ~ "Pain",
-      outcome_name == "Symptom" ~ "Symptom", 
-      outcome_name == "DailyLiving" ~ "DailyLiving",
-      outcome_name == "Sport" ~ "Sport",
-      outcome_name == "Quality" ~ "Quality",
-      TRUE ~ outcome_name  # fallback
-    )
-    
-    formula_string <- build_formula_string(outcome, model_type, covariate)
-    
-    if(robust_se && !is.null(cluster_var)) {
-      # Fit with clustered robust standard errors using estimatr
-      mira_fit <- with(imputed_data, 
-                       lm_robust(as.formula(formula_string), 
-                                clusters = get(cluster_var)))
-    } else {
-      # Standard linear model
-      mira_fit <- with(imputed_data, lm(as.formula(formula_string)))
+  # Helper function to fit individual model
+  fit_single_model <- function(outcome_data) {
+    # Ensure required packages are loaded in parallel context
+    if (use_parallel) {
+      require(mice, quietly = TRUE)
+      if (robust_se) require(estimatr, quietly = TRUE)
     }
     
-    model_results[[outcome_name]] <- mira_fit
+    outcome <- outcome_data$outcome
+    formula_string <- outcome_data$formula_string
+    
+    tryCatch({
+      if (robust_se && !is.null(cluster_var)) {
+        with(imputed_data, 
+             lm_robust(as.formula(formula_string), 
+                      clusters = !!sym(cluster_var)))
+      } else {
+        with(imputed_data, 
+             lm(as.formula(formula_string)))
+      }
+    }, error = function(e) {
+      warning("Failed to fit model for outcome '", outcome, "': ", e$message)
+      return(NULL)
+    })
   }
+  
+  # Prepare data for processing
+  outcome_data <- tibble(outcome = outcomes) %>%
+    mutate(
+      outcome_name = map_chr(outcome, standardize_outcome_name),
+      formula_string = map_chr(outcome, ~build_formula_string(.x, model_type, covariate))
+    )
+  
+  # Print initial info
+  if (show_progress) {
+    cat("Fitting", length(outcomes), "FAOS", model_type, "models with", 
+        ifelse(robust_se, "robust", "standard"), "standard errors\n")
+    
+    if (robust_se && !is.null(cluster_var)) {
+      cat("Clustering by:", cluster_var, "\n")
+    }
+    
+    if (use_parallel) {
+      cat("Using parallel processing\n")
+    }
+    cat("\n")
+  }
+  
+  # Fit models with optional progress and parallel processing
+  if (show_progress) {
+    with_progress({
+      p <- progressor(along = outcomes)
+      
+      if (use_parallel && length(outcomes) > 1) {
+        # Parallel processing with progress and proper RNG
+        model_results <- outcome_data %>%
+          mutate(
+            model = future_map(1:nrow(.), function(i) {
+              result <- fit_single_model(outcome_data[i, ])
+              p(message = sprintf("Fitted %s model", outcome_data$outcome_name[i]))
+              return(result)
+            }, .progress = FALSE, .options = furrr_options(seed = TRUE))  # Ensure proper RNG
+          )
+      } else {
+        # Sequential processing with progress
+        model_results <- outcome_data %>%
+          mutate(
+            model = map(1:nrow(.), function(i) {
+              result <- fit_single_model(outcome_data[i, ])
+              p(message = sprintf("Fitted %s model", outcome_data$outcome_name[i]))
+              return(result)
+            })
+          )
+      }
+    })
+  } else {
+    # No progress reporting
+    if (use_parallel && length(outcomes) > 1) {
+      model_results <- outcome_data %>%
+        mutate(model = future_map(1:nrow(.), ~fit_single_model(outcome_data[.x, ]), 
+                                 .options = furrr_options(seed = TRUE)))
+    } else {
+      model_results <- outcome_data %>%
+        mutate(model = map(1:nrow(.), ~fit_single_model(outcome_data[.x, ])))
+    }
+  }
+  
+  # Filter out failed models and create named list
+  final_results <- model_results %>%
+    filter(!map_lgl(model, is.null)) %>%
+    {set_names(.$model, .$outcome_name)}
+  
+  # Add metadata as attributes
+  attr(final_results, "model_type") <- model_type
+  attr(final_results, "predictor") <- if(model_type == "arthritis_adjusted") arthritis_predictor else predictor
+  attr(final_results, "covariate") <- covariate
+  attr(final_results, "robust_se") <- robust_se
+  attr(final_results, "cluster_var") <- cluster_var
+  attr(final_results, "n_outcomes") <- length(final_results)
+  attr(final_results, "use_parallel") <- use_parallel
+  
+  return(final_results)
+}
+
+# Create memoised version using memory cache (consistent with your framework)
+fit_faos_models_cached <- memoise(
+  fit_faos_models_with_progress,
+  cache = cache_memory()
+)
+
+
+```
+
+```{r}
+#| label: progress-model-func
+
+
+# Helper function to create a cache key for memoise
+create_cache_key <- function(imputed_data, outcomes, predictor, model_type, 
+                           covariate, minimal_adjusters, full_covariates,
+                           arthritis_covariates, arthritis_predictor, 
+                           cluster_var, robust_se) {
+  
+  # Create a hash of the imputed data structure (not the actual data)
+  data_hash <- digest(list(
+    ncol = ncol(complete(imputed_data, 1)),
+    nrow = nrow(complete(imputed_data, 1)),
+    m = imputed_data$m,
+    colnames = names(complete(imputed_data, 1))
+  ))
+  
+  # Create hash of all parameters
+  param_hash <- digest(list(
+    outcomes = outcomes,
+    predictor = predictor,
+    model_type = model_type,
+    covariate = covariate,
+    minimal_adjusters = minimal_adjusters,
+    full_covariates = full_covariates,
+    arthritis_covariates = arthritis_covariates,
+    arthritis_predictor = arthritis_predictor,
+    cluster_var = cluster_var,
+    robust_se = robust_se
+  ))
+  
+  return(paste0(data_hash, "_", param_hash))
+}
+
+# Modified function with progress bar
+fit_faos_models_with_progress <- function(imputed_data, 
+                           outcomes = c("FAOS_Pain_TotalScore_Preop", 
+                                      "FAOS_Symptom_TotalScore_Preop",
+                                      "FAOS_DailyLiving_TotalScore_Preop", 
+                                      "FAOS_Sport_TotalScore_Preop",
+                                      "FAOS_Quality_TotalScore_Preop"),
+                           predictor = "Region",
+                           model_type = c("minimal", "unadjusted", "fully_adjusted", "arthritis_adjusted"),
+                           covariate = NULL,
+                           minimal_adjusters = c("AgeAtInitialExam", "Sex2"),
+                           full_covariates = c("AgeAtInitialExam", "Sex2", 
+                                             "SRCQTotalScore", "SmokingStatus"),
+                           arthritis_covariates = c("Region", "AgeAtInitialExam", "Sex2", "SmokingStatus"),
+                           arthritis_predictor = "Arthritis",
+                           cluster_var = "PatientID",
+                           robust_se = TRUE,
+                           show_progress = TRUE) {
+  
+  # Input validation
+  model_type <- match.arg(model_type)
+  
+  # Check required packages
+  required_packages <- c("mice")
+  if (robust_se) required_packages <- c(required_packages, "estimatr")
+  
+  missing_packages <- required_packages %>%
+    map_lgl(~!require(.x, character.only = TRUE, quietly = TRUE)) %>%
+    keep(isTRUE)
+  
+  if (length(missing_packages) > 0) {
+    stop("Required packages missing: ", paste(names(missing_packages), collapse = ", "))
+  }
+  
+  # Validate inputs
+  if (model_type == "minimal" && is.null(covariate)) {
+    stop("covariate must be specified for minimal models")
+  }
+  
+  # Helper function to build formula strings
+  build_formula_string <- function(outcome, type, covariate = NULL) {
+    
+    formula_terms <- switch(type,
+      "minimal" = {
+        adjusters <- minimal_adjusters %>% 
+          discard(~ .x == covariate)
+        c(covariate, adjusters) %>% 
+          compact()
+      },
+      "unadjusted" = predictor,
+      "fully_adjusted" = c(predictor, full_covariates) %>% unique(),
+      "arthritis_adjusted" = c(arthritis_predictor, arthritis_covariates) %>% unique()
+    )
+    
+    str_c(outcome, " ~ ", str_c(formula_terms, collapse = " + "))
+  }
+  
+  # Helper function to standardize outcome names
+  standardize_outcome_name <- function(outcome) {
+    extracted <- str_extract(outcome, "(?<=FAOS_)[^_]+")
+    case_when(
+      extracted == "Pain" ~ "Pain",
+      extracted == "Symptom" ~ "Symptom", 
+      extracted == "DailyLiving" ~ "DailyLiving",
+      extracted == "Sport" ~ "Sport",
+      extracted == "Quality" ~ "Quality",
+      TRUE ~ extracted
+    )
+  }
+  
+  # Helper function to fit individual model with progress
+  fit_single_model_with_progress <- function(outcome, formula_string, p = NULL) {
+    
+    if (!is.null(p) && show_progress) {
+      outcome_name <- standardize_outcome_name(outcome)
+      p(message = sprintf("Fitting %s model", outcome_name))
+    }
+    
+    tryCatch({
+      if (robust_se && !is.null(cluster_var)) {
+        with(imputed_data, 
+             lm_robust(as.formula(formula_string), 
+                      clusters = !!sym(cluster_var)))
+      } else {
+        with(imputed_data, 
+             lm(as.formula(formula_string)))
+      }
+    }, error = function(e) {
+      warning("Failed to fit model for outcome '", outcome, "': ", e$message)
+      return(NULL)
+    })
+  }
+  
+  # Wrap main computation in progressr
+  if (show_progress) {
+    with_progress({
+      p <- progressor(along = outcomes)
+      
+      # Print initial info
+      cat("Fitting", length(outcomes), "FAOS", model_type, "models with", 
+          ifelse(robust_se, "robust", "standard"), "standard errors\n")
+      
+      if (robust_se && !is.null(cluster_var)) {
+        cat("Clustering by:", cluster_var, "\n")
+      }
+      cat("\n")
+      
+      # Main modeling pipeline
+      model_results <- tibble(outcome = outcomes) %>%
+        mutate(
+          outcome_name = map_chr(outcome, standardize_outcome_name),
+          formula_string = map_chr(outcome, ~build_formula_string(.x, model_type, covariate)),
+          model = map2(outcome_name, formula_string, 
+                       ~{
+                         result <- fit_single_model_with_progress(.data$outcome[which(.data$outcome_name == .x)], .y, p)
+                         p()  # Increment progress
+                         return(result)
+                       })
+        ) %>%
+        filter(!map_lgl(model, is.null)) %>%
+        {set_names(.$model, .$outcome_name)}
+    })
+  } else {
+    # Without progress bar
+    model_results <- tibble(outcome = outcomes) %>%
+      mutate(
+        outcome_name = map_chr(outcome, standardize_outcome_name),
+        formula_string = map_chr(outcome, ~build_formula_string(.x, model_type, covariate)),
+        model = map2(outcome_name, formula_string, 
+                     ~fit_single_model_with_progress(.data$outcome[which(.data$outcome_name == .x)], .y, NULL))
+      ) %>%
+      filter(!map_lgl(model, is.null)) %>%
+      {set_names(.$model, .$outcome_name)}
+  }
+  
+  # Add metadata as attributes
+  attr(model_results, "model_type") <- model_type
+  attr(model_results, "predictor") <- if(model_type == "arthritis_adjusted") arthritis_predictor else predictor
+  attr(model_results, "covariate") <- covariate
+  attr(model_results, "robust_se") <- robust_se
+  attr(model_results, "cluster_var") <- cluster_var
+  attr(model_results, "n_outcomes") <- length(model_results)
   
   return(model_results)
 }
 
+# Create memoised version
+fit_faos_models_cached <- memoise(
+  fit_faos_models_with_progress,
+  cache = cache_filesystem(path = "faos_model_cache")
+)
 
 ```
 
@@ -1475,19 +1759,19 @@ The FAOS [@roos2001] is a 42-question patient-reported outcome measure tailored 
 PICOS question format
 
 ::: {#tbl-questions}
-+-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Component             | Question 1                                                                                                                           | Question 2                                                                                                                           |
-+=======================+======================================================================================================================================+======================================================================================================================================+
-| Population            | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW |
-+-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Intervention          | with pathology affecting a specific region of the foot or ankle                                                                      | with any form of arthritis identified in the diagnosis derived from clinical notes                                                   |
-+-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Comparator            | compared to pathology affecting other regions of the foot and ankle                                                                  | compared to those that do not                                                                                                        |
-+-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Outcome               | how do the FAOS subscales differ?                                                                                                    | how do the FAOS subscales differ?                                                                                                    |
-+-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| Study Design          | Cross-sectional analysis of a multi-site clinical quality registry                                                                   | Cross-sectional analysis of a multi-site clinical quality registry                                                                   |
-+-----------------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
++--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Component    | Question 1                                                                                                                           | Question 2                                                                                                                           |
++==============+======================================================================================================================================+======================================================================================================================================+
+| Population   | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW | In patients presenting for orthopaedic surgical review of ankle or foot pathology to one of four private clinics in metropolitan NSW |
++--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Intervention | with pathology affecting a specific region of the foot or ankle                                                                      | with any form of arthritis identified in the diagnosis derived from clinical notes                                                   |
++--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Comparator   | compared to pathology affecting other regions of the foot and ankle                                                                  | compared to those that do not                                                                                                        |
++--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Outcome      | how do the FAOS subscales differ?                                                                                                    | how do the FAOS subscales differ?                                                                                                    |
++--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+| Study Design | Cross-sectional analysis of a multi-site clinical quality registry                                                                   | Cross-sectional analysis of a multi-site clinical quality registry                                                                   |
++--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
 
 Analysis questions presented in PICOS format
 :::
@@ -3098,29 +3382,62 @@ No data linkage was performed for this analysis.
 
 Participant flow - consort package and flow chart Descriptive - gtsummary and prepared for display with knitr Outcome data - ggplot2 complete case analysis
 
-A flow chart was created with the *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary* (v`{r} utils::packageVersion("gtsummary")`) [@gtsummary]. Graphs were generated using *ggplot2* (v`{r} utils::packageVersion("ggplot2")`) [@ggplot2]. Graphs and tables were prepared for display using *knitr* (v`{r} utils::packageVersion("knitr")`) [@knitr]. A linear model was fitted to the imputed data using *stats* (v`{r} utils::packageVersion("stats")`) [@stats] with the following form.
+A flow chart was created with the *consort* package to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary*. Graphs were generated using *ggplot2*. Graphs and tables were prepared for display using *knitr*. A linear model was fitted to the imputed data with robust standard errors using *estimatr* with the following form.
 
 ```{r}
-#| label: run-analysis-models
+#| label: run-analysis-models-1
 
-unadjusted_models <- fit_faos_models(MasterImp, model_type = "unadjusted")
+tic()
 
-adjusted_models <- fit_faos_models(
-  MasterImp, 
-  model_type = "fully_adjusted", 
-  cluster_var = "PatientID"
-  )
-arthritis_models <- fit_faos_models(
-  MasterImp, 
-  model_type = "arthritis_adjusted", 
-  cluster_var = "PatientID"
-  )
+unadjusted_models <- fit_faos_models_cached(
+  imputed_data = MasterImp,
+  model_type = "unadjusted",
+  robust_se = TRUE,
+  cluster_var = "PatientID",
+  use_parallel = TRUE,      # Leverages your existing future plan
+  show_progress = TRUE      # Uses your existing progressr handlers
+)
 
+toc()
 
+```
+```{r}
+#| label: run-analysis-models-2
+
+tic()
+
+adjusted_models <- fit_faos_models_cached(
+  imputed_data = MasterImp,
+  model_type = "fully_adjusted",
+  robust_se = TRUE,
+  cluster_var = "PatientID",
+  use_parallel = TRUE,      # Leverages your existing future plan
+  show_progress = TRUE      # Uses your existing progressr handlers
+)
+
+toc()
 
 ```
 
-The model was summarised using *gtsummary*. Predicted values for all model variables were generated from the model object using *marginaleffects* (v`{r} utils::packageVersion("marginaleffects")`) [@marginaleffects].
+```{r}
+#| label: run-analysis-models-3
+
+tic()
+
+arthritis_models <- fit_faos_models_cached(
+  imputed_data = MasterImp,
+  model_type = "arthritis_adjusted",
+  robust_se = TRUE,
+  cluster_var = "PatientID",
+  use_parallel = TRUE,      # Leverages your existing future plan
+  show_progress = TRUE      # Uses your existing progressr handlers
+)
+
+toc()
+
+```
+
+The model was summarised using *gtsummary*. Predicted values for all model variables were generated from the model object using *marginaleffects*.
 
 # Results
 
@@ -3138,7 +3455,7 @@ The initial export from the registry returned {nrow(STROBEInput)} records of all
 
 <!--# RECORD 13.1: Describe in detail the selection of the persons included in the study (i.e., study population selection) including filtering based on data quality, data availability and linkage. The selection of included persons can be described in the text and/or by means of the study flow diagram. -->
 
-The diagram below (Figure 5) summarises recruitment and categorisation of patients from the SOFARI registry into the final analysis cohort.
+The diagram below summarises recruitment and categorisation of patients from the SOFARI registry into the final analysis cohort.
 
 ```{r}
 #| label: fig-strobe
