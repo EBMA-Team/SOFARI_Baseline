@@ -1476,45 +1476,6 @@ create_combined_faos_plot <- function(models,
 
 ```
 
-```{r}
-#| label: wrapper-model-func
-
-
-# Convenience wrapper functions for your three model types
-
-# 1. Minimally adjusted models for descriptive analysis
-fit_descriptive_models <- function(imputed_data, covariate, outcomes = NULL) {
-  if(is.null(outcomes)) {
-    outcomes <- c("FAOS_Pain_TotalScore_Preop", "FAOS_Symptom_TotalScore_Preop",
-                  "FAOS_DailyLiving_TotalScore_Preop", "FAOS_Sport_TotalScore_Preop",
-                  "FAOS_Quality_TotalScore_Preop")
-  }
-  
-  fit_faos_models(imputed_data, outcomes = outcomes, model_type = "minimal", covariate = covariate)
-}
-
-# 2. Unadjusted predictor models
-fit_unadjusted_models <- function(imputed_data, outcomes = NULL) {
-  if(is.null(outcomes)) {
-    outcomes <- c("FAOS_Pain_TotalScore_Preop", "FAOS_Symptom_TotalScore_Preop",
-                  "FAOS_DailyLiving_TotalScore_Preop", "FAOS_Sport_TotalScore_Preop",
-                  "FAOS_Quality_TotalScore_Preop")
-  }
-  
-  fit_faos_models(imputed_data, outcomes = outcomes, model_type = "unadjusted")
-}
-
-# 3. Fully adjusted models (your current approach)
-fit_adjusted_models <- function(imputed_data, outcomes = NULL) {
-  if(is.null(outcomes)) {
-    outcomes <- c("FAOS_Pain_TotalScore_Preop", "FAOS_Symptom_TotalScore_Preop",
-                  "FAOS_DailyLiving_TotalScore_Preop", "FAOS_Sport_TotalScore_Preop",
-                  "FAOS_Quality_TotalScore_Preop")
-  }
-  
-  fit_faos_models(imputed_data, outcomes = outcomes, model_type = "fully_adjusted")
-}
-```
 
 ```{r}
 #| label: comparison-table-func
@@ -3391,7 +3352,7 @@ unadjusted_models <- fit_faos_models_cached(
   model_type = "unadjusted",
   robust_se = TRUE,
   cluster_var = "PatientID",
-  #use_parallel = TRUE,      # Leverages your existing future plan
+  use_parallel = TRUE,      # Leverages your existing future plan
   show_progress = TRUE      # Uses your existing progressr handlers
 )
 
@@ -3409,7 +3370,7 @@ adjusted_models <- fit_faos_models_cached(
   model_type = "fully_adjusted",
   robust_se = TRUE,
   cluster_var = "PatientID",
-  #use_parallel = TRUE,      # Leverages your existing future plan
+  use_parallel = TRUE,      # Leverages your existing future plan
   show_progress = TRUE      # Uses your existing progressr handlers
 )
 
@@ -3966,7 +3927,7 @@ knitr::knit_print(subset_summary)
 
 ### RECORD \[19.1\] Implications of non-specific data
 
-<!--# RECORD 19.1: Discuss the implications of using data that were not created or collected to answer the specific research question(s). Include discussion of misclassification bias, unmeasured confounding, missing data, and changing eligibility over time, as they pertain to the study being reported. -->
+<!--# RECORD 19.1: Discuss the implications of using data that were not created or collected to answer the specific research question(s). Include discussion of misclassification bias, fit_adjusted_modelsunmeasured confounding, missing data, and changing eligibility over time, as they pertain to the study being reported. -->
 
 ## RECORD \[20\] Interpretation
 
