@@ -3351,9 +3351,7 @@ unadjusted_models <- fit_faos_models_cached(
   imputed_data = MasterImp,
   model_type = "unadjusted",
   robust_se = TRUE,
-  cluster_var = "PatientID",
-  use_parallel = TRUE,      # Leverages your existing future plan
-  show_progress = TRUE      # Uses your existing progressr handlers
+  cluster_var = "PatientID"
 )
 
 toc()
@@ -3369,9 +3367,7 @@ adjusted_models <- fit_faos_models_cached(
   imputed_data = MasterImp,
   model_type = "fully_adjusted",
   robust_se = TRUE,
-  cluster_var = "PatientID",
-  use_parallel = TRUE,      # Leverages your existing future plan
-  show_progress = TRUE      # Uses your existing progressr handlers
+  cluster_var = "PatientID"
 )
 
 toc()
@@ -3387,9 +3383,7 @@ arthritis_models <- fit_faos_models_cached(
   imputed_data = MasterImp,
   model_type = "arthritis_adjusted",
   robust_se = TRUE,
-  cluster_var = "PatientID",
-  #use_parallel = TRUE,      # Leverages your existing future plan
-  show_progress = TRUE      # Uses your existing progressr handlers
+  cluster_var = "PatientID"
 )
 
 toc()
