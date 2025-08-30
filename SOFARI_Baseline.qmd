@@ -1821,9 +1821,7 @@ Data was sourced directly from the SOFARI registry. Patient and treatment inform
 
 ### Data Import and Preparation
 
-Data was retrieved and formatted using *openxlsx* [@openxlsx2] to retrieve static snapshot files and *googlesheets4* (v`{r} utils::packageVersion("googlesheets4")`) [@googlesheets4] to retrieve live database tables. Text and code output were integrated using the *epoxy* package (v`{r} utils::packageVersion("epoxy")`) [@epoxy].
-
-Source files were specified and stored as global variables to call on in further functions.
+Data was retrieved and formatted using *openxlsx* to retrieve static snapshot files and *googlesheets4* to retrieve live database tables. Text and code output were integrated using the *epoxy* package. Source files were specified and stored as global variables to call on in further functions.
 
 ```{r}
 #| echo: false
@@ -1960,7 +1958,7 @@ rm(PatientTable1,
 )
 ```
 
-Process the registry snapshot by retrieving the file and use *tidyverse* to add columns, recode existing columns and create an additional identifier using *tidyr* (v`{r} utils::packageVersion("tidyr")`) [@tidyr], representing the patient and their side, to track multiple treatments for each limb. Dates were reformatted to a form appropriate for analysis using *lubridate* (v`{r} utils::packageVersion("lubridate")`) [@lubridate].
+Process the registry snapshot by retrieving the file and use *tidyverse* to add columns, recode existing columns and create an additional identifier using *tidyr*, representing the patient and their side, to track multiple treatments for each limb. Dates were reformatted to a form appropriate for analysis using *lubridate*. The snapshot is initially processed using custom functions to retrieve datatables and apply eligibility criteria for each treatment
 
 ```{r}
 # Get the latest snapshot file
@@ -3393,13 +3391,14 @@ unadjusted_models <- fit_faos_models_cached(
   model_type = "unadjusted",
   robust_se = TRUE,
   cluster_var = "PatientID",
-  use_parallel = TRUE,      # Leverages your existing future plan
+  #use_parallel = TRUE,      # Leverages your existing future plan
   show_progress = TRUE      # Uses your existing progressr handlers
 )
 
 toc()
 
 ```
+
 ```{r}
 #| label: run-analysis-models-2
 
@@ -3410,7 +3409,7 @@ adjusted_models <- fit_faos_models_cached(
   model_type = "fully_adjusted",
   robust_se = TRUE,
   cluster_var = "PatientID",
-  use_parallel = TRUE,      # Leverages your existing future plan
+  #use_parallel = TRUE,      # Leverages your existing future plan
   show_progress = TRUE      # Uses your existing progressr handlers
 )
 
@@ -3428,7 +3427,7 @@ arthritis_models <- fit_faos_models_cached(
   model_type = "arthritis_adjusted",
   robust_se = TRUE,
   cluster_var = "PatientID",
-  use_parallel = TRUE,      # Leverages your existing future plan
+  #use_parallel = TRUE,      # Leverages your existing future plan
   show_progress = TRUE      # Uses your existing progressr handlers
 )
 
