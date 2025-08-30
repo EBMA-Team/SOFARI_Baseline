@@ -1476,7 +1476,6 @@ create_combined_faos_plot <- function(models,
 
 ```
 
-
 ```{r}
 #| label: comparison-table-func
 
@@ -1711,6 +1710,14 @@ No data linkage to another data was performed for this analysis.
 The incorporation of patient-reported outcome measures into routine clinical foot and ankle orthopaedic practice holds a great deal of promise for better serving patients with appropriate treatments for the broad range of conditions that present for review.
 
 The FAOS [@roos2001] is a 42-question patient-reported outcome measure tailored to general foot and ankle conditions and one of a few scores available for foot and ankle in which its measurement properties have been evaluated according to COSMIN-criteria [@palmen2025].
+
+A clinical quality registry provides an integrated, prospective system to collect and collate outcomes and contextual information regarding foot and ankle orthopaedic conditions, as well as treatments offered at a scale the affords analysis with sufficient sample sizes. However, it presents challenges with respect to the logistics of collecting curated batteries of PROMs at relevant followups. In this present context, all patients are considered part of one group (cohort) and are presented with the same battery of questionnaires at initial review, regardless of the condition. In turn, this poses problems for analysis, in that patient cohorts (groups of patients with similar pathologies and expectations of recovery in both velocity and magnitude) must be generated retrospectively and change in scores before and after treatment interpreted appropriately.
+
+A common use of PROMs is in aid of prognostication of patients at the time treatment is offered. To do this accurately requires an understanding of the factors that confound the relationship between treatment options and observed outcomes and the relevant followup period, as well as the patient's baseline pain, function and quality of life. In a foot-ankle population presenting for surgical review, two key factors of interest that may influence the profile of a patient at baseline are *anatomical region* affected by pathology and whether the pathologies the patient presents with include any form of *arthritis*.
+
+The contemporary literature provides a dearth of information regarding these relationships and even less at sufficient scale to provide reliable guidance to clinicians interested in developing prognostication with PROMs.
+
+To address this gap in the knowlege, the current analysis aims to describe baseline pain, function and quality of life in a broad range of orthopaedic conditions, and to assess the influence of *anatomical region* and *arthritis* on these outcomes.
 
 ## RECORD \[3\] Objectives
 
