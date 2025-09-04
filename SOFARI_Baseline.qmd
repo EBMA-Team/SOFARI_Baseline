@@ -6,6 +6,7 @@ version: 1.0
 date: "2025-Aug-11"
 date-modified: "2025-Aug-11"
 type: website
+output-dir: docs
 editor: visual
 code-annotations: true
 execute: 
@@ -14,6 +15,8 @@ execute:
   message: false
 format:
   html:
+    theme: cosmo
+    embed-resources: true
     toc: true
     number-sections: true
     code-fold: true
@@ -57,8 +60,8 @@ Load up required packages in advance. Citations are applied to each library at f
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
-  "digest",
-  "rlang",
+  "parameters",
+  "fixest",
   "estimatr",
   "ggdag",
   "effectsize",
@@ -270,6 +273,7 @@ bind_and_clean <- function(df1, df2, cols = NULL, clean_cols = NULL, clean_fn = 
 Include a series of functions for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* and *furrr* to enable distributed processing of the records. The *progressr* package was utlised to enable visual progress to be communicated during processing and *memoise* to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
 
 ```{r}
+#| label: diagnosis-process-func-1
 
 # Enable parallel processing
 future::plan(multisession)
@@ -511,7 +515,7 @@ Function to conduct categorisation of terms for pathology (diagnosis) stored in 
 categorize_diagnosis <- function(
     df,
     remove_intermediate = TRUE,
-    use_parallel = FALSE,
+    use_parallel = TRUE,
     chunk_size = 1000
     ) {
   
@@ -691,977 +695,13 @@ concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
 
 ```
 
-### Modelling
-
-Functions to generate appropriate models to present results as per RECORD \[15\] Outcomes and RECORD \[16\] Main Results unadjusted and adjusted for the primary aim.
-
-```{r}
-#| label: faos-model-func-robust
-
-fit_faos_models_with_progress <- function(imputed_data, 
-                           outcomes = c("FAOS_Pain_TotalScore_Preop", 
-                                      "FAOS_Symptom_TotalScore_Preop",
-                                      "FAOS_DailyLiving_TotalScore_Preop", 
-                                      "FAOS_Sport_TotalScore_Preop",
-                                      "FAOS_Quality_TotalScore_Preop"),
-                           predictor = "Region",
-                           model_type = c("minimal", "unadjusted", "fully_adjusted", "arthritis_adjusted"),
-                           covariate = NULL,
-                           minimal_adjusters = c("AgeAtInitialExam", "Sex2"),
-                           full_covariates = c("AgeAtInitialExam", "Sex2", 
-                                             "SRCQTotalScore", "SmokingStatus"),
-                           arthritis_covariates = c("Region", "AgeAtInitialExam", "Sex2", "SmokingStatus"),
-                           arthritis_predictor = "Arthritis",
-                           cluster_var = "PatientID",
-                           robust_se = TRUE,
-                           use_parallel = TRUE,
-                           show_progress = TRUE) {
-  
-  # Input validation
-  model_type <- match.arg(model_type)
-  
-  # Check required packages
-  required_packages <- c("mice")
-  if (robust_se) required_packages <- c(required_packages, "estimatr")
-  if (use_parallel) required_packages <- c(required_packages, "future", "furrr")
-  
-  missing_packages <- required_packages %>%
-    map_lgl(~!requireNamespace(.x, quietly = TRUE)) %>%
-    keep(isTRUE)
-  
-  if (length(missing_packages) > 0) {
-    stop("Required packages missing: ", paste(names(missing_packages), collapse = ", "))
-  }
-  
-  # Validate inputs
-  if (model_type == "minimal" && is.null(covariate)) {
-    stop("covariate must be specified for minimal models")
-  }
-  
-  # Helper function to build formula strings
-  build_formula_string <- function(outcome, type, covariate = NULL) {
-    
-    formula_terms <- switch(type,
-      "minimal" = {
-        adjusters <- minimal_adjusters %>% 
-          discard(~ .x == covariate)
-        c(covariate, adjusters) %>% 
-          compact()
-      },
-      "unadjusted" = predictor,
-      "fully_adjusted" = c(predictor, full_covariates) %>% unique(),
-      "arthritis_adjusted" = c(arthritis_predictor, arthritis_covariates) %>% unique()
-    )
-    
-    str_c(outcome, " ~ ", str_c(formula_terms, collapse = " + "))
-  }
-  
-  # Helper function to standardize outcome names
-  standardize_outcome_name <- function(outcome) {
-    extracted <- str_extract(outcome, "(?<=FAOS_)[^_]+")
-    case_when(
-      extracted == "Pain" ~ "Pain",
-      extracted == "Symptom" ~ "Symptom", 
-      extracted == "DailyLiving" ~ "DailyLiving",
-      extracted == "Sport" ~ "Sport",
-      extracted == "Quality" ~ "Quality",
-      TRUE ~ extracted
-    )
-  }
-  
-  # Helper function to fit individual model
-  fit_single_model <- function(outcome_data) {
-    # Ensure required packages are loaded in parallel context
-    if (use_parallel) {
-      require(mice, quietly = TRUE)
-      if (robust_se) require(estimatr, quietly = TRUE)
-    }
-    
-    outcome <- outcome_data$outcome
-    formula_string <- outcome_data$formula_string
-    
-    tryCatch({
-      if (robust_se && !is.null(cluster_var)) {
-        with(imputed_data, 
-             lm_robust(as.formula(formula_string), 
-                      clusters = !!sym(cluster_var)))
-      } else {
-        with(imputed_data, 
-             lm(as.formula(formula_string)))
-      }
-    }, error = function(e) {
-      warning("Failed to fit model for outcome '", outcome, "': ", e$message)
-      return(NULL)
-    })
-  }
-  
-  # Prepare data for processing
-  outcome_data <- tibble(outcome = outcomes) %>%
-    mutate(
-      outcome_name = map_chr(outcome, standardize_outcome_name),
-      formula_string = map_chr(outcome, ~build_formula_string(.x, model_type, covariate))
-    )
-  
-  # Print initial info
-  if (show_progress) {
-    cat("Fitting", length(outcomes), "FAOS", model_type, "models with", 
-        ifelse(robust_se, "robust", "standard"), "standard errors\n")
-    
-    if (robust_se && !is.null(cluster_var)) {
-      cat("Clustering by:", cluster_var, "\n")
-    }
-    
-    if (use_parallel) {
-      cat("Using parallel processing\n")
-    }
-    cat("\n")
-  }
-  
-  # Fit models with optional progress and parallel processing
-  if (show_progress) {
-    with_progress({
-      p <- progressor(along = outcomes)
-      
-      if (use_parallel && length(outcomes) > 1) {
-        # Parallel processing with progress and proper RNG
-        model_results <- outcome_data %>%
-          mutate(
-            model = future_map(1:nrow(.), function(i) {
-              result <- fit_single_model(outcome_data[i, ])
-              p(message = sprintf("Fitted %s model", outcome_data$outcome_name[i]))
-              return(result)
-            }, .progress = FALSE, .options = furrr_options(seed = TRUE))  # Ensure proper RNG
-          )
-      } else {
-        # Sequential processing with progress
-        model_results <- outcome_data %>%
-          mutate(
-            model = map(1:nrow(.), function(i) {
-              result <- fit_single_model(outcome_data[i, ])
-              p(message = sprintf("Fitted %s model", outcome_data$outcome_name[i]))
-              return(result)
-            })
-          )
-      }
-    })
-  } else {
-    # No progress reporting
-    if (use_parallel && length(outcomes) > 1) {
-      model_results <- outcome_data %>%
-        mutate(model = future_map(1:nrow(.), ~fit_single_model(outcome_data[.x, ]), 
-                                 .options = furrr_options(seed = TRUE)))
-    } else {
-      model_results <- outcome_data %>%
-        mutate(model = map(1:nrow(.), ~fit_single_model(outcome_data[.x, ])))
-    }
-  }
-  
-  # Filter out failed models and create named list
-  final_results <- model_results %>%
-    filter(!map_lgl(model, is.null)) %>%
-    {set_names(.$model, .$outcome_name)}
-  
-  # Add metadata as attributes
-  attr(final_results, "model_type") <- model_type
-  attr(final_results, "predictor") <- if(model_type == "arthritis_adjusted") arthritis_predictor else predictor
-  attr(final_results, "covariate") <- covariate
-  attr(final_results, "robust_se") <- robust_se
-  attr(final_results, "cluster_var") <- cluster_var
-  attr(final_results, "n_outcomes") <- length(final_results)
-  attr(final_results, "use_parallel") <- use_parallel
-  
-  return(final_results)
-}
-
-# Create memoised version using memory cache (consistent with your framework)
-fit_faos_models_cached <- memoise(
-  fit_faos_models_with_progress,
-  cache = cache_memory()
-)
-
-```
-
-```{r}
-#| label: progress-model-func
 
 
-# Helper function to create a cache key for memoise
-create_cache_key <- function(imputed_data, outcomes, predictor, model_type, 
-                           covariate, minimal_adjusters, full_covariates,
-                           arthritis_covariates, arthritis_predictor, 
-                           cluster_var, robust_se) {
-  
-  # Create a hash of the imputed data structure (not the actual data)
-  data_hash <- digest(list(
-    ncol = ncol(complete(imputed_data, 1)),
-    nrow = nrow(complete(imputed_data, 1)),
-    m = imputed_data$m,
-    colnames = names(complete(imputed_data, 1))
-  ))
-  
-  # Create hash of all parameters
-  param_hash <- digest(list(
-    outcomes = outcomes,
-    predictor = predictor,
-    model_type = model_type,
-    covariate = covariate,
-    minimal_adjusters = minimal_adjusters,
-    full_covariates = full_covariates,
-    arthritis_covariates = arthritis_covariates,
-    arthritis_predictor = arthritis_predictor,
-    cluster_var = cluster_var,
-    robust_se = robust_se
-  ))
-  
-  return(paste0(data_hash, "_", param_hash))
-}
-
-# Modified function with progress bar
-fit_faos_models_with_progress <- function(imputed_data, 
-                           outcomes = c("FAOS_Pain_TotalScore_Preop", 
-                                      "FAOS_Symptom_TotalScore_Preop",
-                                      "FAOS_DailyLiving_TotalScore_Preop", 
-                                      "FAOS_Sport_TotalScore_Preop",
-                                      "FAOS_Quality_TotalScore_Preop"),
-                           predictor = "Region",
-                           model_type = c("minimal", "unadjusted", "fully_adjusted", "arthritis_adjusted"),
-                           covariate = NULL,
-                           minimal_adjusters = c("AgeAtInitialExam", "Sex2"),
-                           full_covariates = c("AgeAtInitialExam", "Sex2", 
-                                             "SRCQTotalScore", "SmokingStatus"),
-                           arthritis_covariates = c("Region", "AgeAtInitialExam", "Sex2", "SmokingStatus"),
-                           arthritis_predictor = "Arthritis",
-                           cluster_var = "PatientID",
-                           robust_se = TRUE,
-                           show_progress = TRUE) {
-  
-  # Input validation
-  model_type <- match.arg(model_type)
-  
-  # Check required packages
-  required_packages <- c("mice")
-  if (robust_se) required_packages <- c(required_packages, "estimatr")
-  
-  missing_packages <- required_packages %>%
-    map_lgl(~!require(.x, character.only = TRUE, quietly = TRUE)) %>%
-    keep(isTRUE)
-  
-  if (length(missing_packages) > 0) {
-    stop("Required packages missing: ", paste(names(missing_packages), collapse = ", "))
-  }
-  
-  # Validate inputs
-  if (model_type == "minimal" && is.null(covariate)) {
-    stop("covariate must be specified for minimal models")
-  }
-  
-  # Helper function to build formula strings
-  build_formula_string <- function(outcome, type, covariate = NULL) {
-    
-    formula_terms <- switch(type,
-      "minimal" = {
-        adjusters <- minimal_adjusters %>% 
-          discard(~ .x == covariate)
-        c(covariate, adjusters) %>% 
-          compact()
-      },
-      "unadjusted" = predictor,
-      "fully_adjusted" = c(predictor, full_covariates) %>% unique(),
-      "arthritis_adjusted" = c(arthritis_predictor, arthritis_covariates) %>% unique()
-    )
-    
-    str_c(outcome, " ~ ", str_c(formula_terms, collapse = " + "))
-  }
-  
-  # Helper function to standardize outcome names
-  standardize_outcome_name <- function(outcome) {
-    extracted <- str_extract(outcome, "(?<=FAOS_)[^_]+")
-    case_when(
-      extracted == "Pain" ~ "Pain",
-      extracted == "Symptom" ~ "Symptom", 
-      extracted == "DailyLiving" ~ "DailyLiving",
-      extracted == "Sport" ~ "Sport",
-      extracted == "Quality" ~ "Quality",
-      TRUE ~ extracted
-    )
-  }
-  
-  # Helper function to fit individual model with progress
-  fit_single_model_with_progress <- function(outcome, formula_string, p = NULL) {
-    
-    if (!is.null(p) && show_progress) {
-      outcome_name <- standardize_outcome_name(outcome)
-      p(message = sprintf("Fitting %s model", outcome_name))
-    }
-    
-    tryCatch({
-      if (robust_se && !is.null(cluster_var)) {
-        with(imputed_data, 
-             lm_robust(as.formula(formula_string), 
-                      clusters = !!sym(cluster_var)))
-      } else {
-        with(imputed_data, 
-             lm(as.formula(formula_string)))
-      }
-    }, error = function(e) {
-      warning("Failed to fit model for outcome '", outcome, "': ", e$message)
-      return(NULL)
-    })
-  }
-  
-  # Wrap main computation in progressr
-  if (show_progress) {
-    with_progress({
-      p <- progressor(along = outcomes)
-      
-      # Print initial info
-      cat("Fitting", length(outcomes), "FAOS", model_type, "models with", 
-          ifelse(robust_se, "robust", "standard"), "standard errors\n")
-      
-      if (robust_se && !is.null(cluster_var)) {
-        cat("Clustering by:", cluster_var, "\n")
-      }
-      cat("\n")
-      
-      # Main modeling pipeline
-      model_results <- tibble(outcome = outcomes) %>%
-        mutate(
-          outcome_name = map_chr(outcome, standardize_outcome_name),
-          formula_string = map_chr(outcome, ~build_formula_string(.x, model_type, covariate)),
-          model = map2(outcome_name, formula_string, 
-                       ~{
-                         result <- fit_single_model_with_progress(.data$outcome[which(.data$outcome_name == .x)], .y, p)
-                         p()  # Increment progress
-                         return(result)
-                       })
-        ) %>%
-        filter(!map_lgl(model, is.null)) %>%
-        {set_names(.$model, .$outcome_name)}
-    })
-  } else {
-    # Without progress bar
-    model_results <- tibble(outcome = outcomes) %>%
-      mutate(
-        outcome_name = map_chr(outcome, standardize_outcome_name),
-        formula_string = map_chr(outcome, ~build_formula_string(.x, model_type, covariate)),
-        model = map2(outcome_name, formula_string, 
-                     ~fit_single_model_with_progress(.data$outcome[which(.data$outcome_name == .x)], .y, NULL))
-      ) %>%
-      filter(!map_lgl(model, is.null)) %>%
-      {set_names(.$model, .$outcome_name)}
-  }
-  
-  # Add metadata as attributes
-  attr(model_results, "model_type") <- model_type
-  attr(model_results, "predictor") <- if(model_type == "arthritis_adjusted") arthritis_predictor else predictor
-  attr(model_results, "covariate") <- covariate
-  attr(model_results, "robust_se") <- robust_se
-  attr(model_results, "cluster_var") <- cluster_var
-  attr(model_results, "n_outcomes") <- length(model_results)
-  
-  return(model_results)
-}
-
-# Create memoised version
-fit_faos_models_cached <- memoise(
-  fit_faos_models_with_progress,
-  cache = cache_filesystem(path = "faos_model_cache")
-)
-
-```
-
-```{r}
-#| label: model-table-func
-
-# Main function to create regression tables from model lists
-create_faos_regression_table <- function(model_list, 
-                                        table_type = c("unadjusted", "minimally_adjusted", "fully_adjusted", "arthritis_adjusted"),
-                                        custom_labels = NULL,
-                                        estimate_digits = 2,
-                                        pvalue_digits = 3) {
-  
-  table_type <- match.arg(table_type)
-  
-  # Default labels based on table type
-  default_labels <- switch(table_type,
-    "unadjusted" = list(Region ~ "Diagnostic Group"),
-    "minimally_adjusted" = list(
-      AgeAtInitialExam ~ "Age at Initial Exam",
-      Sex2 ~ "Sex",
-      SRCQTotalScore ~ "Self-Reported Comorbidities",
-      VR12_Mental_TotalScore_Preop ~ "VR12 Mental Component"
-    ),
-    "fully_adjusted" = list(
-      Region ~ "Diagnostic Group"
-    ),
-    "arthritis_adjusted" = list(
-      Arthritis ~ "Arthritis"
-    )
-  )
-  
-  # Determine which variables to include based on table type
-  include_vars <- switch(table_type,
-    "unadjusted" = "Region",
-    "minimally_adjusted" = c("AgeAtInitialExam", "Sex2", "SRCQTotalScore", "VR12_Mental_TotalScore_Preop"),
-    "fully_adjusted" = "Region",  # Only show Region, other covariates are adjusted for but not displayed
-    "arthritis_adjusted" = "Arthritis"  # Only show Arthritis, other covariates are adjusted for but not displayed
-  )
-  
-  # Use custom labels if provided, otherwise use defaults
-  labels_to_use <- if(!is.null(custom_labels)) custom_labels else default_labels
-  
-  # Create individual regression tables
-  regression_tables <- map2(model_list, names(model_list), function(model, subscale_name) {
-    
-    # Determine which variables should be shown on single row (for binary/categorical vars)
-    single_row_vars <- switch(table_type,
-      "unadjusted" = NULL,  # Region has multiple levels, show all
-      "minimally_adjusted" = c("Sex2"),  # Show only one level for Sex if it's binary
-      "fully_adjusted" = NULL,  # Region has multiple levels, show all
-      "arthritis_adjusted" = "Arthritis"  # Show only "Yes" level for Arthritis (binary)
-    )
-    
-    
-    gtsummary::tbl_regression(
-      model,
-      tidy_fun = pool_and_tidy_mice,
-      include = all_of(include_vars),
-      label = labels_to_use,
-      estimate_fun = function(x) style_number(x, digits = estimate_digits),
-      pvalue_fun = function(x) style_pvalue(x, digits = pvalue_digits),
-      add_estimate_to_reference_rows = TRUE,
-      show_single_row = all_of(single_row_vars)
-    )
-  })
-  
-  # Create group headers (convert model names to nice labels)
-  group_headers <- case_when(
-    names(model_list) == "Pain" ~ "Pain",
-    names(model_list) == "Symptom" ~ "Symptoms", 
-    names(model_list) == "DailyLiving" ~ "Activities of Daily Living",
-    names(model_list) == "Sport" ~ "Sport and Recreation",
-    names(model_list) == "Quality" ~ "Quality of Life",
-    TRUE ~ names(model_list)  # fallback to original names
-  )
-  
-  # Stack the tables
-  stacked_table <- tbl_stack(
-    regression_tables,
-    group_header = group_headers
-  )
-  
-  # For arthritis tables, modify to remove redundant "Arthritis" labels
-  if(table_type == "arthritis_adjusted") {
-    # Create tables without group headers for arthritis tables
-    stacked_table <- tbl_stack(regression_tables)  # No group_header argument
-    
-    # Modify to show subscale names as the main labels
-    stacked_table <- stacked_table |>
-      modify_header(label ~ "**FAOS Subscale**") |>
-      modify_table_body(
-        ~.x |> 
-          mutate(
-            label = rep(group_headers, each = 1),  # Use subscale names as labels
-            row_type = "label"
-          )
-      )
-  } else {
-    # For other table types, use group headers normally
-    stacked_table <- tbl_stack(
-      regression_tables,
-      group_header = group_headers
-    )
-  }
-  
-  return(stacked_table)
-}
-```
-
-```{r}
-#| label: table-wrapper-func
-# Convenience wrapper functions for each model type
-
-# 1. Create unadjusted regression table
-create_unadjusted_table <- function(unadjusted_models) {
-  
-  table <- create_faos_regression_table(unadjusted_models, table_type = "unadjusted")
-  
-  return(table)
-}
-
-# 2. Create minimally adjusted table (for descriptive analysis)
-create_descriptive_table <- function(descriptive_models, 
-                                    covariate_focus,
-                                    table_caption = NULL) {
-  
-  # Create custom label for the focal covariate
-  covariate_labels <- switch(covariate_focus,
-    "AgeAtInitialExam" = list(AgeAtInitialExam ~ "Age at Initial Exam", Sex2 ~ "Sex"),
-    "SRCQTotalScore" = list(SRCQTotalScore ~ "Self-Reported Comorbidities", 
-                           AgeAtInitialExam ~ "Age at Initial Exam", Sex2 ~ "Sex"),
-    "VR12_Mental_TotalScore_Preop" = list(VR12_Mental_TotalScore_Preop ~ "VR12 Mental", 
-                                         AgeAtInitialExam ~ "Age at Initial Exam", Sex2 ~ "Sex")
-  )
-  
-  # Custom include variables for descriptive tables
-  include_vars <- switch(covariate_focus,
-    "AgeAtInitialExam" = c("AgeAtInitialExam", "Sex2"),
-    "SRCQTotalScore" = c("SRCQTotalScore", "AgeAtInitialExam", "Sex2"),
-    "VR12_Mental_TotalScore_Preop" = c("VR12_Mental_TotalScore_Preop", "AgeAtInitialExam", "Sex2")
-  )
-  
-  table <- create_faos_regression_table(descriptive_models, 
-                                       table_type = "minimally_adjusted",
-                                       custom_labels = covariate_labels)
-  
-  if(is.null(table_caption)) {
-    covariate_name <- switch(covariate_focus,
-      "AgeAtInitialExam" = "age",
-      "SRCQTotalScore" = "comorbidities", 
-      "VR12_Mental_TotalScore_Preop" = "mental health component"
-    )
-  }
-  
-  return(table)
-}
-
-# 3. Create fully adjusted table (main analysis)
-create_adjusted_table <- function(adjusted_models) {
-  
-  table <- create_faos_regression_table(adjusted_models, table_type = "fully_adjusted")
-  
-  return(table)
-}
-
-# 4. Create arthritis adjusted table (secondary analysis)
-create_arthritis_table <- function(arthritis_models) {
-  
-  table <- create_faos_regression_table(arthritis_models, table_type = "arthritis_adjusted")
-  
-  return(table)
-}
-
-# Alternative approach: More flexible function that handles different predictors
-create_custom_regression_table <- function(model_list, 
-                                         predictor_var,
-                                         covariate_vars = NULL,
-                                         custom_labels = NULL,
-                                         estimate_digits = 2,
-                                         pvalue_digits = 3) {
-  
-  # Determine which variables to include
-  include_vars <- c(predictor_var, covariate_vars)
-  
-  # Default labels if none provided
-  if(is.null(custom_labels)) {
-    custom_labels <- switch(predictor_var,
-      "Region" = list(Region ~ "Diagnostic Group"),
-      "Arthritis" = list(Arthritis ~ "Arthritis"),
-      # Add other predictors as needed
-    )
-  }
-  
-  # Create individual regression tables
-  regression_tables <- map2(model_list, names(model_list), function(model, subscale_name) {
-    gtsummary::tbl_regression(
-      model,
-      tidy_fun = pool_and_tidy_mice,
-      include = include_vars,
-      label = custom_labels,
-      estimate_fun = function(x) style_number(x, digits = estimate_digits),
-      pvalue_fun = function(x) style_pvalue(x, digits = pvalue_digits),
-      add_estimate_to_reference_rows = TRUE
-    )
-  })
-  
-  # Create group headers
-  group_headers <- case_when(
-    names(model_list) == "Pain" ~ "Pain",
-    names(model_list) == "Symptom" ~ "Symptoms", 
-    names(model_list) == "DailyLiving" ~ "Activities of Daily Living",
-    names(model_list) == "Sport" ~ "Sport and Recreation",
-    names(model_list) == "Quality" ~ "Quality of Life",
-    TRUE ~ names(model_list)
-  )
-  
-  # Stack the tables
-  stacked_table <- tbl_stack(
-    regression_tables,
-    group_header = group_headers
-  )
-  
-  return(stacked_table)
-}
 
 
-```
-
-```{r}
-#| label: faos-plot-func
 
 
-# Improved plotting function with better scaling and appearance
-create_faos_plots <- function(models, 
-                             plot_type = c("age_sex", "comorbidities_sex", "mental_sex", 
-                                         "age_arthritis", "region_distribution"),
-                             x_var = NULL,
-                             color_var = NULL,
-                             x_label = NULL,
-                             subscale_names = NULL,
-                             fixed_y_scale = TRUE,
-                             show_points = FALSE) {
-  
-  plot_type <- match.arg(plot_type)
-  
-  # Set defaults based on plot type
-  plot_configs <- list(
-    "age_sex" = list(x_var = "AgeAtInitialExam", color_var = "Sex2", 
-                     x_label = "Age at Initial Exam", filter_condition = "AgeAtInitialExam > 15"),
-    "comorbidities_sex" = list(x_var = "SRCQTotalScore", color_var = "Sex2", 
-                              x_label = "Self-Reported Comorbidities Score", filter_condition = "AgeAtInitialExam > 15"),
-    "mental_sex" = list(x_var = "VR12_Mental_TotalScore_Preop", color_var = "Sex2", 
-                       x_label = "VR12 Mental Component", filter_condition = "AgeAtInitialExam > 15"),
-    "age_arthritis" = list(x_var = "AgeAtInitialExam", color_var = "Arthritis", 
-                          x_label = "Age at Initial Exam", filter_condition = "AgeAtInitialExam > 15"),
-    "region_distribution" = list(x_var = "Region", color_var = NULL, 
-                               x_label = "Region", filter_condition = NULL)
-  )
-  
-  config <- plot_configs[[plot_type]]
-  
-  # Override defaults if provided
-  if(!is.null(x_var)) config$x_var <- x_var
-  if(!is.null(color_var)) config$color_var <- color_var
-  if(!is.null(x_label)) config$x_label <- x_label
-  
-  # Handle subscale names
-  if(is.null(subscale_names)) {
-    plot_subscale_names <- names(models)
-  } else {
-    if(length(subscale_names) != length(models)) {
-      stop("Length of subscale_names must match length of models")
-    }
-    plot_subscale_names <- subscale_names
-  }
-  
-  # Get predictions for all models first to determine common y-scale
-  all_predictions <- map(models, function(model) {
-    pred_grid <- marginaleffects::predictions(model)
-    
-    # Apply filter if specified
-    if(!is.null(config$filter_condition)) {
-      pred_grid <- pred_grid |> filter(eval(parse(text = config$filter_condition)))
-    }
-    return(pred_grid)
-  })
-  
-  # Calculate common y-axis limits if fixed scale is requested
-  if(fixed_y_scale && plot_type != "region_distribution") {
-    all_estimates <- map_dfr(all_predictions, ~data.frame(
-      estimate = .x$estimate
-    ))
-    
-    y_min <- min(all_estimates$estimate, na.rm = TRUE)
-    y_max <- max(all_estimates$estimate, na.rm = TRUE)
-    y_range <- y_max - y_min
-    y_limits <- c(y_min - 0.05 * y_range, y_max + 0.05 * y_range)
-  }
-  
-  # Create plots
-  plots <- map2(all_predictions, plot_subscale_names, function(pred_grid, subscale_name) {
-    
-    if(plot_type == "region_distribution") {
-      # Special handling for region distribution plots
-      ggplot(data = pred_grid, mapping = aes(x = !!sym(config$x_var), y = estimate)) +
-        stat_slabinterval(aes(thickness = after_stat(pdf*n)), scale = 0.7, fill = "steelblue") +
-        stat_dotsinterval(side = "right", scale = 0.7, slab_linewidth = NA, fill = "steelblue") +
-        labs(
-          y = paste("Predicted", subscale_name),
-          x = config$x_label
-        ) +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
-      
-    } else {
-      # Standard continuous variable plots using model predictions
-      p <- ggplot(pred_grid, aes(x = !!sym(config$x_var), y = estimate))
-      
-      if(!is.null(config$color_var)) {
-        p <- p + aes(color = !!sym(config$color_var), fill = !!sym(config$color_var))
-      }
-      
-      # Apply geom_smooth to the predicted points (no individual points shown)
-      p <- p +
-        geom_smooth(method = "loess", se = TRUE, level = 0.99, alpha = 0.3, linewidth = 0.8) +
-        scale_fill_brewer(palette = "Set2") +
-        scale_color_brewer(palette = "Dark2") +
-        labs(
-          y = paste("Predicted", subscale_name),
-          x = config$x_label
-        ) +
-        theme_minimal() +
-        theme(
-          legend.position = "bottom",
-          panel.grid.minor = element_blank(),
-          strip.text = element_text(face = "bold")
-        )
-      
-      # Apply fixed y-scale if requested
-      if(fixed_y_scale) {
-        p <- p + coord_cartesian(ylim = y_limits)
-      }
-      
-      if(!is.null(config$color_var)) {
-        p <- p + labs(color = str_to_title(gsub("2$", "", config$color_var)), 
-                      fill = str_to_title(gsub("2$", "", config$color_var)))
-      }
-      
-      p
-    }
-  })
-  
-  return(plots)
-}
 
-# Alternative function to create a combined plot using patchwork
-create_combined_faos_plot <- function(models, 
-                                    plot_type = "age_sex",
-                                    subscale_names = NULL,
-                                    ncol = 3,
-                                    fixed_y_scale = TRUE) {
-  
-  # Create individual plots
-  plots <- create_faos_plots(
-    models = models,
-    plot_type = plot_type,
-    subscale_names = subscale_names,
-    fixed_y_scale = fixed_y_scale,
-    show_points = FALSE
-  )
-  
-  # Combine using patchwork (requires library(patchwork))
-  if(requireNamespace("patchwork", quietly = TRUE)) {
-    combined_plot <- patchwork::wrap_plots(plots, ncol = ncol) +
-      patchwork::plot_annotation(
-        title = paste("FAOS Subscale Predictions by", str_to_title(gsub("_", " ", plot_type))),
-        theme = theme(plot.title = element_text(size = 16, face = "bold"))
-      )
-    return(combined_plot)
-  } else {
-    warning("patchwork package not available. Returning list of individual plots.")
-    return(plots)
-  }
-}
-
-# Usage examples:
-# 1. Create plots with improved defaults
-# age_plots <- create_faos_plots(age_models, plot_type = "age_sex")
-
-# 2. Create plots with custom subscale names and consistent scaling
-# age_plots <- create_faos_plots(
-#   age_models, 
-#   plot_type = "age_sex",
-#   subscale_names = c("Pain", "Symptoms", "Daily Living", "Sport", "Quality of Life"),
-#   fixed_y_scale = TRUE
-# )
-
-# 3. Create a combined plot (requires patchwork package)
-# combined_age_plot <- create_combined_faos_plot(
-#   age_models,
-#   plot_type = "age_sex", 
-#   subscale_names = c("Pain", "Symptoms", "Daily Living", "Sport", "Quality of Life"),
-#   ncol = 3
-# )
-
-
-```
-
-```{r}
-#| label: comparison-table-func
-
-# Function to create pairwise comparisons for FAOS models
-create_faos_comparisons <- function(model_list, 
-                                   combined = TRUE,
-                                   variable = "Region",
-                                   comparison_type = "pairwise",
-                                   conf_level = 0.95,
-                                   decimals = 3,
-                                   fdr_correction = TRUE
-                                   ) {
-  
-  if(combined) {
-    # Create one combined table with all FAOS subscales
-    all_comparisons <- map2_dfr(model_list, names(model_list), function(model, subscale_name) {
-      
-      # Generate comparisons - hard-code the most common case
-      comparisons <- avg_comparisons(
-        model,
-        variables = list(Region = "pairwise"),
-        conf_level = 0.95
-      )
-      
-      # Add subscale identifier and select columns
-      comparisons |>
-        dplyr::select(contrast, estimate, std.error, p.value) |>
-        mutate(subscale = subscale_name, .before = 1)
-    })
-    
-    # Apply FDR correction across ALL comparisons if requested
-    if(fdr_correction) {
-      all_comparisons <- all_comparisons |>
-        mutate(
-          p.value.raw = p.value,  # Keep original p-values
-          p.value.fdr = p.adjust(p.value, method = "BH")  # FDR adjusted p-values
-          #significant.fdr = p.value.fdr < 0.05  # Flag FDR-significant results
-        )
-    }
-    
-    # Clean up subscale names for display
-    all_comparisons <- all_comparisons |>
-      mutate(subscale = case_when(
-        subscale == "Pain" ~ "Pain",
-        subscale == "Symptom" ~ "Symptoms", 
-        subscale == "DailyLiving" ~ "Activities of Daily Living",
-        subscale == "Sport" ~ "Sport and Recreation",
-        subscale == "Quality" ~ "Quality of Life",
-        TRUE ~ subscale
-      ))
-    
-    # Create combined gt table
-    if(fdr_correction) {
-      # Table with both raw and FDR-adjusted p-values
-      result <- all_comparisons |>
-        gt(groupname_col = "subscale") |>
-        fmt_number(columns = c(estimate, std.error, p.value.raw, p.value.fdr), decimals = 3) |>
-        cols_label(
-          contrast = "Contrast",
-          estimate = "Estimate",
-          std.error = "SE",
-          p.value.raw = "p-value (raw)",
-          p.value.fdr = "p-value (FDR)"
-          #significant.fdr = "FDR Sig."
-        ) |>
-        tab_style(
-          style = cell_fill(color = "lightblue"),
-          locations = cells_body(rows =  p.value.fdr < 0.05)
-        ) |>
-        tab_footnote(
-          footnote = "P-values adjusted for multiple comparisons using Benjamini-Hochberg FDR correction)",
-          locations = cells_column_labels(columns = p.value.fdr)
-        ) |>
-        tab_options(
-          row_group.font.weight = "bold"
-        )
-    } else {
-      # Standard table with raw p-values only
-      result <- all_comparisons |>
-        gt(groupname_col = "subscale") |>
-        fmt_number(columns = c(estimate, std.error, p.value), decimals = 3) |>
-        tab_header(title = table_caption) |>
-        cols_label(
-          contrast = "Contrast",
-          estimate = "Estimate",
-          std.error = "SE",
-          p.value = "p-value"
-        ) |>
-        tab_options(
-          row_group.font.weight = "bold"
-        )
-    }
-    
-    return(result)
-    
-  } else {
-    # Create separate tables for each FAOS subscale
-    # First, get all comparisons to calculate FDR across all subscales
-    if (fdr_correction) {
-      all_comparisons_temp <- map2_dfr(model_list, names(model_list), function(model, subscale_name) {
-        comparisons <- avg_comparisons(
-          model,
-          variables = list(Region = "pairwise"),
-          conf_level = 0.95
-        )
-        
-        comparisons |>
-          dplyr::select(contrast, estimate, std.error, p.value) |>
-          mutate(subscale = subscale_name, .before = 1)
-      })
-      
-      # Apply FDR correction across all comparisons
-      all_comparisons_temp <- all_comparisons_temp |>
-        mutate(p.value.fdr = p.adjust(p.value, method = "BH"))
-    }
-    
-    comparison_tables <- map2(model_list, names(model_list), function(model, subscale_name) {
-      
-      # Generate comparisons
-      comparisons <- avg_comparisons(
-        model,
-        variables = list(Region = "pairwise"),
-        conf_level = 0.95
-      )
-      
-      comparisons_df <- comparisons |>
-        dplyr::select(contrast, estimate, std.error, p.value)
-      
-      # Add FDR-adjusted p-values if correction requested
-      if (fdr_correction) {
-        fdr_values <- all_comparisons_temp |>
-          filter(subscale == subscale_name) |>
-          pull(p.value.fdr)
-        
-        comparisons_df <- comparisons_df |>
-          mutate(
-            p.value.raw = p.value,
-            p.value.fdr = fdr_values
-            #significant.fdr = p.value.fdr < 0.05
-          )
-      }
-      
-      # Create individual gt table
-      if(fdr_correction) {
-        comp_table <- comparisons_df |>
-          gt() |>
-          fmt_number(columns = c(estimate, std.error, p.value.raw, p.value.fdr), decimals = 3) |>
-          tab_header(
-            title = paste("FAOS", subscale_name, "- Pairwise Comparisons"),
-            subtitle = "P-values adjusted for multiple comparisons using Benjamini-Hochberg FDR correction"
-          ) |>
-          cols_label(
-            contrast = "Contrast",
-            estimate = "Estimate",
-            std.error = "SE",
-            p.value.raw = "p-value (raw)",
-            p.value.fdr = "p-value (FDR)"
-            #significant.fdr = "FDR Sig."
-          ) |>
-          tab_style(
-            style = cell_fill(color = "lightblue"),
-            locations = cells_body(rows =  p.value.fdr < 0.05)
-          )
-      } else {
-        comp_table <- comparisons_df |>
-          gt() |>
-          fmt_number(columns = c(estimate, std.error, p.value), decimals = 3) |>
-          tab_header(title = paste("FAOS", subscale_name, "- Pairwise Comparisons")) |>
-          cols_label(
-            contrast = "Contrast",
-            estimate = "Estimate",
-            std.error = "SE", 
-            p.value = "p-value"
-          )
-      }
-      
-      return(comp_table)
-    })
-    
-    names(comparison_tables) <- names(model_list)
-    return(comparison_tables)
-  }
-}
-
-
-```
 
 # Title and abstract
 
@@ -1792,11 +832,12 @@ Data was sourced directly from the SOFARI registry. Patient and treatment inform
 Data was retrieved and formatted using *openxlsx* to retrieve static snapshot files and *googlesheets4* to retrieve live database tables. Text and code output were integrated using the *epoxy* package. Source files were specified and stored as global variables to call on in further functions.
 
 ```{r}
+#| label: source-ids
 #| echo: false
 
 SheetIDs <- list(
-  Complic1 = "https://docs.google.com/spreadsheets/d/1hs9AHor_cqEOzFBpXHLrcrb2Gs3Ot647g8aMYfax6Fw/edit",
-  Complic2 = "https://docs.google.com/spreadsheets/d/1nFMsHl_LEm4tVi7GGtArGWB3EkG3YE_rF5C-PUcAgMs/edit",
+  # Complic1 = "https://docs.google.com/spreadsheets/d/1hs9AHor_cqEOzFBpXHLrcrb2Gs3Ot647g8aMYfax6Fw/edit",
+  # Complic2 = "https://docs.google.com/spreadsheets/d/1nFMsHl_LEm4tVi7GGtArGWB3EkG3YE_rF5C-PUcAgMs/edit",
   Patient1 = "https://docs.google.com/spreadsheets/d/1hs9AHor_cqEOzFBpXHLrcrb2Gs3Ot647g8aMYfax6Fw/edit",
   Patient2 = "https://docs.google.com/spreadsheets/d/1nFMsHl_LEm4tVi7GGtArGWB3EkG3YE_rF5C-PUcAgMs/edit"
   
@@ -1804,49 +845,7 @@ SheetIDs <- list(
 
 ```
 
-Read in complication tables, then combine and clean the text description of complications as required.
 
-```{r}
-#| label: import-complication
-#| eval: false
-#| echo: false
-
-# Authenticate for sheets using the same token
-gs4_auth(token = drive_token())
-
-ComplicTable1 <- googlesheets4::read_sheet(
-  ss = SheetIDs$Complic1,
-  sheet = "Complications",
-  range = "A2:AD",
-  col_names = TRUE,
-  col_types = "cccTlnicicccccccccccicccccDccD"
-  )
-
-ComplicTable2 <- range_read(
-  ss = SheetIDs$Complic2,
-  sheet = "Complications",
-  range = "A2:AD",
-  col_names = TRUE,
-  col_types = "cccTlnicicccccccccccicccccDccD"
-  )
-
-# Complication Table
-MasterComplic <- bind_and_clean(
-  df1 = ComplicTable1, 
-  df2 = ComplicTable2, 
-  cols = c(
-    "TreatmentID", 
-    "ComplicationID", 
-    "ComplicationOccurrence",
-    "ComplicationNature", 
-    "DateOfOccurrence",
-    "ComplicationTreatmentOffered",
-    "DateReoperation"),
-  clean_cols = "ComplicationNature",
-  clean_fn = clean_text  # Pass the function directly
-)
-
-```
 
 Read in patient tables, then combine and clean the text columns as required.
 
@@ -1929,6 +928,9 @@ rm(PatientTable1,
 Process the registry snapshot by retrieving the file and use *tidyverse* to add columns, recode existing columns and create an additional identifier using *tidyr*, representing the patient and their side, to track multiple treatments for each limb. Dates were reformatted to a form appropriate for analysis using *lubridate*. The snapshot is initially processed using custom functions to retrieve datatables and apply eligibility criteria for each treatment
 
 ```{r}
+#| label: import-snapshot
+
+
 # Get the latest snapshot file
 latest_snapshot <- get_latest_snapshot()
 # 
@@ -2039,44 +1041,40 @@ Record selection was based on the following criteria;
 
 -   The record was eligible for baseline PROMs capture. That is, sufficient time was available between patient registration and definitive treatment offered by the reviewing surgeon. In some cases, trauma cases first present to the clinic after their definitive surgical treatment and baseline PROMs cannot be captured prior to surgery.
 
--   Diagnosis text had been retrieved at the time of analysis.
 
 The *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] was used to create a table of indications for exclusion for each record and plot a flowchart (see 13.1) indicating the flow from total records processed to the final inclusion sample for analysis.
 
-```{r}
-STROBESub <- STROBEInput |> dplyr::select(
- TreatmentID,
- TreatmentStatusNotes,
- TreatmentStatus
- ) |> dplyr::filter(
-   !is.na(TreatmentStatusNotes),
-   TreatmentStatus == "Archived"
- )
 
-
-STROBESub2 <- STROBESub |>
-  dplyr::distinct(TreatmentStatusNotes) |>
-  dplyr::mutate(
-    TreatmentStatusNotes2 = dplyr::case_when(
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "(second|2nd) opinion|(treating surgeon)") ~ "Second opinion",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "refer.*(elsewhere|to|on|for|public)") ~ "Referred elsewhere",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "opt|op-|withdr*") ~ "Opt out",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "non.*registry|pathology|shoulder|wrist|knee|amput*|acl|not.*registry") ~ "Non-registry pathology",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "attend|cancel|cnx|canx|cx|(never came)|arrive|missed|show|(no referral)|appt|dna") ~ "No initial consult",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "(treatme.*t|tx).*(offered|given)|men.*ion|(surgery elsewhere)|(no intervention)|intervention.*rec|(surgery in ed)|hesitant.*treat|offer.*treatment|(not viable)|resolve|(poses risk)") ~ "No treatment offered",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "((sa|ak) patient)|(w sa)|(other surg.*n)|(surgeon other)|(joint consult)|treat.*public|elsewhere") ~ "Non-registry surgeon",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "duplicate|accessory|error|reop|complication|incorrect|(additional treatment)|superfluous|(not failed)|should.*surg") ~ "Accessory record",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "pre.*registry|prior|(ex.*sting treatment)|(pre reg tx)") ~ "Followup of pre-registry treatment",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "imaging|mri|return.*(results|diagnosis)|(never.*return)") ~ "Incomplete diagnosis",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "empty|no|enough.*(note|letter|info|record|report)|insufficient|(cannot retrieve)|(unable.*recruit)") ~ "Insufficient information",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "status|decline|confirmation|(surgery cancelled)|never.*(treatment|tx)|surg.*(ahead|elsewhere|occur|ahead)|(ahead.*surgery)|issue.*payment") ~ "Declined or unknown treatment status",
-      stringr::str_detect(str_to_lower(TreatmentStatusNotes), "(registry end)|(end.*registry)") ~ "Registry end",
-      .default = NA_character_
-    )
-  ) 
-```
 
 <!--# going to impute region + pathology columns as required (drop exclusion3) ~ 1400 cases -->
+
+```{r}
+#| label: strobeinput-recode
+
+# Fix up treatmentstatus
+# 
+# 
+
+STROBEFollowUp <- STROBEInput |> filter(
+  stringr::str_detect(TreatmentStatus, "follow")
+) |> mutate(
+  TreatmentStatus = case_when(
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes), 
+    "(no mention)|refer.*ed|else|((no|not) (intervent|treat))|(enough info)|withdraw|non.*registry|duplicate|confirmation") ~ "Archived",
+    is.na(DateTreatment) ~ "Archived",
+    is.na(TreatmentStatusNotes) ~ "Ongoing",
+    .default = TreatmentStatus
+) 
+) |> select(all_of(names(STROBEInput)))
+
+
+STROBEInput2 <- STROBEInput |> rows_update(
+  STROBEFollowUp, by = "TreatmentID"
+  )
+
+
+```
+
 
 ```{r}
 
@@ -2088,7 +1086,7 @@ STROBESub2 <- STROBESub |>
 # - registrystatus = open:no proms <= datetreatment
 
 
-STROBEFlow <- STROBEInput |> dplyr::filter(
+STROBEFlow <- STROBEInput2 |> dplyr::filter(
   !is.na(TreatmentID)
 ) |> left_join(
   Snapshot |> dplyr::select(
@@ -2104,9 +1102,7 @@ STROBEFlow <- STROBEInput |> dplyr::filter(
   TreatmentStatus,
   TreatmentStatusNotes,
   DateInitialExamination,
-  EligibleAtPreop,
-  DiagnosisRawPrelim,
-  DiagnosisRawFinal
+  EligibleAtPreop
 ) |> group_by(
   CombID
 ) |> arrange(
@@ -2141,7 +1137,7 @@ exclusion1 = case_when( #exclusion before induction
     ),
 exclusion2 = case_when( #exclusion after induction
     is.na(exclusion1) & EligibleAtPreop == "Yes" & RecordNum == 1 ~ NA_character_,
-    is.na(exclusion1) & EligibleAtPreop == "Yes" & RecordNum > 1 ~ "Subsequent Presentation",
+    is.na(exclusion1) & RecordNum > 1 ~ "Subsequent Presentation",
     is.na(exclusion1) & RecordNum == 1 & EligibleAtPreop == "No" ~ "Not eligible for Baseline"
 
 )
@@ -2324,9 +1320,12 @@ MasterTable3 <- MasterTable2 |> dplyr::select(
 ) |> dplyr::select(
   TreatmentID,
   PatientID,
+  CombID,
+  DateTreatmentRecordCreation,
   TreatmentType,
   Sex2,
   Provider,
+  TreatmentStatus,
   AgeAtInitialExam,
   SmokingStatus_Preop,
   InjuryToPresentation,
@@ -2338,7 +1337,8 @@ MasterTable3 <- MasterTable2 |> dplyr::select(
   PreviousPath,
   PreviousSurgery,
   DiagnosisRawFinal,
-  DiagnosisRawPrelim
+  DiagnosisRawPrelim,
+  SurgicalTreatment
 )
 
 ```
@@ -2374,12 +1374,15 @@ MasterTable4 <- MasterTable3 |> left_join(
 ) |> dplyr::select(
   TreatmentID,
   PatientID,
+  CombID,
+  DateTreatmentRecordCreation,
   TreatmentType,
   Sex2,
   Provider,
+  TreatmentStatus,
   AgeAtInitialExam,
-  InjuryToPresentation,
   SmokingStatus_Preop,
+  InjuryToPresentation,
   VR12_Physical_TotalScore_Preop,
   VR12_Mental_TotalScore_Preop,
   SRCQTotalScore,
@@ -2387,6 +1390,9 @@ MasterTable4 <- MasterTable3 |> left_join(
   Satisfaction_Preop,
   PreviousPath,
   PreviousSurgery,
+  DiagnosisRawFinal,
+  DiagnosisRawPrelim,
+  SurgicalTreatment,
   starts_with("FAOS")
 )
 
@@ -2684,7 +1690,7 @@ DiagPath1 <- DiagPathology |> distinct(
 A cohort label (combining pathology and region) was created from the processed diagnosis text.
 
 ```{r}
-#| label: cohort-definition
+#| label: mastertable-5
 
 # Slice Down Snapshot based on diagnosis availability
 
@@ -2800,16 +1806,14 @@ min_count <- 10
 
 The bilateral status of each record in the registry snapshot was calculated by grouping by PatientID, establishing those records with \>1 record in the table, then calculating whether the bilateral record was;
 
--   Simultaneous - where both records are presented and created at the same time
+-   Bilateral - a patient has multiple treatments in the registry and the treatments span left and right sides
 
--   Index - the first limb to present for that patient within the registry
-
--   Subsequent - the second (contralateral) limb to present for that patient within the registry that is separated from the first record by time.
-
--   Unilateral - the record appears in the dataset with no record present for the contralateral limb
+-   Unilateral - the patient record appears in the dataset with one or more records, but they pertain to only one side
 
 ```{r}
-#| label: bilateral-definition
+#| label: bilateral-processing-1
+#| eval: true
+
 
 SnapshotBilat1 <- MasterTable5 |> group_by(
   PatientID
@@ -2819,134 +1823,80 @@ SnapshotBilat1 <- MasterTable5 |> group_by(
   TreatmentCount > 1
 )
 
-SnapshotBilat2 <- Snapshot |> filter(
+SnapshotBilat2 <- MasterTable5 |> dplyr::select(
+  TreatmentID,
+  PatientID,
+  CombID,
+  TreatmentStatus,
+  DateTreatmentRecordCreation
+) |> filter(
   PatientID %in% SnapshotBilat1$PatientID
+) |> dplyr::left_join(
+  Snapshot |> select(
+    TreatmentID,
+    AffectedSide
+  ),
+  by = "TreatmentID"
 )
 
-SnapshotLeft1 <- SnapshotBilat2 |> filter(
-  AffectedSide == "Left"
-) |> group_by(
-  PatientID
-) |> arrange(
-  DateInitialExamination,
-  .by_group = TRUE
-) |> dplyr::select(
-  TreatmentID,
-  CombID,
+ 
+SnapshotBilat3 <- distinct(
+  SnapshotBilat2,
   PatientID,
-  AffectedSide,
-  DateInitialExamination,
-  DateInitialExaminationNum,
-  TreatmentStatus,
-  TreatmentStatusNotes,
-  DateStatusChange
-) |> slice_head(
-  n = 1
-) |> ungroup()
-
-SnapshotRight <- SnapshotBilat2 |> filter(
-  AffectedSide == "Right"
-) |> rename(
-  DIERight = "DateInitialExamination"
-) |> group_by(
-  PatientID
-) |> arrange(
-  DIERight,
-  .by_group = TRUE
-) |> dplyr::select(
-  TreatmentID,
-  CombID,
-  PatientID,
-  AffectedSide,
-  DIERight,
-  TreatmentStatus,
-  TreatmentStatusNotes,
-  DateStatusChange
-) |> slice_head(
-  n = 1
-) |> ungroup() |> left_join(
-  SnapshotLeft1 |> dplyr::select(
-    PatientID,
-    DateInitialExamination
-  ),
-  by = "PatientID"
-  ) |> rename(
-  DIELeft = "DateInitialExamination"
-) |> mutate(
-   DIEDiff = as.numeric(as.duration(DIERight %--% DIELeft),"weeks")
-  ) |> mutate(
-    BilateralPres = case_when(
-      DIEDiff == 0 ~ "Simultaneous",
-      DIEDiff > 0 ~ "Index",
-      DIEDiff < 0 ~ "Subsequent",
-      .default = "Unilateral"
-    )
-  )
-
-SnapshotLeft2 <- SnapshotLeft1 |> rename(
-  DIELeft = "DateInitialExamination"
+  .keep_all = FALSE
 ) |> left_join(
-  SnapshotRight |> dplyr::select(
-    PatientID,
-    DIERight
+  SnapshotBilat2 |> filter(
+    AffectedSide == "Left"
+  ) |> group_by(PatientID) |> slice_min(DateTreatmentRecordCreation) |> ungroup() |> dplyr::select(
+    CombID,
+    PatientID
   ),
   by = "PatientID"
-  ) |> mutate(
-   DIEDiff = as.numeric(as.duration(DIELeft %--% DIERight),"weeks")
-  ) |> mutate(
-    BilateralPres = case_when(
-      DIEDiff == 0 ~ "Simultaneous",
-      DIEDiff > 0 ~ "Index",
-      DIEDiff < 0 ~ "Subsequent",
-      .default = "Unilateral"
-    )
-  ) |> filter(
-    BilateralPres != "Unilateral"
-  )
+) |> rename(
+  "CombLeft" = CombID
+) |> left_join(SnapshotBilat2 |> filter(
+    AffectedSide == "Right"
+  ) |> group_by(PatientID) |> slice_min(DateTreatmentRecordCreation) |> ungroup() |> dplyr::select(
+    CombID,
+    PatientID
+  ),
+  by = "PatientID"
+) |> rename(
+  "CombRight" = CombID
+) |> filter(
+  !if_any(c(CombLeft, CombRight), is.na)
+) |> mutate(
+  BilateralFlag = "Bilateral"
+)
+
+
 ```
 
 Marry back into the master table.
 
 ```{r}
-#| label: bilateral-status
+#| label: mastertable-6
 
-MasterTable6 <- left_join(
-  MasterTable5,
-  SnapshotLeft2 |> dplyr::select(
-    TreatmentID,
-    BilateralPres
-  ) |> rename(
-    BilateralPresLeft = "BilateralPres"),
-  by = "TreatmentID"
-) |> left_join(
-  SnapshotRight |> dplyr::select(
-    TreatmentID,
-    BilateralPres
-  ) |> rename(
-    BilateralPresRight = "BilateralPres"),
-  by = "TreatmentID"
-) |> tidyr::unite(
-  "BilateralPres",
-  c(BilateralPresLeft,BilateralPresRight),
-  na.rm = TRUE,
-  remove = TRUE
+
+MasterTable6 <- MasterTable5 |> left_join(
+  SnapshotBilat3 |> dplyr::select(
+    PatientID,
+    BilateralFlag
+  ),
+  by = "PatientID"
 ) |> mutate(
-  BilateralPres1 = if_else(
-    str_count(BilateralPres) < 1,
+  Provider2 = case_when(
+    Provider == "AW" ~ "A",
+    Provider == "MS2" ~ "B",
+    Provider == "MS1" ~ "C",
+    Provider == "RM" ~ "D"
+  ),
+  BilateralStatus = if_else(
+    is.na(BilateralFlag),
     "Unilateral",
-    BilateralPres
+    BilateralFlag
   )
-) |> dplyr::select(
-  -BilateralPres
-) |> rename(
-  BilateralPres = "BilateralPres1"
-) |> mutate(
-  BilateralDiag = stringr::str_detect(
-    Term3,
-    "bilateral"
-  )
-  )
-
+) 
 
 ```
 
@@ -3029,7 +1979,7 @@ The *ggdag* package was used to create and visualise directed acyclic graphs (in
 Summary of potential adjustment set for *FAOS Subscales* against anatomical *region* of pathology retrieved from the literature.
 :::
 
-A brief literature review was conducted to identify potential factors that should be adjusted for when assessing the effect of *Region* and *Arthritis* on *FAOS subcales* in the present sample. @tbl-adjustset.
+A brief literature review was conducted to identify potential factors that should be adjusted for when assessing the effect of *Region* and *Arthritis* on *FAOS subcales* in the present sample (@tbl-adjustset).
 
 ```{r}
 #| label: fig-dag-adjust-1
@@ -3212,13 +2162,24 @@ In the record selection workflow, patients with text in the diagnosis text field
 #| label: define-analysis-set
 
 MasterAnalysis <- MasterTable6 |> dplyr::select(
-  TreatmentID:Satisfaction_Preop,
-  InjuryToPresentation,
+  TreatmentID,
+  PatientID,
+  TreatmentType,
+  Sex2,
+  Provider,
+  BilateralStatus,
+  AgeAtInitialExam,
   SmokingStatus_Preop,
-  Region,
-  BilateralPres,
-  Pathology,
+  InjuryToPresentation,
+  VR12_Physical_TotalScore_Preop,
+  VR12_Mental_TotalScore_Preop,
+  SRCQTotalScore,
+  PCSSF_TotalScore_Preop,
+  PreviousPath,
+  PreviousSurgery,
+  SurgicalTreatment,
   Term3,
+  Region,
   starts_with("FAOS")
 ) |> mutate( #Fix up pathology, add bilateralpath
   SmokingStatus = forcats::fct(
@@ -3230,26 +2191,15 @@ MasterAnalysis <- MasterTable6 |> dplyr::select(
       "Yes - current smoker"
     )
   ),
-  Pathology2 = if_else(
-    is.na(Pathology),
-    "Multiple",
-    Pathology
-  ),
   Arthritis = if_else(
     stringr::str_detect(Term3,"arthrit"),
     "Yes",
     "No"
-  ),
-  BilateralPath = if_else(
-    (BilateralPres == "Unilateral" & stringr::str_detect(Term3,"bilateral")) | BilateralPres != "Unilateral",
-    "Bilateral",
-    "Unilateral"
   )
 ) |> dplyr::select(
  -c(
    Term3,
-   Pathology,
-   Pathology2
+   SmokingStatus_Preop
  )
 )
 ```
@@ -3264,37 +2214,188 @@ vis_miss(MasterAnalysis)
 
 ```
 
-Investigate missing pathology
+```{r}
+# Drop variables due to excessive missingness
+# 
+# 
 
-The *mice* (v`{r} utils::packageVersion("mice")`) [@mice] was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
+MasterAnalysis1 <- MasterAnalysis |> dplyr::select(
+  -(c(
+  TreatmentID,
+  PreviousPath,
+  PreviousSurgery,
+  TreatmentType,
+  
+  )
+  )
+)
+
+```
+
+
+
+
+
+
+The *mice* package was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
+
+
+
+
+
+#### Management
 
 ```{r}
-#| label: missing-imputation
-# First create your predictor matrix as before
-predM <- mice::make.predictorMatrix(MasterAnalysis)
 
-# Switch off IDs from predicting
-predM[,"TreatmentID"] <- 0 
-predM["TreatmentID",] <- 0
+MasterAnalysis2 <- MasterAnalysis1 |> mutate(
+  SmokingStatus = if_else(is.na(SmokingStatus), NA_character_, SmokingStatus),
+  SmokingStatus = forcats::fct(
+    SmokingStatus,
+    levels = c("Never smoked","Non smoker for >12 months","Non smoker for <12 months","Yes - current smoker")
+           ),
+  Sex2 = forcats::fct(
+    Sex2,
+    levels = c("Male","Female")
+    ),
+  Region = forcats::fct(
+    Region,
+    levels = c("Ankle","Foot","Multiple","Rearfoot","Midfoot","Forefoot")
+    ),
+  Provider = forcats::fct(
+    Provider,
+    levels = c("AW","MS2","MS1","RM")
+    ),
+  SurgicalTreatment = forcats::fct(
+    SurgicalTreatment,
+    levels = c("Non-Surgical","Surgical")
+    ),
+  Arthritis = forcats::fct(
+    Arthritis,
+    levels = c("No","Yes")
+  ),
+  BilateralStatus = forcats::fct(
+    BilateralStatus,
+    levels = c("Bilateral","Unilateral")
+  )
+)
+
+```
+
+
+```{r}
+# Check unique values for each categorical variable
+categorical_vars <- c("Sex2", "Provider", "BilateralStatus", "SurgicalTreatment", 
+                     "Region", "SmokingStatus", "Arthritis")
+
+MasterAnalysis2 |>
+  select(all_of(categorical_vars)) |>
+  map_dfr(~ tibble(
+    unique_values = length(unique(.x)),
+    unique_non_missing = length(unique(.x[!is.na(.x)])),
+    missing_count = sum(is.na(.x)),
+    total_count = length(.x)
+  ), .id = "variable") |>
+  mutate(
+    has_variation = unique_non_missing > 1,
+    problem = case_when(
+      unique_non_missing <= 1 ~ "No variation in non-missing values",
+      missing_count == total_count ~ "All values missing",
+      TRUE ~ "OK"
+    )
+  )
+
+# Also check the actual values
+epoxy("Checking actual values for problematic variables:")
+for(var in categorical_vars) {
+  cat("\n", var, ":\n")
+  print(table(MasterAnalysis2[[var]], useNA = "always"))
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+predM <- mice::make.predictorMatrix(MasterAnalysis2)
+
+# Exclude ID and non-predictive variables
 predM[,"PatientID"] <- 0 
 predM["PatientID",] <- 0
 
-# Create a method vector
-meth <- mice::make.method(MasterAnalysis)
+# Create method vector
+meth <- mice::make.method(MasterAnalysis2)
 
-# Modified mice command including method specification
-MasterImp <- mice::mice(
-  MasterAnalysis,
-  maxit = 10,
-  seed = 4218,
-  m = 20,
-  printFlag = FALSE,
-  predictorMatrix = predM,
-  method = meth
-  )
+# Create visit sequence
+visitSeq <- mice::make.visitSequence(MasterAnalysis2)
+
+visitSeq <- c(
+  "PatientID",
+  "Provider",
+  "SurgicalTreatment",
+  "BilateralStatus",
+  "AgeAtInitialExam",
+  "Sex2",
+  "VR12_Physical_TotalScore_Preop",
+  "SRCQTotalScore",
+  "VR12_Mental_TotalScore_Preop",
+  "InjuryToPresentation",
+  "SmokingStatus",
+  "Arthritis",
+  "Region",
+  "PCSSF_TotalScore_Preop",
+  "FAOS_Pain_TotalScore_Preop",
+  "FAOS_Symptom_TotalScore_Preop",
+  "FAOS_DailyLiving_TotalScore_Preop",
+  "FAOS_Sport_TotalScore_Preop",
+  "FAOS_Quality_TotalScore_Preop"
+)
+
+# Set methods - only for variables that need imputation
+meth["PatientID"] <- ""           # Don't impute ID
+meth["AgeAtInitialExam"] <- ""    # Don't impute age
+meth["Provider"] <- ""            # No missing values, don't impute
+meth["BilateralStatus"] <- ""     # No missing values, don't impute
+
+# Set empty methods for variables that shouldn't be imputed
+# meth["Sex2"] <- "logreg"          # Binary: Female/Male
+# meth["SurgicalTreatment"] <- "logreg"  # Binary: Non-Surgical/Surgical  
+# meth["Region"] <- "polyreg"       # Multiple categories: Ankle, Foot, etc.
+# meth["SmokingStatus"] <- "polyreg"  # Multiple categories: Never, <12mo, etc.
+# meth["Arthritis"] <- "logreg"     # Binary: No/Yes
+
+
+
+
+
 ```
 
-A strip plot (Figure 3) were used to visually inspect the convergence of the imputation iterations against the original dataset.
+
+```{r}
+
+ MasterImp <- mice::mice(
+    MasterAnalysis2,
+    maxit = 10,  # Start with just 1 iteration to test
+    seed = 4218,
+    m = 20,      # Fewer imputations for testing
+    printFlag = FALSE,
+    predictorMatrix = predM,
+    visitSequence = visitSeq,
+    method = meth
+  )
+
+```
+
+A strip plot was used to visually inspect the convergence of the imputation iterations against the original dataset.
 
 ```{r}
 #| label: fig-stripplot
@@ -3337,6 +2438,32 @@ FAOSQualityImp <- ggplot() +
 
 ```
 
+
+```{r}
+
+# Convert lapply to map
+modelTest1 <- map(1:MasterImp$m, ~ {
+  fixest::feols(
+    FAOS_Pain_TotalScore_Preop ~ Region,
+    data = complete(MasterImp, action = .x),
+    cluster = ~PatientID
+  )
+})
+
+modelTest2 <- map(1:MasterImp$m, ~ {
+  fixest::feols(
+    FAOS_Pain_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + SRCQTotalScore,
+    data = complete(MasterImp, action = .x),
+    cluster = ~PatientID
+  )
+})
+
+
+```
+
+
+
+
 ### RECORD \[12.3\] Linkage
 
 <!--# RECORD 12.3: State whether the study included person-level, institutional-level, or other data linkage across two or more databases. The methods of linkage and methods of linkage quality evaluation should be provided. -->
@@ -3349,55 +2476,57 @@ Participant flow - consort package and flow chart Descriptive - gtsummary and pr
 
 A flow chart was created with the *consort* package to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary*. Graphs were generated using *ggplot2*. Graphs and tables were prepared for display using *knitr*. A linear model was fitted to the imputed data with robust standard errors using *estimatr* with the following form.
 
+
 ```{r}
-#| label: run-analysis-models-1
+#| label: model-analysis
+#| code-summary: "Functions to fit fixest models with clustered standard errors for unadjusted and adjusted Region models"
+#| message: false
 
-tic()
+# Define FAOS subscales
+faos_subscales <- c("FAOS_Pain_TotalScore_Preop", 
+                    "FAOS_DailyLiving_TotalScore_Preop", 
+                    "FAOS_Symptom_TotalScore_Preop", 
+                    "FAOS_Sport_TotalScore_Preop", 
+                    "FAOS_Quality_TotalScore_Preop")
 
-unadjusted_models <- fit_faos_models_cached(
-  imputed_data = MasterImp,
-  model_type = "unadjusted",
-  robust_se = TRUE,
-  cluster_var = "PatientID"
-)
+subscale_labels <- c("Pain", "Daily Living", "Symptoms", "Sport", "Quality of Life")
 
-toc()
+# Function to run models for each subscale
+run_subscale_models <- function(outcome_var, formula_str, model_label) {
+  
+  # Create models for this subscale
+  models <- map(1:MasterImp$m, ~ {
+    fixest::feols(
+      as.formula(paste(outcome_var, formula_str)),
+      data = complete(MasterImp, action = .x),
+      cluster = ~PatientID
+    )
+  })
+  
+  # Pool parameters and add labels
+  parameters::pool_parameters(models) |>
+    mutate(
+      Model = model_label,
+      Subscale = subscale_labels[which(faos_subscales == outcome_var)]
+    )
+}
+
+# Create unadjusted models for all subscales
+unadjusted_results <- map_dfr(faos_subscales, ~ {
+  run_subscale_models(.x, "~ Region", paste("Unadjusted -", subscale_labels[which(faos_subscales == .x)]))
+})
+
+# Create adjusted models for all subscales  
+adjusted_results <- map_dfr(faos_subscales, ~ {
+  run_subscale_models(.x, "~ Region + AgeAtInitialExam + Sex2 + SRCQTotalScore", 
+                     paste("Adjusted -", subscale_labels[which(faos_subscales == .x)]))
+})
 
 ```
 
-```{r}
-#| label: run-analysis-models-2
 
-tic()
 
-adjusted_models <- fit_faos_models_cached(
-  imputed_data = MasterImp,
-  model_type = "fully_adjusted",
-  robust_se = TRUE,
-  cluster_var = "PatientID"
-)
-
-toc()
-
-```
-
-```{r}
-#| label: run-analysis-models-3
-
-tic()
-
-arthritis_models <- fit_faos_models_cached(
-  imputed_data = MasterImp,
-  model_type = "arthritis_adjusted",
-  robust_se = TRUE,
-  cluster_var = "PatientID"
-)
-
-toc()
-
-```
-
-The model was summarised using *gtsummary*. Predicted values for all model variables were generated from the model object using *marginaleffects*.
+The models were summarised using *parameters* and *gt* packages. Predicted values for all model variables were generated from the model object using *marginaleffects*.
 
 # Results
 
@@ -3407,7 +2536,7 @@ The model was summarised using *gtsummary*. Predicted values for all model varia
 
 ```{epoxy}
 
-The initial export from the registry returned {nrow(STROBEInput)} records of all types. 
+The initial export from the registry returned {nrow(STROBEInput)} treatment records of all types. 
 
 ```
 
@@ -3458,7 +2587,7 @@ Summarising the sample by anatomical region showed the ankle to be most common p
 min_count <- 10
 
 # Basic counts
-  basic_counts2 <- MasterAnalysis |> 
+  basic_counts2 <- MasterAnalysis2 |> 
     count(Region,Arthritis, sort = TRUE) |>
     mutate(
       percentage = n / sum(n) * 100,
@@ -3498,57 +2627,59 @@ Patient characteristics for the sample are summarised.
 #| label: tbl-demographics
 #| tbl-cap: "Summary of patient and treatment record characteristics for the analysed sample."
 
+
+
 TblDemo <- gtsummary::tbl_summary(
-  MasterAnalysis |> mutate(
-     Provider2 = case_when(
-      Provider == "AW" ~ "A",
-      Provider == "MS1" ~ "B",
-      Provider == "MS2" ~ "C",
-      Provider =="RM" ~ "D"
-    )
-    ) |> dplyr::select(
-    !(c(
-      TreatmentID,
-      PatientID,
-      Provider
-    ))
+  MasterTable6,
+  include = c(
+    AgeAtInitialExam,
+    Sex2,
+    Provider2,
+    BilateralStatus,
+    VR12_Physical_TotalScore_Preop,
+    VR12_Mental_TotalScore_Preop,
+    SRCQTotalScore,
+    InjuryToPresentation,
+    PCSSF_TotalScore_Preop,
+    Region
   ),
 by = "Region",
 label = list(
     Provider2 ~ "Provider",
     AgeAtInitialExam ~ "Age",
     InjuryToPresentation ~ "Onset to Presentation (Days)",
-    #BMI ~ "Body Mass Index",
-    BilateralPres ~ "Bilateral",
-    #Region ~ "Diagnostic Group",
-    Arthritis ~ "Arthritis",
+    BilateralStatus ~ "Bilateral",
+    #Region ~ "Anatomical Region",
     Sex2 ~ "Female",
-    Satisfaction_Preop ~ "Symptom Satisfaction",
+    VR12_Physical_TotalScore_Preop ~ "Physical Score",
     VR12_Mental_TotalScore_Preop ~ "Mental Score",
     SRCQTotalScore ~ "Comorbidity Score",
-    PCSSF_TotalScore_Preop ~ "Pain Catastrophising",
-    SmokingStatus_Preop ~ "Smoking History"
+    PCSSF_TotalScore_Preop ~ "Pain Catastrophising"
     ),
     type = list(
-    Sex2 ~ "dichotomous"
+    Sex2 ~ "dichotomous",
+    BilateralStatus ~ "dichotomous"
     ),
     value = list(
-      Sex2 ~ "Female"
+      Sex2 ~ "Female",
+      BilateralStatus ~ "Bilateral"
     ),
     statistic = list(
       all_continuous() ~ "{mean} ({sd})",
       all_categorical() ~ "{p}% ({n})"
       ),
     missing = "no"
-) |> gtsummary::add_n() |>
-  gtsummary::add_overall() |>
-  gtsummary::add_ci(statistic = list(all_categorical() ~ "{conf.low} - {conf.high}",
-                          all_continuous() ~ "{conf.low} - {conf.high}"),
-                          conf.level = 0.99,
-                          ) |>
-  gtsummary::add_stat_label(
-    location = "row"
-  )
+) 
+
+# |> gtsummary::add_n() |>
+#   gtsummary::add_overall() |>
+#   gtsummary::add_ci(statistic = list(all_categorical() ~ "{conf.low} - {conf.high}",
+#                           all_continuous() ~ "{conf.low} - {conf.high}"),
+#                           conf.level = 0.99,
+#                           ) |>
+#   gtsummary::add_stat_label(
+#     location = "row"
+#   )
   
 
 knitr::knit_print(TblDemo)
@@ -3556,73 +2687,32 @@ knitr::knit_print(TblDemo)
 
 ```
 
-```{r}
-#| label: complete-demographics
-#| eval: false
-
-library(mice)
-library(gtsummary)
-library(dplyr)
-library(purrr)
-
-
-```
 
 ## RECORD \[15\] Outcome data
 
 <!--# Cohort study—Report numbers of outcome events or summary measures over time. Case-control study—Report numbers in each exposure category, or summary measures of exposure Cross-sectional study—Report numbers of outcome events or summary measures -->
 
+
+
 ```{r}
-#| label: fig-desc-agesex
-#| fig-cap: "FAOS subscales visualised against age, categorised by sex"
 
-# For descriptive plots - Age relationship (minimally adjusted for sex only)
-age_models <- fit_descriptive_models(MasterImp, covariate = "AgeAtInitialExam")
+#Summarise outcome data
+#
+#
 
-
-combined_age_plot <- create_combined_faos_plot(
-  age_models,
-  plot_type = "age_sex",
-  subscale_names = c("Pain", "Symptoms", "Daily Living", "Sport", "Quality of Life"),
-  ncol = 3
+TableFAOS <- gtsummary::tbl_summary(
+  MasterAnalysis2,
+  include = c(contains("FAOS")),
+ missing = "no",
+ statistic = list(everything() ~ "{mean} ({sd})")
 )
 
-
-knitr::knit_print(combined_age_plot)
-
-```
-
-```{r}
-#| label: fig-desc-comorbidsex
-#| fig-cap: "FAOS subscales visualised against self-reported comorbidity score, categorised by sex"
-
-
-comorbidity_models <- fit_descriptive_models(MasterImp, covariate = "SRCQTotalScore")
-
-
-
-combined_comorbid_plot <- create_combined_faos_plot(
-  comorbidity_models,
-  plot_type = "comorbidities_sex",
-  subscale_names = c("Pain", "Symptoms", "Daily Living", "Sport", "Quality of Life"),
-  ncol = 3
-)
-
-
-knitr::knit_print(combined_comorbid_plot)
+knitr::knit_print(TableFAOS)
 
 ```
 
-```{r}
-#| label: fig-desc-agearthritis
-#| fig-cap: "FAOS subscales visualised against age, categorised by the presence or absence of an arthritis diagnosis"
-#| eval: false
 
-arthritis_models <- fit_descriptive_models(MasterImp, covariate = "AgeAtInitialExam")
-arthritis_plots <- create_faos_plots(arthritis_models, plot_type = "age_arthritis")
 
-(arthritis_plots$Pain + arthritis_plots$Symptom + arthritis_plots$Daily + arthritis_plots$Sport + arthritis_plots$Quality) + patchwork::plot_layout(ncol = 3)
-```
 
 Correlation matrix for FAOS subscales
 
@@ -3689,10 +2779,41 @@ Table 4: Summary of regression assessing the effect of region on FAOS-Pain adjus
 
 ```{r}
 #| label: tbl-FAOS-unadjust
-#| tbl-cap: "Summary of regression assessing the effect of region on FAOS unadjusted"
+#| tbl-cap: "Summary of regression assessing the effect of region on FAOS subscales unadjusted for covariates"
 
 
-unadjusted_table <- create_unadjusted_table(unadjusted_models)
+# Create unadjusted stacked table
+unadjusted_table <- unadjusted_results |>
+  gt(groupname_col = "Model") |>
+  fmt_number(
+    columns = c(Statistic),
+    decimals = 1
+  ) |>
+  fmt_number(
+    columns = c(Coefficient, SE, CI_low, CI_high, df_error),
+    decimals = 2
+  ) |>
+  fmt_number(
+    columns = c(p),
+    decimals = 3
+  ) |>
+  cols_label(
+    Parameter = "Parameter",
+    Coefficient = "Coefficient",
+    SE = "Standard Error",
+    CI_low = "95% CI Lower",
+    CI_high = "95% CI Upper",
+    Statistic = "t-statistic",
+    df_error = "df",
+    p = "p-value"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) |>
+  cols_hide(columns = "Subscale")
+
+
 knitr::knit_print(unadjusted_table)
 ```
 
@@ -3701,7 +2822,42 @@ knitr::knit_print(unadjusted_table)
 #| tbl-cap: "Summary of regression assessing the effect of region on FAOS adjusted for confounders"
 
 
-adjusted_table <- create_adjusted_table(adjusted_models)
+# Create adjusted stacked table
+adjusted_table <- adjusted_results |>
+  gt(groupname_col = "Model") |>
+  tab_header(
+    title = "Adjusted Regression Results",
+    subtitle = "FAOS Subscales ~ Region + Age + Sex + SRCQ Total Score"
+  ) |>
+  fmt_number(
+    columns = c(Statistic),
+    decimals = 1
+  ) |>
+  fmt_number(
+    columns = c(Coefficient, SE, CI_low, CI_high, df_error),
+    decimals = 2
+  ) |>
+  fmt_number(
+    columns = c(p),
+    decimals = 3
+  ) |>
+  cols_label(
+    Parameter = "Parameter",
+    Coefficient = "Coefficient",
+    SE = "Standard Error",
+    CI_low = "95% CI Lower",
+    CI_high = "95% CI Upper",
+    Statistic = "t-statistic",
+    df_error = "df",
+    p = "p-value"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) |>
+  cols_hide(columns = "Subscale")
+
+
 knitr::knit_print(adjusted_table)
 ```
 
@@ -3709,32 +2865,498 @@ knitr::knit_print(adjusted_table)
 #| label: fig-FAOS-adjust
 #| tbl-cap: "Adjusted FAOS subscales across anatomical regions adjusted for potential confounders"
 
-adjusted_region_plots <- create_faos_plots(
-  adjusted_models,
-  plot_type = "region_distribution",
-  subscale_names = c("Pain", "Symptoms", "Daily", "Sport", "Quality"))
 
+# Modified plotting function using pooled parameter results
+create_faos_pooled_plots <- function(pooled_results, 
+                                     model_type = "adjusted",
+                                     show_reference = TRUE,
+                                     fixed_y_scale = TRUE,
+                                     response_scale = FALSE,
+                                     reference_values = NULL) {
+  
+  # Filter for the specified model type and region parameters
+  plot_data <- pooled_results |>
+    filter(str_detect(Model, str_to_title(model_type))) |>
+    filter(str_detect(Parameter, "^Region")) |>
+    # Clean up region names by removing "Region" prefix
+    mutate(
+      Region = str_remove(Parameter, "^Region"),
+      # Handle reference category if needed
+      Region = case_when(
+        Region == "" ~ "Ankle",
+        TRUE ~ Region
+      )
+    )
+  
+  # Add reference category (estimate = 0, CI = 0) if requested
+  if(show_reference) {
+    reference_data <- plot_data |>
+      distinct(Subscale) |>
+      mutate(
+        Parameter = "RegionReference",
+        Region = "Ankle", 
+        Coefficient = 0,
+        SE = 0,
+        CI_low = 0,
+        CI_high = 0,
+        t = 0,
+        p = 1
+      )
+    
+    plot_data <- bind_rows(plot_data, reference_data)
+  }
+  
+  # Convert to response scale if requested
+  if(response_scale && !is.null(reference_values)) {
+    plot_data <- plot_data |>
+      mutate(
+        ref_value = map_dbl(Subscale, ~reference_values[[.x]] %||% 0),
+        Coefficient = Coefficient + ref_value,
+        CI_low = CI_low + ref_value,
+        CI_high = CI_high + ref_value
+      )
+  }
+  
+  # Calculate common y-axis limits if fixed scale is requested
+  if(fixed_y_scale) {
+    y_min <- min(c(plot_data$CI_low), na.rm = TRUE)
+    y_max <- max(c(plot_data$CI_high), na.rm = TRUE)
+    y_range <- y_max - y_min
+    y_limits <- c(y_min - 0.05 * y_range, y_max + 0.05 * y_range)
+  }
+  
+  # Create individual plots for each subscale using stat_slabinterval
+  plots <- plot_data |>
+    group_by(Subscale) |>
+    group_split() |>
+    map(function(subscale_data) {
+      
+      subscale_name <- unique(subscale_data$Subscale)
+      
+      # Create expanded data for stat_slabinterval to work with
+      # This simulates draws from the posterior distribution
+      expanded_data <- subscale_data |>
+        rowwise() |>
+        mutate(
+          # Generate normal distribution samples based on coefficient and SE
+          draws = list(rnorm(1000, mean = Coefficient, sd = SE))
+        ) |>
+        unnest(draws) |>
+        select(Region, Subscale, estimate = draws)
+      
+      # Set y-axis label based on scale
+      y_label <- if(response_scale) {
+        paste("Predicted", subscale_name, "Score")
+      } else {
+        paste("Predicted", subscale_name)
+      }
+      
+      p <- ggplot(data = expanded_data, mapping = aes(x = Region, y = estimate)) +
+        stat_slabinterval(
+          aes(thickness = after_stat(pdf*n)), 
+          scale = 0.7, 
+          fill = "steelblue",
+          alpha = 0.7
+        ) +
+        stat_dotsinterval(
+          side = "right", 
+          scale = 0.7, 
+          slab_linewidth = NA, 
+          fill = "steelblue"
+        ) +
+        labs(
+          y = y_label,
+          x = "Region"
+        ) +
+        theme_minimal() +
+        theme(
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          panel.grid.minor = element_blank(),
+          plot.title = element_text(face = "bold")
+        )
+      
+      # Add reference line (0 for coefficient scale, or don't add for response scale)
+      if(!response_scale) {
+        p <- p + geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5)
+      }
+      
+      # Apply fixed y-scale if requested
+      if(fixed_y_scale) {
+        p <- p + coord_cartesian(ylim = y_limits)
+      }
+      
+      return(p)
+    })
+  
+  # Add names to the plots list
+  names(plots) <- plot_data |>
+    pull(Subscale) |>
+    unique()
+  
+  return(plots)
+}
 
-(adjusted_region_plots$Pain + adjusted_region_plots$Symptom + adjusted_region_plots$Daily + adjusted_region_plots$Sport + adjusted_region_plots$Quality) + patchwork::plot_layout(ncol = 3)
+# Function to combine plots using patchwork
+combine_faos_plots <- function(plot_list, 
+                               ncol = 3,
+                               nrow = 2,
+                               title = "FAOS Subscale Regional Effects",
+                               subtitle = NULL,
+                               caption = NULL) {
+  
+  # Load patchwork if not already loaded
+  if (!requireNamespace("patchwork", quietly = TRUE)) {
+    stop("patchwork package is required. Please install it with: install.packages('patchwork')")
+  }
+  
+  library(patchwork)
+  
+  # Combine plots using patchwork
+  combined_plot <- wrap_plots(plot_list, ncol = ncol, nrow = nrow)
+  
+  # Add overall title and annotations
+  combined_plot <- combined_plot + 
+    plot_annotation(
+      title = title,
+      subtitle = subtitle,
+      caption = caption,
+      theme = theme(
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, hjust = 0.5),
+        plot.caption = element_text(size = 10, hjust = 1)
+      )
+    )
+  
+  return(combined_plot)
+}
+
+# Convenience function to create and combine plots in one step
+create_and_combine_faos_plots <- function(pooled_results,
+                                          model_type = "adjusted",
+                                          show_reference = TRUE,
+                                          fixed_y_scale = TRUE,
+                                          response_scale = FALSE,
+                                          reference_values = NULL,
+                                          ncol = 3,
+                                          nrow = 2,
+                                          title = "FAOS Subscale Regional Effects",
+                                          subtitle = "Adjusted models with 95% confidence intervals",
+                                          caption = "Note: Predictions based on pooled results from multiply imputed data") {
+  
+  # Create individual plots
+  plots <- create_faos_pooled_plots(
+    pooled_results = pooled_results,
+    model_type = model_type,
+    show_reference = show_reference,
+    fixed_y_scale = fixed_y_scale,
+    response_scale = response_scale,
+    reference_values = reference_values
+  )
+  
+  # Combine using patchwork and return only the combined plot
+  combined_plot <- combine_faos_plots(
+    plot_list = plots,
+    ncol = ncol,
+    nrow = nrow,
+    title = title,
+    subtitle = subtitle,
+    caption = caption
+  )
+  
+  return(combined_plot)
+}
 
 ```
 
 ```{r}
-#| label: tbl-pwc-faospain
-#| tbl-cap: "Pairwise comparisons between regions for model-predicted averages of FAOS subscales"
+
+reference_means <- list(
+  "Pain" = 65,
+  "Daily Living" = 60,
+  "Symptoms" = 70,
+  "Sport" = 49,
+  "Quality of Life" = 38
+)
+
+PredictFaos <- create_and_combine_faos_plots(
+  pooled_results = adjusted_results,
+  model_type = "adjusted"
+)
 
 
-combined_comparisons <- create_faos_comparisons(adjusted_models, combined = TRUE, fdr_correction = TRUE)
-knitr::knit_print(combined_comparisons)
+knitr::knit_print(PredictFaos)
+```
+
+
+```{r}
+#| label: tbl-faos-pwc1
+#| tbl-cap: "Pairwise comparisons of regional differences in FAOS subscales based on adjusted models"
+#| warning: false
+#| message: false
+
+
+# Load required libraries
+library(tidyverse)
+library(gt)
+
+# Function to create pairwise comparisons from regional coefficients
+create_pairwise_comparisons <- function(pooled_results) {
+  
+  # Extract regional coefficients (assuming reference is the first region alphabetically)
+  regional_coefs <- pooled_results |>
+    filter(str_detect(Parameter, "^Region")) |>
+    mutate(
+      Region = str_remove(Parameter, "^Region"),
+      # Clean up coefficient names
+      Region = str_trim(Region)
+    )
+  
+  # Get unique regions from the data
+  regions <- unique(regional_coefs$Region)
+  reference_region <- setdiff(
+    # Assuming you know your reference region - adjust as needed
+    c("Ankle", "Foot", "Hindfoot", "Midfoot"), # Replace with your actual regions
+    regions
+  )[1]
+  
+  # Create all pairwise combinations
+  all_regions <- c(reference_region, regions)
+  pairwise_combinations <- combn(all_regions, 2, simplify = FALSE)
+  
+  # Function to calculate pairwise difference
+  calculate_pairwise_diff <- function(region1, region2, subscale_data) {
+    
+    # Get coefficients (reference region has coefficient = 0)
+    coef1 <- if(region1 == reference_region) {
+      list(Coefficient = 0, SE = 0)
+    } else {
+      subscale_data |> 
+        filter(Region == region1) |>
+        select(Coefficient, SE) |>
+        as.list()
+    }
+    
+    coef2 <- if(region2 == reference_region) {
+      list(Coefficient = 0, SE = 0)
+    } else {
+      subscale_data |> 
+        filter(Region == region2) |>
+        select(Coefficient, SE) |>
+        as.list()
+    }
+    
+    # Calculate difference and combined SE
+    diff_estimate <- coef1$Coefficient - coef2$Coefficient
+    
+    # For pooled results, we approximate the SE of the difference
+    # This is conservative but reasonable for presentation
+    combined_se <- sqrt(coef1$SE^2 + coef2$SE^2)
+    
+    # Calculate t-statistic and p-value (using large sample approximation)
+    t_stat <- diff_estimate / combined_se
+    p_value <- 2 * pnorm(abs(t_stat), lower.tail = FALSE)
+    
+    tibble(
+      comparison = paste(region1, "vs", region2),
+      estimate = diff_estimate,
+      std.error = combined_se,
+      statistic = t_stat,
+      p.value = p_value
+    )
+  }
+  
+  # Create pairwise comparisons for each subscale and model type
+  results <- pooled_results |>
+    filter(str_detect(Parameter, "^Region")) |>
+    mutate(Region = str_remove(Parameter, "^Region")) |>
+    select(Subscale, Model, Region, Coefficient, SE) |>
+    nest(data = c(Region, Coefficient, SE)) |>
+    mutate(
+      pairwise_comparisons = map(data, ~ {
+        subscale_data <- .x
+        map_dfr(pairwise_combinations, ~ {
+          calculate_pairwise_diff(.x[1], .x[2], subscale_data)
+        })
+      })
+    ) |>
+    select(-data) |>
+    unnest(pairwise_comparisons)
+  
+  return(results)
+}
+
+# Create pairwise comparisons
+all_pairwise_results <- bind_rows(
+  create_pairwise_comparisons(unadjusted_results),
+  create_pairwise_comparisons(adjusted_results)
+)
+
+# Extract model type from Model column
+all_pairwise_results <- all_pairwise_results |>
+  mutate(
+    model_type = case_when(
+      str_detect(Model, "Unadjusted") ~ "Unadjusted",
+      str_detect(Model, "Adjusted") ~ "Adjusted",
+      TRUE ~ "Unknown"
+    )
+  )
+
+# Apply FDR correction within each subscale and model type
+final_results <- all_pairwise_results |>
+  group_by(Subscale, model_type) |>
+  mutate(
+    p_fdr = p.adjust(p.value, method = "fdr"),
+    significance = case_when(
+      p_fdr < 0.001 ~ "***",
+      p_fdr < 0.01 ~ "**", 
+      p_fdr < 0.05 ~ "*",
+      TRUE ~ ""
+    )
+  ) |>
+  ungroup()
+
+# Filter for significant or near-significant results and prepare for stacked table
+stacked_data <- final_results |>
+  filter(p.value < 0.06) |>  # Filter for p < 0.06
+  select(Subscale, comparison, model_type, estimate, std.error, p.value, p_fdr, significance) |>
+  mutate(
+    estimate_ci = paste0(
+      sprintf("%.2f", estimate), 
+      " (", 
+      sprintf("%.2f", estimate - 1.96 * std.error), 
+      ", ", 
+      sprintf("%.2f", estimate + 1.96 * std.error), 
+      ")"
+    ),
+    p_value_formatted = case_when(
+      p.value < 0.001 ~ "<0.001",
+      TRUE ~ sprintf("%.3f", p.value)
+    ),
+    p_fdr_formatted = case_when(
+      p_fdr < 0.001 ~ "<0.001",
+      TRUE ~ sprintf("%.3f", p_fdr)
+    )
+  ) |>
+  select(Subscale, comparison, model_type, estimate_ci, p_value_formatted, p_fdr_formatted, significance) |>
+  pivot_wider(
+    names_from = model_type,
+    values_from = c(estimate_ci, p_value_formatted, p_fdr_formatted, significance),
+    names_sep = "_"
+  )
+
+# Create single stacked gt table with subscale row groups
+combined_table <- stacked_data |>
+  arrange(Subscale, comparison) |>  # Sort by subscale then comparison
+  gt(groupname_col = "Subscale") |>  # Use Subscale column for row groups
+  tab_header(
+    title = "Pairwise Regional Comparisons - All FAOS Subscales",
+    subtitle = "Pooled results from multiple imputation with FDR correction (p < 0.06)"
+  ) |>
+  cols_label(
+    comparison = "Comparison",
+    estimate_ci_Unadjusted = "Estimate (95% CI)",
+    p_value_formatted_Unadjusted = "P-value",
+    p_fdr_formatted_Unadjusted = "P-value (FDR)",
+    significance_Unadjusted = "",
+    estimate_ci_Adjusted = "Estimate (95% CI)",
+    p_value_formatted_Adjusted = "P-value", 
+    p_fdr_formatted_Adjusted = "P-value (FDR)",
+    significance_Adjusted = ""
+  ) |>
+  tab_spanner(
+    label = "Unadjusted Model",
+    columns = c(estimate_ci_Unadjusted, p_value_formatted_Unadjusted, p_fdr_formatted_Unadjusted, significance_Unadjusted)
+  ) |>
+  tab_spanner(
+    label = "Adjusted Model",
+    columns = c(estimate_ci_Adjusted, p_value_formatted_Adjusted, p_fdr_formatted_Adjusted, significance_Adjusted)
+  ) |>
+  tab_footnote(
+    footnote = "Only comparisons with p-value < 0.06 are shown",
+    locations = cells_title(groups = "subtitle")
+  ) |>
+  tab_footnote(
+    footnote = "Adjusted model includes Age, Sex, and SRCQ Total Score as covariates",
+    locations = cells_column_spanners(spanners = "Adjusted Model")
+  ) |>
+  tab_footnote(
+    footnote = "*** p<0.001, ** p<0.01, * p<0.05 (FDR corrected)",
+    locations = cells_column_labels(columns = c(significance_Unadjusted, significance_Adjusted))
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_body(columns = c(p_value_formatted_Unadjusted, p_fdr_formatted_Unadjusted, significance_Unadjusted,
+                                      p_value_formatted_Adjusted, p_fdr_formatted_Adjusted, significance_Adjusted))
+  ) |>
+  opt_table_font(font = "Arial") |>
+  tab_options(
+    table.font.size = 12,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12,
+    row_group.font.weight = "bold",
+    row_group.background.color = "#f8f9fa"
+  )
+
+# Display the combined table
+combined_table
+
 
 ```
+
+
+
 
 ```{r}
 #| label: tbl-FAOS-arthritis
 #| tbl-cap: "Summary of regression assessing the effect of arthritis on FAOS adjusted for confounders"
+#| warning: false
+#| message: false
+
+# Create unadjusted models for all subscales
+arthritis_results <- map_dfr(faos_subscales, ~ {
+  run_subscale_models(.x, "~ Arthritis + AgeAtInitialExam + Sex2 + SmokingStatus", paste("Arthritis_adjusted -", subscale_labels[which(faos_subscales == .x)]))
+})
+
+# Create adjusted stacked table
+arthritis_table <- arthritis_results |>
+  gt(groupname_col = "Model") |>
+  fmt_number(
+    columns = c(Statistic),
+    decimals = 1
+  ) |>
+  fmt_number(
+    columns = c(Coefficient, SE, CI_low, CI_high, df_error),
+    decimals = 2
+  ) |>
+  fmt_number(
+    columns = c(p),
+    decimals = 3
+  ) |>
+  cols_label(
+    Parameter = "Parameter",
+    Coefficient = "Coefficient",
+    SE = "Standard Error",
+    CI_low = "95% CI Lower",
+    CI_high = "95% CI Upper",
+    Statistic = "t-statistic",
+    df_error = "df",
+    p = "p-value"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) |>
+  cols_hide(columns = "Subscale")
 
 
-arthritis_table <- create_arthritis_table(arthritis_models)
 knitr::knit_print(arthritis_table)
 ```
 
@@ -3756,16 +3378,14 @@ pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) |>
   group_by(.id) |>
   summarise(
     # Keep categorical/character variables from first imputation
-    TreatmentID = first(TreatmentID),
+    #TreatmentID = first(TreatmentID),
+    Region = first(Region),
     PatientID = first(PatientID),
-    TreatmentType = first(TreatmentType),
+    #TreatmentType = first(TreatmentType),
     Sex2 = first(Sex2),
     Provider = first(Provider),
-    BilateralPres = first(BilateralPres),
-    Region = first(Region),
+    #BilateralStatus = first(BilateralStatus),
     Arthritis = first(Arthritis),
-    BilateralPath = first(BilateralPath),
-    Satisfaction_Preop = first(Satisfaction_Preop),
     
     # Pool continuous variables by taking the mean across imputations
     AgeAtInitialExam = mean(AgeAtInitialExam, na.rm = TRUE),
@@ -3780,8 +3400,7 @@ pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) |>
     FAOS_Sport_TotalScore_Preop = mean(FAOS_Sport_TotalScore_Preop, na.rm = TRUE),
     FAOS_Quality_TotalScore_Preop = mean(FAOS_Quality_TotalScore_Preop, na.rm = TRUE),
     .groups = 'drop'
-  ) |>
-  select(-.id)
+  )
 
 ```
 
@@ -3867,7 +3486,7 @@ MaxRawDifference <- function(data, variable, by, ...) {
 
 # Step 3: Summary statistics using gtsummary on pooled data
 subset_summary <- ankle_comparison |>
-  select(ComparisonGroup, AgeAtInitialExam, Sex2, BilateralPres,
+  select(ComparisonGroup, AgeAtInitialExam, Sex2,
          VR12_Physical_TotalScore_Preop, VR12_Mental_TotalScore_Preop,
          FAOS_Symptom_TotalScore_Preop, FAOS_Pain_TotalScore_Preop, 
          FAOS_DailyLiving_TotalScore_Preop, FAOS_Sport_TotalScore_Preop, 
@@ -3882,7 +3501,6 @@ subset_summary <- ankle_comparison |>
     label = list(
       AgeAtInitialExam ~ "Age at Initial Exam",
       Sex2 ~ "Sex",
-      BilateralPres ~ "Bilateral Presentation",
       VR12_Physical_TotalScore_Preop ~ "VR-12 Physical Score",
       VR12_Mental_TotalScore_Preop ~ "VR-12 Mental Score",
       FAOS_Symptom_TotalScore_Preop ~ "FAOS Symptom Score",
