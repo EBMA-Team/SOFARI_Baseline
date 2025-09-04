@@ -2400,6 +2400,7 @@ A strip plot was used to visually inspect the convergence of the imputation iter
 ```{r}
 #| label: fig-stripplot
 #| fig-cap: "Strip plot of imputed data over 10 iterations with 20 imputations per iteration."
+#| eval: false
 
 MasterImpStrip <- mice::densityplot(MasterImp)
 
@@ -2439,6 +2440,23 @@ FAOSQualityImp <- ggplot() +
 ```
 
 
+
+
+
+
+
+### RECORD \[12.3\] Linkage
+
+<!--# RECORD 12.3: State whether the study included person-level, institutional-level, or other data linkage across two or more databases. The methods of linkage and methods of linkage quality evaluation should be provided. -->
+
+No data linkage was performed for this analysis.
+
+### Analysis Methods
+
+Participant flow - consort package and flow chart Descriptive - gtsummary and prepared for display with knitr Outcome data - ggplot2 complete case analysis
+
+A flow chart was created with the *consort* package to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary*. Graphs were generated using *ggplot2*. Graphs and tables were prepared for display using *knitr*. A linear model was fitted to the imputed data with robust standard errors using *estimatr* with the following form.
+
 ```{r}
 
 # Convert lapply to map
@@ -2460,21 +2478,6 @@ modelTest2 <- map(1:MasterImp$m, ~ {
 
 
 ```
-
-
-
-
-### RECORD \[12.3\] Linkage
-
-<!--# RECORD 12.3: State whether the study included person-level, institutional-level, or other data linkage across two or more databases. The methods of linkage and methods of linkage quality evaluation should be provided. -->
-
-No data linkage was performed for this analysis.
-
-### Analysis Methods
-
-Participant flow - consort package and flow chart Descriptive - gtsummary and prepared for display with knitr Outcome data - ggplot2 complete case analysis
-
-A flow chart was created with the *consort* package to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary*. Graphs were generated using *ggplot2*. Graphs and tables were prepared for display using *knitr*. A linear model was fitted to the imputed data with robust standard errors using *estimatr* with the following form.
 
 
 ```{r}
