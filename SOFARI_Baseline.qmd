@@ -695,14 +695,6 @@ concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
 
 ```
 
-
-
-
-
-
-
-
-
 # Title and abstract
 
 <!--# Indicate the study’s design with a commonly used term in the title or the abstract. Provide in the abstract an informative and balanced summary of what was done and what was found -->
@@ -716,13 +708,13 @@ Pain and function at baseline assessment of foot and ankle pathology: A cross-se
 ## Abstract
 
 ::: {#abstract style="color: gray"}
-Purpose:
+Purpose: There is a lack of information regarding the most appropriate confounders that should be included in analysis of clinical and patient-reported outcomes in foot and ankle orthopaedic conditions. The purpose of this study was to describe pain, function and quality of life across a broad range of orthopaedic conditions and i) assess the relationship between potential confounders to followup outcomes (anatomical region of presentation and presence of arthritis).
 
-Methods:
+Methods: A cross-sectional analysis was performed on data stored in a specialty, clinician-funded quality registry (SOFARI) of four specialist practices in Sydney, Australia between Jun-2020 and May-2025. Pain, function and quality of life (FAOS) was captured via electronic forms at initial presentation of each patient to the participating surgeon, in addition to patient demographics and other patient-reported outcome data (Comorbidities, pain catastrophising, general health). Missing data was addressed using multiple imputation via chained equations (mice). A linear model of anatomical region was generated to assess its effects on all subscales of the FAOS in both unadjusted and adjusted forms. The minimal adjustment set was identified using directed acyclic graphs from a candidate set of variables.
 
-Results: Include geographic region and timeframe
+Results: A cohort of 13652 index (first presentation to registry) treatments was extracted and included in the dataset after applying inclusion and exclusion criteria. Of these, 29.4% of cases involved the ankle in isolation, with 21.9% presenting with pathology affecting multiple regions of the foot and ankle. Significant main effects of anatomical region were observed for all FAOS subscales after adjustment, with isolated forefoot cases consistently displaying higher average scores at baseline assessment compared to other regions and cases presenting with multiple regions affected. These differences ranged from 14.6 points (95%CI 13.2 - 16.0) between ankle and forefoot for the Pain subscale to 25.8 (95%CI 23.8 - 27.9) for the same contrast in the Sport subscale. Overall, the effect of arthritis on average subscale scores was significant for all subscales except Activities of Daily Living. When a sub-analysis was performed comparing isolated ankle arthritis to non-arthritis cases of the ankle and cases with pathology spanning multiple regions and including an arthritis diagnosis, significant, but small effects were observed for all FAOS subscales expect for Symptoms, which displayed a medium effect.
 
-Conclusion:
+Conclusion: Pain, function and quality of life differ between patients presenting with isolated forefoot pathology compared to other foot-ankle regions. Future work should consider the collection of patient-reported outcomes separately for forefoot compared to the remaining anatomical regions, to avoid potential ceiling effects in forefoot patients during assessment post-treatment. The present results may assist in counselling patient expectations with respect to pain relief in response to treatment, particularly when pathology presents localised to certain anatomical regions. In addition, interventions targeting a patient’s relationship with pain may be a useful adjunct to contemporary treatment modalities.
 :::
 
 ## RECORD \[1.1\] Data Type
@@ -755,9 +747,7 @@ A clinical quality registry provides an integrated, prospective system to collec
 
 A common use of PROMs is in aid of prognostication of patients at the time treatment is offered. To do this accurately requires an understanding of the factors that confound the relationship between treatment options and observed outcomes and the relevant followup period, as well as the patient's baseline pain, function and quality of life. In a foot-ankle population presenting for surgical review, two key factors of interest that may influence the profile of a patient at baseline are *anatomical region* affected by pathology and whether the pathologies the patient presents with include any form of *arthritis*.
 
-The contemporary literature provides a dearth of information regarding these relationships and even less at sufficient scale to provide reliable guidance to clinicians interested in developing prognostication with PROMs.
-
-To address this gap in the knowlege, the current analysis aims to describe baseline pain, function and quality of life in a broad range of orthopaedic conditions, and to assess the influence of *anatomical region* and *arthritis* on these outcomes.
+The contemporary literature provides a dearth of information regarding these relationships and even less at sufficient scale to provide reliable guidance to clinicians interested in developing prognostication with PROMs. To address this gap in the knowlege, the current analysis aims to describe baseline pain, function and quality of life in a broad range of orthopaedic conditions, and to assess the influence of *anatomical region* and *arthritis* on these outcomes.
 
 ## RECORD \[3\] Objectives
 
@@ -794,13 +784,10 @@ Clinical and statistical hypotheses presented in tabular format
 | Clinical    | After adjusting for identified confounders, patients with pathology affecting specific anatomical regions of the foot or ankle will demonstrate clinically meaningful differences in FAOS subscale scores compared to patients with pathology in other regions, reflecting region-specific functional impairments. | After adjusting for identified confounders, patients with arthritis will demonstrate significantly (and clinical important) worse FAOS subscale scores compared to patients without arthritis |
 +-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Statistical | -   **Null (H₀):** μ₁ᵢ - μ₂ᵢ = 0 for each FAOS subscale i, after covariate adjustment                                                                                                                                                                                                                              | -   **Null (H₀):** μₐᵢ - μₙᵢ = 0 for each FAOS subscale i, after covariate adjustment                                                                                                         |
-|             |                                                                                                                                                                                                                                                                                                                    |                                                                                                                                                                                               |
-|             | <!-- -->                                                                                                                                                                                                                                                                                                           | <!-- -->                                                                                                                                                                                      |
-|             |                                                                                                                                                                                                                                                                                                                    |                                                                                                                                                                                               |
 |             | -   **Alternative (H₁):** μ₁ᵢ - μ₂ᵢ ≠ 0 for at least one FAOS subscale i, after covariate adjustment                                                                                                                                                                                                               | -   **Alternative (H₁):** μₐᵢ - μₙᵢ \< 0 for at least one FAOS subscale i, after covariate adjustment                                                                                         |
 +-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Clinical and statistical hypotheses for question 1 and 2. μ₁ᵢ and μ₂ᵢ represent the adjusted mean scores for subscale i in the specific region group and other regions group, respectively.
+Clinical and statistical hypotheses for question 1 and 2. μ₁ᵢ and μ₂ᵢ represent the adjusted mean scores for FAOS subscale i in the specific region group and other regions group, respectively.
 :::
 
 The hypotheses presented in @tbl-hypotheses posit that the variables of interest will be associated with *clinically important* differences in FAOS subscales. For the purposes of the present analysis the approach of [@fatima2022] is replicated here and a general threshold of 8 points is used as a threshold to identify an important difference due to the variables of interest. However, this is provided with some caveats given the evolution of our understanding of these metrics over time. It should be noted that the minimal clinically important difference for the FAOS is sensitive to a range of factors (diagnosis, followup duration) [@sierevelt2024], baseline score [@sierevelt2015] and calculation methods [@Tenan2021]. Broadly speaking, the MCID for the FAOS may range somewhere between \<4 for the *Symptoms* subscale to 11.7 for the ADL subscale [@tapaninaho2022], with some variation reported in other studies investigating MCID in FAOS [@sierevelt2015; @desai2019].
@@ -844,8 +831,6 @@ SheetIDs <- list(
 )
 
 ```
-
-
 
 Read in patient tables, then combine and clean the text columns as required.
 
@@ -1041,10 +1026,7 @@ Record selection was based on the following criteria;
 
 -   The record was eligible for baseline PROMs capture. That is, sufficient time was available between patient registration and definitive treatment offered by the reviewing surgeon. In some cases, trauma cases first present to the clinic after their definitive surgical treatment and baseline PROMs cannot be captured prior to surgery.
 
-
 The *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] was used to create a table of indications for exclusion for each record and plot a flowchart (see 13.1) indicating the flow from total records processed to the final inclusion sample for analysis.
-
-
 
 <!--# going to impute region + pathology columns as required (drop exclusion3) ~ 1400 cases -->
 
@@ -1074,7 +1056,6 @@ STROBEInput2 <- STROBEInput |> rows_update(
 
 
 ```
-
 
 ```{r}
 
@@ -2219,35 +2200,15 @@ vis_miss(MasterAnalysis)
 # 
 # 
 
-MasterAnalysis1 <- MasterAnalysis |> dplyr::select(
-  -(c(
-  TreatmentID,
-  PreviousPath,
-  PreviousSurgery,
-  TreatmentType,
-  
-  )
-  )
-)
-
-```
-
-
-
-
-
-
-The *mice* package was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
-
-
-
-
-
-#### Management
-
-```{r}
-
-MasterAnalysis2 <- MasterAnalysis1 |> mutate(
+MasterAnalysis1 <- MasterAnalysis |>
+  mutate(
+    SubsetGroup_temp = case_when(
+Region == "Ankle" & Arthritis == "Yes" ~ "AnkleArthritis",
+Region == "Multiple" & Arthritis == "Yes" ~ "MultipleArthritis",
+Region == "Ankle" & Arthritis == "No" ~ "AnkleNonArthritis",
+.default = NA_character_
+),  # Use forcats to create factors with strict level control
+  SubsetGroup = fct_relevel(factor(SubsetGroup_temp), "AnkleArthritis", "AnkleNonArthritis","MultipleArthritis"),
   SmokingStatus = if_else(is.na(SmokingStatus), NA_character_, SmokingStatus),
   SmokingStatus = forcats::fct(
     SmokingStatus,
@@ -2277,9 +2238,24 @@ MasterAnalysis2 <- MasterAnalysis1 |> mutate(
     BilateralStatus,
     levels = c("Bilateral","Unilateral")
   )
+) |> dplyr::select(
+  -(c(
+  TreatmentID,
+  PreviousPath,
+  PreviousSurgery,
+  TreatmentType,
+  SubsetGroup_temp
+  )
+  )
 )
+  
 
 ```
+
+The *mice* package was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
+
+#### Management
+
 
 
 ```{r}
@@ -2287,7 +2263,7 @@ MasterAnalysis2 <- MasterAnalysis1 |> mutate(
 categorical_vars <- c("Sex2", "Provider", "BilateralStatus", "SurgicalTreatment", 
                      "Region", "SmokingStatus", "Arthritis")
 
-MasterAnalysis2 |>
+MasterAnalysis1 |>
   select(all_of(categorical_vars)) |>
   map_dfr(~ tibble(
     unique_values = length(unique(.x)),
@@ -2312,31 +2288,21 @@ for(var in categorical_vars) {
 }
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
 ```{r}
 
-predM <- mice::make.predictorMatrix(MasterAnalysis2)
+predM <- mice::make.predictorMatrix(MasterAnalysis1)
 
 # Exclude ID and non-predictive variables
 predM[,"PatientID"] <- 0 
 predM["PatientID",] <- 0
+predM[,"SubsetGroup"] <- 0
+predM["SubsetGroup",] <- 0
 
 # Create method vector
 meth <- mice::make.method(MasterAnalysis2)
 
 # Create visit sequence
-visitSeq <- mice::make.visitSequence(MasterAnalysis2)
+visitSeq <- mice::make.visitSequence(MasterAnalysis1)
 
 visitSeq <- c(
   "PatientID",
@@ -2366,12 +2332,14 @@ meth["AgeAtInitialExam"] <- ""    # Don't impute age
 meth["Provider"] <- ""            # No missing values, don't impute
 meth["BilateralStatus"] <- ""     # No missing values, don't impute
 
-# Set empty methods for variables that shouldn't be imputed
-# meth["Sex2"] <- "logreg"          # Binary: Female/Male
-# meth["SurgicalTreatment"] <- "logreg"  # Binary: Non-Surgical/Surgical  
-# meth["Region"] <- "polyreg"       # Multiple categories: Ankle, Foot, etc.
-# meth["SmokingStatus"] <- "polyreg"  # Multiple categories: Never, <12mo, etc.
-# meth["Arthritis"] <- "logreg"     # Binary: No/Yes
+# Passive imputation for derived variables - use fct_relevel to ensure consistent levels
+meth["SubsetGroup"] <- "~I(forcats::fct_relevel(factor(case_when(
+Region == `Ankle` & Arthritis == `Yes` ~ `AnkleArthritis`,
+Region == `Multiple` & Arthritis == `Yes` ~`MultipleArthritis`,
+Region == `Ankle` & Arthritis == `No` ~ `AnkleNonArthritis`
+)), 'AnkleArthritis', 'AnkleNonArthritis',`MultipleArthritis`))"
+
+
 
 
 
@@ -2379,11 +2347,10 @@ meth["BilateralStatus"] <- ""     # No missing values, don't impute
 
 ```
 
-
 ```{r}
 
  MasterImp <- mice::mice(
-    MasterAnalysis2,
+    MasterAnalysis1,
     maxit = 10,  # Start with just 1 iteration to test
     seed = 4218,
     m = 20,      # Fewer imputations for testing
@@ -2439,12 +2406,6 @@ FAOSQualityImp <- ggplot() +
 
 ```
 
-
-
-
-
-
-
 ### RECORD \[12.3\] Linkage
 
 <!--# RECORD 12.3: State whether the study included person-level, institutional-level, or other data linkage across two or more databases. The methods of linkage and methods of linkage quality evaluation should be provided. -->
@@ -2457,28 +2418,8 @@ Participant flow - consort package and flow chart Descriptive - gtsummary and pr
 
 A flow chart was created with the *consort* package to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary*. Graphs were generated using *ggplot2*. Graphs and tables were prepared for display using *knitr*. A linear model was fitted to the imputed data with robust standard errors using *estimatr* with the following form.
 
-```{r}
-
-# Convert lapply to map
-modelTest1 <- map(1:MasterImp$m, ~ {
-  fixest::feols(
-    FAOS_Pain_TotalScore_Preop ~ Region,
-    data = complete(MasterImp, action = .x),
-    cluster = ~PatientID
-  )
-})
-
-modelTest2 <- map(1:MasterImp$m, ~ {
-  fixest::feols(
-    FAOS_Pain_TotalScore_Preop ~ Region + AgeAtInitialExam + Sex2 + SRCQTotalScore,
-    data = complete(MasterImp, action = .x),
-    cluster = ~PatientID
-  )
-})
-
-
+```{}
 ```
-
 
 ```{r}
 #| label: model-analysis
@@ -2526,8 +2467,6 @@ adjusted_results <- map_dfr(faos_subscales, ~ {
 })
 
 ```
-
-
 
 The models were summarised using *parameters* and *gt* packages. Predicted values for all model variables were generated from the model object using *marginaleffects*.
 
@@ -2690,12 +2629,9 @@ knitr::knit_print(TblDemo)
 
 ```
 
-
 ## RECORD \[15\] Outcome data
 
 <!--# Cohort study—Report numbers of outcome events or summary measures over time. Case-control study—Report numbers in each exposure category, or summary measures of exposure Cross-sectional study—Report numbers of outcome events or summary measures -->
-
-
 
 ```{r}
 
@@ -2713,9 +2649,6 @@ TableFAOS <- gtsummary::tbl_summary(
 knitr::knit_print(TableFAOS)
 
 ```
-
-
-
 
 Correlation matrix for FAOS subscales
 
@@ -3090,7 +3023,6 @@ PredictFaos <- create_and_combine_faos_plots(
 knitr::knit_print(PredictFaos)
 ```
 
-
 ```{r}
 #| label: tbl-faos-pwc1
 #| tbl-cap: "Pairwise comparisons of regional differences in FAOS subscales based on adjusted models"
@@ -3314,16 +3246,13 @@ combined_table
 
 ```
 
-
-
-
 ```{r}
 #| label: tbl-FAOS-arthritis
 #| tbl-cap: "Summary of regression assessing the effect of arthritis on FAOS adjusted for confounders"
 #| warning: false
 #| message: false
 
-# Create unadjusted models for all subscales
+# Create adjusted models for all subscales
 arthritis_results <- map_dfr(faos_subscales, ~ {
   run_subscale_models(.x, "~ Arthritis + AgeAtInitialExam + Sex2 + SmokingStatus", paste("Arthritis_adjusted -", subscale_labels[which(faos_subscales == .x)]))
 })
@@ -3372,176 +3301,133 @@ knitr::knit_print(arthritis_table)
 Review how isolated ankle arthritis compares to other ankle pathology and arthritis spanning multiple foot-ankle regions
 
 ```{r}
-#| label: subgroup-summary
 
-#  Pool the multiple imputations first
-# Pool imputations using mice::complete() with action = "long" for easy handling
-pooled_subset <- mice::complete(MasterImp, action = "long", include = TRUE) |>
-  # Calculate pooled estimates for each row across all imputations
-  group_by(.id) |>
-  summarise(
-    # Keep categorical/character variables from first imputation
-    #TreatmentID = first(TreatmentID),
-    Region = first(Region),
-    PatientID = first(PatientID),
-    #TreatmentType = first(TreatmentType),
-    Sex2 = first(Sex2),
-    Provider = first(Provider),
-    #BilateralStatus = first(BilateralStatus),
-    Arthritis = first(Arthritis),
-    
-    # Pool continuous variables by taking the mean across imputations
-    AgeAtInitialExam = mean(AgeAtInitialExam, na.rm = TRUE),
-    InjuryToPresentation = mean(InjuryToPresentation, na.rm = TRUE),
-    VR12_Physical_TotalScore_Preop = mean(VR12_Physical_TotalScore_Preop, na.rm = TRUE),
-    VR12_Mental_TotalScore_Preop = mean(VR12_Mental_TotalScore_Preop, na.rm = TRUE),
-    SRCQTotalScore = mean(SRCQTotalScore, na.rm = TRUE),
-    PCSSF_TotalScore_Preop = mean(PCSSF_TotalScore_Preop, na.rm = TRUE),
-    FAOS_Symptom_TotalScore_Preop = mean(FAOS_Symptom_TotalScore_Preop, na.rm = TRUE),
-    FAOS_Pain_TotalScore_Preop = mean(FAOS_Pain_TotalScore_Preop, na.rm = TRUE),
-    FAOS_DailyLiving_TotalScore_Preop = mean(FAOS_DailyLiving_TotalScore_Preop, na.rm = TRUE),
-    FAOS_Sport_TotalScore_Preop = mean(FAOS_Sport_TotalScore_Preop, na.rm = TRUE),
-    FAOS_Quality_TotalScore_Preop = mean(FAOS_Quality_TotalScore_Preop, na.rm = TRUE),
-    .groups = 'drop'
-  )
+
+library(tidyverse)
+library(mice)
+library(fixest)
+library(epoxy)
+
+# Function to subset a mids object based on criteria
+subset_mids <- function(mids_obj, subset_condition) {
+  # Get the original data with all imputations
+  long_data <- mice::complete(mids_obj, action = "long", include = TRUE)
+  
+  # Apply subset condition to the original data (imputation 0)
+  original_subset_ids <- long_data |>
+    filter(.imp == 0) |>
+    filter({{ subset_condition }}) |>
+    pull(.id)
+  
+  # Subset all imputations to keep only these IDs
+  subset_long <- long_data |>
+    filter(.id %in% original_subset_ids)
+  
+  # Convert back to mids object
+  as.mids(subset_long)
+}
+
+# Example subset criteria - adjust as needed for your analysis
+# This example keeps cases where Region is "Ankle" or "Foot" and Age >= 18
+MasterImp_subset <- subset_mids(
+  MasterImp, 
+  (Region %in% c("Ankle", "Multiple") & Arthritis == "Yes") | (Region == "Ankle" & Arthritis == "No")
+)
 
 ```
 
 ```{r}
 #| label: subgroup-comparison
 #  Create the comparison groups on pooled data
-ankle_comparison <- pooled_subset |>
-  # Create a comparison group variable
-  mutate(
-    ComparisonGroup = case_when(
-      Region == "Ankle" & Arthritis == "Yes" ~ "Ankle Arthritis",
-      Region == "Ankle" & Arthritis == "No" ~ "Ankle Non-Arthritis", 
-      Region == "Multiple" ~ "Multiple Regions",
-      TRUE ~ "Other"  # This captures all other combinations
+
+
+# Function to run models for each subscale
+run_subset_models <- function(outcome_var, formula_str, model_label) {
+  
+  # Create models for this subscale
+  models_sub <- map(1:MasterImp_subset$m, ~ {
+    fixest::feols(
+      as.formula(paste(outcome_var, formula_str)),
+      data = complete(MasterImp_subset, action = .x),
+      cluster = ~PatientID
     )
-  ) |>
-  # Filter to keep only the three groups of interest
-  filter(ComparisonGroup %in% c("Ankle Arthritis", "Ankle Non-Arthritis", "Multiple Regions"))
+  })
+  
+  # Pool parameters and add labels
+  parameters::pool_parameters(models_sub) |>
+    mutate(
+      Model = model_label,
+      Subscale = subscale_labels[which(faos_subscales == outcome_var)]
+    )
+}
+
+ #Create adjusted models for all subscales
+arthritis_subset <- map_dfr(faos_subscales, ~ {
+  run_subset_models(.x, "~ SubsetGroup + AgeAtInitialExam + Sex2 + SmokingStatus", paste("Arthritis_subset -", subscale_labels[which(faos_subscales == .x)]))
+})
+
 
 ```
+
+
 
 ```{r}
 #| label: tbl-subset
 #| tbl-cap: "Comparison between sub-groups derived from registry cohort for FAOS subscales and other characteristics"
 
- # Function to calculate eta-squared for one-way ANOVA (overall effect size)
-EtaSquared <- function(data, variable, by, ...) {
-  # Perform ANOVA
-  model <- aov(data[[variable]] ~ factor(data[[by]]))
-  
-  # Calculate eta-squared with confidence interval
-  es <- effectsize::eta_squared(model, ci = 0.90)
-  
-  # Format results
-  est <- style_sigfig(es$Eta2)
-  ci_lower <- style_sigfig(es$CI_low)
-  ci_upper <- style_sigfig(es$CI_high)
-  
-  # Return formatted results
-  tibble(
-    eta_squared = stringr::str_glue("{est} ({ci_lower}, {ci_upper})"),
-    interpret_eta = stringr::str_glue("{effectsize::interpret_eta_squared(es$Eta2, rules = 'field2013')}")
-  )
-}
 
-# Function to calculate largest raw difference on response scale
-MaxRawDifference <- function(data, variable, by, ...) {
-  # Calculate group means
-  group_means <- data |>
-    group_by(!!sym(by)) |>
-    summarise(mean_val = mean(!!sym(variable), na.rm = TRUE), .groups = 'drop')
-  
-  # Find all pairwise differences
-  groups <- group_means[[by]]
-  means <- group_means$mean_val
-  names(means) <- groups
-  
-  pairwise_diffs <- list()
-  comparison_names <- list()
-  
-  for(i in 1:(length(groups)-1)) {
-    for(j in (i+1):length(groups)) {
-      diff <- abs(means[i] - means[j])
-      pairwise_diffs <- append(pairwise_diffs, diff)
-      comparison_names <- append(comparison_names, 
-                                paste(groups[i], "vs", groups[j]))
-    }
-  }
-  
-  # Find the maximum difference and which groups it's between
-  max_diff_idx <- which.max(unlist(pairwise_diffs))
-  max_diff <- unlist(pairwise_diffs)[max_diff_idx]
-  max_comparison <- unlist(comparison_names)[max_diff_idx]
-  
-  # Format results
-  diff_formatted <- style_sigfig(max_diff)
-  
-  tibble(
-    max_raw_diff = diff_formatted,
-    comparison_groups = max_comparison
-  )
-}
-
-# Step 3: Summary statistics using gtsummary on pooled data
-subset_summary <- ankle_comparison |>
-  select(ComparisonGroup, AgeAtInitialExam, Sex2,
-         VR12_Physical_TotalScore_Preop, VR12_Mental_TotalScore_Preop,
-         FAOS_Symptom_TotalScore_Preop, FAOS_Pain_TotalScore_Preop, 
-         FAOS_DailyLiving_TotalScore_Preop, FAOS_Sport_TotalScore_Preop, 
-         FAOS_Quality_TotalScore_Preop, SRCQTotalScore, PCSSF_TotalScore_Preop) |>
-  tbl_summary(
-    by = ComparisonGroup,
-    statistic = list(
-      all_continuous() ~ "{mean} ({sd})",
-      all_categorical() ~ "{n} ({p}%)"
-    ),
-    digits = all_continuous() ~ 1,
-    label = list(
-      AgeAtInitialExam ~ "Age at Initial Exam",
-      Sex2 ~ "Sex",
-      VR12_Physical_TotalScore_Preop ~ "VR-12 Physical Score",
-      VR12_Mental_TotalScore_Preop ~ "VR-12 Mental Score",
-      FAOS_Symptom_TotalScore_Preop ~ "FAOS Symptom Score",
-      FAOS_Pain_TotalScore_Preop ~ "FAOS Pain Score",
-      FAOS_DailyLiving_TotalScore_Preop ~ "FAOS Daily Living Score",
-      FAOS_Sport_TotalScore_Preop ~ "FAOS Sport Score",
-      FAOS_Quality_TotalScore_Preop ~ "FAOS Quality of Life Score",
-      SRCQTotalScore ~ "SRCQ Total Score",
-      PCSSF_TotalScore_Preop ~ "PCS-SF Total Score"
-    ),
-    missing = "no"
+# Create adjusted stacked table
+subset_table <- arthritis_subset |>
+  gt(groupname_col = "Model") |>
+  tab_header(
+    title = "Adjusted Regression Results",
+    subtitle = "FAOS Subscales ~ Region + Age + Sex + SRCQ Total Score"
   ) |>
-  add_n() |>
-  add_p(test = list(
-    all_continuous() ~ "oneway.test",
-    all_categorical() ~ "chisq.test"
-  )) |>
-  add_stat(fns = all_continuous() ~ EtaSquared) |>
-  add_stat(fns = all_continuous() ~ MaxRawDifference) |>
-  add_overall() |>
-  modify_header(
-    label ~ "**Characteristic**",
-    eta_squared ~ "**η² (90% CI)**",
-    interpret_eta ~ "**η² Interpretation**",
-    max_raw_diff ~ "**Largest Difference**",
-    comparison_groups ~ "**Between Groups**"
+  fmt_number(
+    columns = c(Statistic),
+    decimals = 1
   ) |>
-  modify_spanning_header(c("stat_1", "stat_2", "stat_3") ~ "**Group**") |>
-  bold_labels()
+  fmt_number(
+    columns = c(Coefficient, SE, CI_low, CI_high, df_error),
+    decimals = 2
+  ) |>
+  fmt_number(
+    columns = c(p),
+    decimals = 3
+  ) |>
+  cols_label(
+    Parameter = "Parameter",
+    Coefficient = "Coefficient",
+    SE = "Standard Error",
+    CI_low = "95% CI Lower",
+    CI_high = "95% CI Upper",
+    Statistic = "t-statistic",
+    df_error = "df",
+    p = "p-value"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) |>
+  cols_hide(columns = "Subscale")
 
-knitr::knit_print(subset_summary)
+
+knitr::knit_print(subset_table)
 ```
+
+ 
 
 # Discussion
 
 ## RECORD \[18\] Key results
 
 <!--# Summarise key results with reference to study objectives -->
+
+-   When adjusted for potential confounders, cases presenting with isolated forefoot pathology displayed significantly higher baseline FAOS scores compared to other regions and those presenting with pathology spanning multiple regions
+
+-   When adjusted for potential confounders, the presence of *arthritis* significantly reduced all FAOS scores at baseline, except for Activities of Daily Living.
+
+-   
 
 ## RECORD \[19\] Limitations
 
