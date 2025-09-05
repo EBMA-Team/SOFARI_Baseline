@@ -2284,7 +2284,7 @@ MasterAnalysis1 |>
 epoxy("Checking actual values for problematic variables:")
 for(var in categorical_vars) {
   cat("\n", var, ":\n")
-  print(table(MasterAnalysis2[[var]], useNA = "always"))
+  print(table(MasterAnalysis1[[var]], useNA = "always"))
 }
 ```
 
@@ -2299,7 +2299,7 @@ predM[,"SubsetGroup"] <- 0
 predM["SubsetGroup",] <- 0
 
 # Create method vector
-meth <- mice::make.method(MasterAnalysis2)
+meth <- mice::make.method(MasterAnalysis1)
 
 # Create visit sequence
 visitSeq <- mice::make.visitSequence(MasterAnalysis1)
@@ -2529,7 +2529,7 @@ Summarising the sample by anatomical region showed the ankle to be most common p
 min_count <- 10
 
 # Basic counts
-  basic_counts2 <- MasterAnalysis2 |> 
+  basic_counts2 <- MasterAnalysis1 |> 
     count(Region,Arthritis, sort = TRUE) |>
     mutate(
       percentage = n / sum(n) * 100,
@@ -2640,7 +2640,7 @@ knitr::knit_print(TblDemo)
 #
 
 TableFAOS <- gtsummary::tbl_summary(
-  MasterAnalysis2,
+  MasterAnalysis1,
   include = c(contains("FAOS")),
  missing = "no",
  statistic = list(everything() ~ "{mean} ({sd})")
@@ -3302,12 +3302,6 @@ Review how isolated ankle arthritis compares to other ankle pathology and arthri
 
 ```{r}
 
-
-library(tidyverse)
-library(mice)
-library(fixest)
-library(epoxy)
-
 # Function to subset a mids object based on criteria
 subset_mids <- function(mids_obj, subset_condition) {
   # Get the original data with all imputations
@@ -3373,15 +3367,22 @@ arthritis_subset <- map_dfr(faos_subscales, ~ {
 
 ```{r}
 #| label: tbl-subset
-#| tbl-cap: "Comparison between sub-groups derived from registry cohort for FAOS subscales and other characteristics"
+#| tbl-cap: "Comparison between sub-groups derived from registry cohort for FAOS subscales adjusted for confounders"
 
 
 # Create adjusted stacked table
-subset_table <- arthritis_subset |>
-  gt(groupname_col = "Model") |>
+subset_table <- arthritis_subset |> dplyr::filter(
+  Parameter == "(Intercept)" | stringr::str_detect(Parameter,"Subset")
+) |> dplyr::mutate(
+  Parameter = case_when(
+    stringr::str_detect(Parameter, "NonArthritis") ~ "Ankle pathology without arthritis",
+    stringr::str_detect(Parameter, "MultipleArthritis") ~ "Multiple regions with at least one arthritis diagnosis",
+    .default = Parameter
+  )
+) |> gt(groupname_col = "Model") |>
   tab_header(
     title = "Adjusted Regression Results",
-    subtitle = "FAOS Subscales ~ Region + Age + Sex + SRCQ Total Score"
+    subtitle = "FAOS Subscales ~ Subgroup + Age + Sex + SRCQ Total Score"
   ) |>
   fmt_number(
     columns = c(Statistic),
@@ -3415,6 +3416,224 @@ subset_table <- arthritis_subset |>
 knitr::knit_print(subset_table)
 ```
 
+```{r}
+#| label: tbl-subgroup-pwc1
+#| tbl-cap: "Pairwise comparisons of regional differences in FAOS subscales based on adjusted models"
+#| warning: false
+#| message: false
+
+# Function to create pairwise comparisons from regional coefficients
+create_pairwise_comparisons <- function(pooled_results) {
+  
+  # Extract regional coefficients (assuming reference is the first region alphabetically)
+  regional_coefs <- pooled_results |>
+    filter(str_detect(Parameter, "^arthritis")) |>
+    mutate(
+      Subgroup = str_remove(Parameter, "^arthritis"),
+      # Clean up coefficient names
+      Region = str_trim(Region)
+    )
+  
+  # Get unique regions from the data
+  regions <- unique(regional_coefs$Region)
+  reference_region <- setdiff(
+    # Assuming you know your reference region - adjust as needed
+    c("Ankle", "Foot", "Hindfoot", "Midfoot"), # Replace with your actual regions
+    regions
+  )[1]
+  
+  # Create all pairwise combinations
+  all_regions <- c(reference_region, regions)
+  pairwise_combinations <- combn(all_regions, 2, simplify = FALSE)
+  
+  # Function to calculate pairwise difference
+  calculate_pairwise_diff <- function(region1, region2, subscale_data) {
+    
+    # Get coefficients (reference region has coefficient = 0)
+    coef1 <- if(region1 == reference_region) {
+      list(Coefficient = 0, SE = 0)
+    } else {
+      subscale_data |> 
+        filter(Region == region1) |>
+        select(Coefficient, SE) |>
+        as.list()
+    }
+    
+    coef2 <- if(region2 == reference_region) {
+      list(Coefficient = 0, SE = 0)
+    } else {
+      subscale_data |> 
+        filter(Region == region2) |>
+        select(Coefficient, SE) |>
+        as.list()
+    }
+    
+    # Calculate difference and combined SE
+    diff_estimate <- coef1$Coefficient - coef2$Coefficient
+    
+    # For pooled results, we approximate the SE of the difference
+    # This is conservative but reasonable for presentation
+    combined_se <- sqrt(coef1$SE^2 + coef2$SE^2)
+    
+    # Calculate t-statistic and p-value (using large sample approximation)
+    t_stat <- diff_estimate / combined_se
+    p_value <- 2 * pnorm(abs(t_stat), lower.tail = FALSE)
+    
+    tibble(
+      comparison = paste(region1, "vs", region2),
+      estimate = diff_estimate,
+      std.error = combined_se,
+      statistic = t_stat,
+      p.value = p_value
+    )
+  }
+  
+  # Create pairwise comparisons for each subscale and model type
+  results <- pooled_results |>
+    filter(str_detect(Parameter, "^Region")) |>
+    mutate(Region = str_remove(Parameter, "^Region")) |>
+    select(Subscale, Model, Region, Coefficient, SE) |>
+    nest(data = c(Region, Coefficient, SE)) |>
+    mutate(
+      pairwise_comparisons = map(data, ~ {
+        subscale_data <- .x
+        map_dfr(pairwise_combinations, ~ {
+          calculate_pairwise_diff(.x[1], .x[2], subscale_data)
+        })
+      })
+    ) |>
+    select(-data) |>
+    unnest(pairwise_comparisons)
+  
+  return(results)
+}
+
+# Create pairwise comparisons
+all_pairwise_results <- bind_rows(
+  create_pairwise_comparisons(unadjusted_results),
+  create_pairwise_comparisons(adjusted_results)
+)
+
+# Extract model type from Model column
+all_pairwise_results <- all_pairwise_results |>
+  mutate(
+    model_type = case_when(
+      str_detect(Model, "Unadjusted") ~ "Unadjusted",
+      str_detect(Model, "Adjusted") ~ "Adjusted",
+      TRUE ~ "Unknown"
+    )
+  )
+
+# Apply FDR correction within each subscale and model type
+final_results <- all_pairwise_results |>
+  group_by(Subscale, model_type) |>
+  mutate(
+    p_fdr = p.adjust(p.value, method = "fdr"),
+    significance = case_when(
+      p_fdr < 0.001 ~ "***",
+      p_fdr < 0.01 ~ "**", 
+      p_fdr < 0.05 ~ "*",
+      TRUE ~ ""
+    )
+  ) |>
+  ungroup()
+
+# Filter for significant or near-significant results and prepare for stacked table
+stacked_data <- final_results |>
+  filter(p.value < 0.06) |>  # Filter for p < 0.06
+  select(Subscale, comparison, model_type, estimate, std.error, p.value, p_fdr, significance) |>
+  mutate(
+    estimate_ci = paste0(
+      sprintf("%.2f", estimate), 
+      " (", 
+      sprintf("%.2f", estimate - 1.96 * std.error), 
+      ", ", 
+      sprintf("%.2f", estimate + 1.96 * std.error), 
+      ")"
+    ),
+    p_value_formatted = case_when(
+      p.value < 0.001 ~ "<0.001",
+      TRUE ~ sprintf("%.3f", p.value)
+    ),
+    p_fdr_formatted = case_when(
+      p_fdr < 0.001 ~ "<0.001",
+      TRUE ~ sprintf("%.3f", p_fdr)
+    )
+  ) |>
+  select(Subscale, comparison, model_type, estimate_ci, p_value_formatted, p_fdr_formatted, significance) |>
+  pivot_wider(
+    names_from = model_type,
+    values_from = c(estimate_ci, p_value_formatted, p_fdr_formatted, significance),
+    names_sep = "_"
+  )
+
+# Create single stacked gt table with subscale row groups
+combined_table <- stacked_data |>
+  arrange(Subscale, comparison) |>  # Sort by subscale then comparison
+  gt(groupname_col = "Subscale") |>  # Use Subscale column for row groups
+  tab_header(
+    title = "Pairwise Regional Comparisons - All FAOS Subscales",
+    subtitle = "Pooled results from multiple imputation with FDR correction (p < 0.06)"
+  ) |>
+  cols_label(
+    comparison = "Comparison",
+    estimate_ci_Unadjusted = "Estimate (95% CI)",
+    p_value_formatted_Unadjusted = "P-value",
+    p_fdr_formatted_Unadjusted = "P-value (FDR)",
+    significance_Unadjusted = "",
+    estimate_ci_Adjusted = "Estimate (95% CI)",
+    p_value_formatted_Adjusted = "P-value", 
+    p_fdr_formatted_Adjusted = "P-value (FDR)",
+    significance_Adjusted = ""
+  ) |>
+  tab_spanner(
+    label = "Unadjusted Model",
+    columns = c(estimate_ci_Unadjusted, p_value_formatted_Unadjusted, p_fdr_formatted_Unadjusted, significance_Unadjusted)
+  ) |>
+  tab_spanner(
+    label = "Adjusted Model",
+    columns = c(estimate_ci_Adjusted, p_value_formatted_Adjusted, p_fdr_formatted_Adjusted, significance_Adjusted)
+  ) |>
+  tab_footnote(
+    footnote = "Only comparisons with p-value < 0.06 are shown",
+    locations = cells_title(groups = "subtitle")
+  ) |>
+  tab_footnote(
+    footnote = "Adjusted model includes Age, Sex, and SRCQ Total Score as covariates",
+    locations = cells_column_spanners(spanners = "Adjusted Model")
+  ) |>
+  tab_footnote(
+    footnote = "*** p<0.001, ** p<0.01, * p<0.05 (FDR corrected)",
+    locations = cells_column_labels(columns = c(significance_Unadjusted, significance_Adjusted))
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_body(columns = c(p_value_formatted_Unadjusted, p_fdr_formatted_Unadjusted, significance_Unadjusted,
+                                      p_value_formatted_Adjusted, p_fdr_formatted_Adjusted, significance_Adjusted))
+  ) |>
+  opt_table_font(font = "Arial") |>
+  tab_options(
+    table.font.size = 12,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12,
+    row_group.font.weight = "bold",
+    row_group.background.color = "#f8f9fa"
+  )
+
+# Display the combined table
+combined_table
+
+
+```
+```
  
 
 # Discussion
