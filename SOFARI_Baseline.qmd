@@ -2795,8 +2795,6 @@ adjusted_table <- adjusted_results |>
 knitr::knit_print(adjusted_table)
 ```
 
-
-
 ```{r}
 #| label: tbl-faos-pwc1
 #| tbl-cap: "Pairwise comparisons of regional differences in FAOS subscales based on adjusted models"
@@ -3242,7 +3240,11 @@ Where arthritis is present in a clinical presentation of a foot-ankle condition,
 
 <!--# Discuss the generalisability (external validity) of the study results -->
 
-The present study represents a relatively large-scale analysis of FAOS subscales across a broad range of conditions electing to undergo
+The present study represents a relatively large-scale analysis of FAOS subscales across a broad range of conditions electing to undergo surgical review during and some years after the COVID pandemic, within a relatively narrow geographical area of a major metropolitan centre in Australia, with a majority non-urgent case load combined with some trauma cases.
+
+With the COVID pandemic and the mitigation strategies employed exceptional with respect to their effect on healthcare (shift to telemedicine, restriction on theatre access), there is likely to be a finite limit on the generalisability of the present results, particularly as time goes on and case-mix evolves.
+
+Nevertheless, the present study represents one of the largest analyses of foot-ankle pathology in a surgical setting, and describes differences in self-reported pain, function and quality of life with a general scale that has been widely used internationally. Further work should attempt to replicate these findings over a wider collaborative network that includes variation in geography and patient case-mix.
 
 # Other information
 
