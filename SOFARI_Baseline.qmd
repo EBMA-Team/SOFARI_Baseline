@@ -544,7 +544,7 @@ categorize_diagnosis <- function(
         # Anatomical classifications
         Ankle = if_else(str_detect(chunk_df$Term2, "ankle|tibiotalar|\\bplafond\\b|dome|malleol*|weber|achilles|tendo-achilles|fibula|\\btibia\\b|gutter|perone*|syndesmo|gastrocnemius|talo-fibular|talofibular|calcaneofibular|calcaneo-fibular|gutter|(lateral|medial)\\s+ligament|tibia|deltoid|compartment.+syndrome") & str_detect(chunk_df$Term2,"(lateral|medial)\\s+collateral\\s+ligament", negate = TRUE),1,0),
         
-        Rearfoot = if_else(str_detect(chunk_df$Term2, "\\btarsal\\b|\\btalar(?!\\s+dome)|talus|talonavic*|plantar|rearfoot|hindfoot|trigonum|hindfeet|tarsi|calcaneus|\\bcalcaneal\\b|heel|subtalar"),1,0),
+        Hindfoot = if_else(str_detect(chunk_df$Term2, "\\btarsal\\b|\\btalar(?!\\s+dome)|talus|talonavic*|plantar|rearfoot|hindfoot|trigonum|hindfeet|tarsi|calcaneus|\\bcalcaneal\\b|heel|subtalar"),1,0),
         
         Midfoot = if_else(str_detect(chunk_df$Term2, "metatarsus|tarsometatarsal|tarso-metatarsal|\\bmetatarsal\\b|talonavicular|navicular|cuneiform|lisfranc|cuboid|midfoot|jones|chopart"),1,0),
         
@@ -2795,231 +2795,7 @@ adjusted_table <- adjusted_results |>
 knitr::knit_print(adjusted_table)
 ```
 
-```{r}
-#| label: fig-FAOS-adjust
-#| tbl-cap: "Adjusted FAOS subscales across anatomical regions adjusted for potential confounders"
 
-
-# Modified plotting function using pooled parameter results
-create_faos_pooled_plots <- function(pooled_results, 
-                                     model_type = "adjusted",
-                                     show_reference = TRUE,
-                                     fixed_y_scale = TRUE,
-                                     response_scale = FALSE,
-                                     reference_values = NULL) {
-  
-  # Filter for the specified model type and region parameters
-  plot_data <- pooled_results |>
-    filter(str_detect(Model, str_to_title(model_type))) |>
-    filter(str_detect(Parameter, "^Region")) |>
-    # Clean up region names by removing "Region" prefix
-    mutate(
-      Region = str_remove(Parameter, "^Region"),
-      # Handle reference category if needed
-      Region = case_when(
-        Region == "" ~ "Ankle",
-        TRUE ~ Region
-      )
-    )
-  
-  # Add reference category (estimate = 0, CI = 0) if requested
-  if(show_reference) {
-    reference_data <- plot_data |>
-      distinct(Subscale) |>
-      mutate(
-        Parameter = "RegionReference",
-        Region = "Ankle", 
-        Coefficient = 0,
-        SE = 0,
-        CI_low = 0,
-        CI_high = 0,
-        t = 0,
-        p = 1
-      )
-    
-    plot_data <- bind_rows(plot_data, reference_data)
-  }
-  
-  # Convert to response scale if requested
-  if(response_scale && !is.null(reference_values)) {
-    plot_data <- plot_data |>
-      mutate(
-        ref_value = map_dbl(Subscale, ~reference_values[[.x]] %||% 0),
-        Coefficient = Coefficient + ref_value,
-        CI_low = CI_low + ref_value,
-        CI_high = CI_high + ref_value
-      )
-  }
-  
-  # Calculate common y-axis limits if fixed scale is requested
-  if(fixed_y_scale) {
-    y_min <- min(c(plot_data$CI_low), na.rm = TRUE)
-    y_max <- max(c(plot_data$CI_high), na.rm = TRUE)
-    y_range <- y_max - y_min
-    y_limits <- c(y_min - 0.05 * y_range, y_max + 0.05 * y_range)
-  }
-  
-  # Create individual plots for each subscale using stat_slabinterval
-  plots <- plot_data |>
-    group_by(Subscale) |>
-    group_split() |>
-    map(function(subscale_data) {
-      
-      subscale_name <- unique(subscale_data$Subscale)
-      
-      # Create expanded data for stat_slabinterval to work with
-      # This simulates draws from the posterior distribution
-      expanded_data <- subscale_data |>
-        rowwise() |>
-        mutate(
-          # Generate normal distribution samples based on coefficient and SE
-          draws = list(rnorm(1000, mean = Coefficient, sd = SE))
-        ) |>
-        unnest(draws) |>
-        select(Region, Subscale, estimate = draws)
-      
-      # Set y-axis label based on scale
-      y_label <- if(response_scale) {
-        paste("Predicted", subscale_name, "Score")
-      } else {
-        paste("Predicted", subscale_name)
-      }
-      
-      p <- ggplot(data = expanded_data, mapping = aes(x = Region, y = estimate)) +
-        stat_slabinterval(
-          aes(thickness = after_stat(pdf*n)), 
-          scale = 0.7, 
-          fill = "steelblue",
-          alpha = 0.7
-        ) +
-        stat_dotsinterval(
-          side = "right", 
-          scale = 0.7, 
-          slab_linewidth = NA, 
-          fill = "steelblue"
-        ) +
-        labs(
-          y = y_label,
-          x = "Region"
-        ) +
-        theme_minimal() +
-        theme(
-          axis.text.x = element_text(angle = 45, hjust = 1),
-          panel.grid.minor = element_blank(),
-          plot.title = element_text(face = "bold")
-        )
-      
-      # Add reference line (0 for coefficient scale, or don't add for response scale)
-      if(!response_scale) {
-        p <- p + geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5)
-      }
-      
-      # Apply fixed y-scale if requested
-      if(fixed_y_scale) {
-        p <- p + coord_cartesian(ylim = y_limits)
-      }
-      
-      return(p)
-    })
-  
-  # Add names to the plots list
-  names(plots) <- plot_data |>
-    pull(Subscale) |>
-    unique()
-  
-  return(plots)
-}
-
-# Function to combine plots using patchwork
-combine_faos_plots <- function(plot_list, 
-                               ncol = 3,
-                               nrow = 2,
-                               title = "FAOS Subscale Regional Effects",
-                               subtitle = NULL,
-                               caption = NULL) {
-  
-  # Load patchwork if not already loaded
-  if (!requireNamespace("patchwork", quietly = TRUE)) {
-    stop("patchwork package is required. Please install it with: install.packages('patchwork')")
-  }
-  
-  library(patchwork)
-  
-  # Combine plots using patchwork
-  combined_plot <- wrap_plots(plot_list, ncol = ncol, nrow = nrow)
-  
-  # Add overall title and annotations
-  combined_plot <- combined_plot + 
-    plot_annotation(
-      title = title,
-      subtitle = subtitle,
-      caption = caption,
-      theme = theme(
-        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(size = 12, hjust = 0.5),
-        plot.caption = element_text(size = 10, hjust = 1)
-      )
-    )
-  
-  return(combined_plot)
-}
-
-# Convenience function to create and combine plots in one step
-create_and_combine_faos_plots <- function(pooled_results,
-                                          model_type = "adjusted",
-                                          show_reference = TRUE,
-                                          fixed_y_scale = TRUE,
-                                          response_scale = FALSE,
-                                          reference_values = NULL,
-                                          ncol = 3,
-                                          nrow = 2,
-                                          title = "FAOS Subscale Regional Effects",
-                                          subtitle = "Adjusted models with 95% confidence intervals",
-                                          caption = "Note: Predictions based on pooled results from multiply imputed data") {
-  
-  # Create individual plots
-  plots <- create_faos_pooled_plots(
-    pooled_results = pooled_results,
-    model_type = model_type,
-    show_reference = show_reference,
-    fixed_y_scale = fixed_y_scale,
-    response_scale = response_scale,
-    reference_values = reference_values
-  )
-  
-  # Combine using patchwork and return only the combined plot
-  combined_plot <- combine_faos_plots(
-    plot_list = plots,
-    ncol = ncol,
-    nrow = nrow,
-    title = title,
-    subtitle = subtitle,
-    caption = caption
-  )
-  
-  return(combined_plot)
-}
-
-```
-
-```{r}
-
-reference_means <- list(
-  "Pain" = 65,
-  "Daily Living" = 60,
-  "Symptoms" = 70,
-  "Sport" = 49,
-  "Quality of Life" = 38
-)
-
-PredictFaos <- create_and_combine_faos_plots(
-  pooled_results = adjusted_results,
-  model_type = "adjusted"
-)
-
-
-knitr::knit_print(PredictFaos)
-```
 
 ```{r}
 #| label: tbl-faos-pwc1
@@ -3412,312 +3188,6 @@ subset_table <- arthritis_subset |> dplyr::filter(
 knitr::knit_print(subset_table)
 ```
 
-
-
-```{r}
-# Look at your parameter names
-epoxy("=== STEP 1: DATA EXPLORATION ===")
-arthritis_params <- arthritis_subset |>
-  filter(str_detect(Parameter, "arthritis|subset")) |>
-  pull(Parameter) |>
-  unique()
-
-epoxy("Parameters found: {paste(arthritis_params, collapse = ', ')}")
-
-# Look at the structure
-glimpse(arthritis_subset)
-```
-
-```{r}
-# Step 2: Clean and identify groups
-epoxy("\n=== STEP 2: GROUP IDENTIFICATION ===")
-
-# Extract group information based on your parameter names
-group_data <- arthritis_subset |>
-  filter(str_detect(Parameter, "^SubsetGroup")) |>
-  mutate(
-    Group = str_remove(Parameter, "^SubsetGroup")
-  ) |>
-  select(Subscale, Model, Parameter, Group, Coefficient, SE)
-
-# Check what groups we found
-unique_groups <- unique(group_data$Group)
-epoxy("Groups found: {paste(unique_groups, collapse = ', ')}")
-epoxy("Number of groups: {length(unique_groups)}")
-```
-```{r}
-# Step 3: Define your reference group
-epoxy("\n=== STEP 3: REFERENCE GROUP ===")
-
-# Your reference group is the one NOT in the model parameters
-# Based on your data, it appears to be "AnkleArthritis" (the reference category)
-reference_group <- "AnkleArthritis"
-
-# All groups for comparisons
-all_groups <- c(reference_group, unique_groups)
-epoxy("All groups for pairwise comparisons: {paste(all_groups, collapse = ', ')}")
-epoxy("Total groups: {length(all_groups)}")
-
-# Check we have enough groups
-if(length(all_groups) < 2) {
-  stop("Need at least 2 groups. Found: ", length(all_groups))
-}
-
-epoxy("✓ Ready for pairwise comparisons!")
-```
-
-```{r}
-# Step 4: Create pairwise combinations
-epoxy("\n=== STEP 4: PAIRWISE COMBINATIONS ===")
-
-pairwise_combinations <- combn(all_groups, 2, simplify = FALSE)
-combination_names <- map_chr(pairwise_combinations, ~paste(.x[1], "vs", .x[2]))
-epoxy("Number of combinations: {length(pairwise_combinations)}")
-epoxy("Pairwise comparisons to create:")
-for(i in seq_along(combination_names)) {
-  epoxy("  {i}. {combination_names[i]}")
-}
-
-```
-
-```{r}
-# Step 5: Calculate pairwise differences
-epoxy("\n=== STEP 5: CALCULATE DIFFERENCES ===")
-
-calculate_difference <- function(group1, group2, data_subset) {
-  
-  epoxy("  Calculating: {group1} vs {group2}")
-  
-  # Get coefficient for group1 (0 if reference)
-  coef1 <- if(group1 == reference_group) {
-    0
-  } else {
-    result <- data_subset |> filter(Group == group1) |> pull(Coefficient)
-    if(length(result) == 0) result <- 0
-    result
-  }
-  
-  # Get SE for group1 (0 if reference)  
-  se1 <- if(group1 == reference_group) {
-    0
-  } else {
-    result <- data_subset |> filter(Group == group1) |> pull(SE)
-    if(length(result) == 0) result <- 0
-    result
-  }
-  
-  # Same for group2
-  coef2 <- if(group2 == reference_group) {
-    0
-  } else {
-    result <- data_subset |> filter(Group == group2) |> pull(Coefficient)
-    if(length(result) == 0) result <- 0
-    result
-  }
-  
-  se2 <- if(group2 == reference_group) {
-    0
-  } else {
-    result <- data_subset |> filter(Group == group2) |> pull(SE)
-    if(length(result) == 0) result <- 0
-    result
-  }
-  
-  # Calculate difference
-  diff_estimate <- coef1 - coef2
-  combined_se <- sqrt(se1^2 + se2^2)
-  
-  # Avoid division by zero
-  if(combined_se == 0) {
-    t_stat <- 0
-    p_value <- 1
-  } else {
-    t_stat <- diff_estimate / combined_se
-    p_value <- 2 * pnorm(abs(t_stat), lower.tail = FALSE)
-  }
-  
-  tibble(
-    comparison = paste(group1, "vs", group2),
-    estimate = diff_estimate,
-    std.error = combined_se,
-    p.value = p_value
-  )
-}
-
-# Apply to each subscale and model
-pairwise_results <- group_data |>
-  nest(data = c(Group, Coefficient, SE)) |>
-  mutate(
-    comparisons = map(data, function(subscale_data) {
-      map_dfr(pairwise_combinations, function(pair) {
-        calculate_difference(pair[1], pair[2], subscale_data)
-      })
-    })
-  ) |>
-  select(-data) |>
-  unnest(comparisons)
-
-epoxy("Pairwise calculations complete!")
-
-```
-
-```{r}
-# Step 6: Format results
-epoxy("\n=== STEP 6: FORMAT RESULTS ===")
-
-subset_results <- pairwise_results |>
-  group_by(Subscale, Model) |>
-  mutate(p_fdr = p.adjust(p.value, method = "fdr")) |>
-  ungroup() |>
-  mutate(
-    estimate_ci = paste0(
-      sprintf("%.2f", estimate), 
-      " (", 
-      sprintf("%.2f", estimate - 1.96 * std.error), 
-      ", ", 
-      sprintf("%.2f", estimate + 1.96 * std.error), 
-      ")"
-    )
-  )
-
-# Show results
-subset_results |>
-  filter(p.value < 0.06) |>
-  select(Subscale, Model, comparison, estimate_ci, p.value, p_fdr)
-
-epoxy("Analysis complete! {nrow(filter(subset_results, p.value < 0.06))} comparisons with p < 0.06")
-```
-
-
-```{r}
-library(tidyverse)
-library(gt)
-library(epoxy)
-
-# Create formatted GT table from pairwise results
-create_pairwise_table <- function(final_results, p_threshold = 0.06) {
-  
-  # Filter and format the data
-  subset_pwc_table <- subset_results |>
-    filter(p.value < p_threshold) |>
-    mutate(
-      # Clean up comparison names for better display
-      comparison = str_replace_all(comparison, c(
-        "AnkleArthritis" = "Ankle Arthritis",
-        "AnkleNonArthritis" = "Ankle Non-Arthritis", 
-        "MultipleArthritis" = "Multiple Arthritis"
-      )),
-      # Format estimate with CI
-      estimate_ci = paste0(
-        sprintf("%.2f", estimate), 
-        " (", 
-        sprintf("%.2f", estimate - 1.96 * std.error), 
-        ", ", 
-        sprintf("%.2f", estimate + 1.96 * std.error), 
-        ")"
-      ),
-      # Format p-values
-      p_formatted = case_when(
-        p.value < 0.001 ~ "<0.001",
-        TRUE ~ sprintf("%.3f", p.value)
-      ),
-      p_fdr_formatted = case_when(
-        p_fdr < 0.001 ~ "<0.001",
-        TRUE ~ sprintf("%.3f", p_fdr)
-      ),
-      # Extract model type for grouping
-      model_type = case_when(
-        str_detect(Model, "Unadjusted|unadjusted") ~ "Unadjusted",
-        str_detect(Model, "Adjusted|adjusted") ~ "Adjusted",
-        TRUE ~ "Model"
-      )
-    ) |>
-    select(Subscale, comparison, model_type, estimate_ci, p_formatted, p_fdr_formatted) |>
-    # Pivot to get model types as columns
-    pivot_wider(
-      names_from = model_type,
-      values_from = c(estimate_ci, p_formatted, p_fdr_formatted),
-      names_sep = "_"
-    )
-  
-  # Create the GT table
-  subset_pwc_table_gt <- subset_pwc_table |>
-    arrange(Subscale, comparison) |>
-    gt(groupname_col = "Subscale") |>
-    tab_header(
-      title = "Pairwise Arthritis Group Comparisons - FAOS Subscales",
-      subtitle = paste0("Pooled results from multiple imputation with FDR correction (p < ", p_threshold, ")")
-    ) |>
-    cols_label(
-      comparison = "Comparison",
-      estimate_ci_Model = "Estimate (95% CI)",
-      p_formatted_Model = "P-value",
-      p_fdr_formatted_Model = "P-value (FDR)"
-    ) |>
-    tab_footnote(
-      footnote = paste0("Only comparisons with p-value < ", p_threshold, " are shown"),
-      locations = cells_title(groups = "subtitle")
-    ) |>
-    tab_style(
-      style = cell_text(weight = "bold"),
-      locations = cells_column_labels()
-    ) |>
-    tab_style(
-      style = cell_text(weight = "bold"),
-      locations = cells_row_groups()
-    ) |>
-    tab_style(
-      style = cell_text(align = "center"),
-      locations = cells_body(columns = c(contains("p_formatted")))
-    ) |>
-    opt_table_font(font = "Arial") |>
-    tab_options(
-      table.font.size = 12,
-      heading.title.font.size = 14,
-      heading.subtitle.font.size = 12,
-      row_group.font.weight = "bold",
-      row_group.background.color = "#f8f9fa"
-    )
-  
-  # Handle different model types if they exist
-  if("estimate_ci_Unadjusted" %in% names(subset_pwc_table)) {
-    subset_pwc_table_gt <- subset_pwc_table |>
-      cols_label(
-        estimate_ci_Unadjusted = "Estimate (95% CI)",
-        p_formatted_Unadjusted = "P-value",
-        p_fdr_formatted_Unadjusted = "P-value (FDR)",
-        significance_Unadjusted = "",
-        estimate_ci_Adjusted = "Estimate (95% CI)",
-        p_formatted_Adjusted = "P-value", 
-        p_fdr_formatted_Adjusted = "P-value (FDR)"
-      ) |>
-      tab_spanner(
-        label = "Unadjusted Model",
-        columns = c(estimate_ci_Unadjusted, p_formatted_Unadjusted, p_fdr_formatted_Unadjusted)
-      ) |>
-      tab_spanner(
-        label = "Adjusted Model", 
-        columns = c(estimate_ci_Adjusted, p_formatted_Adjusted, p_fdr_formatted_Adjusted)
-      ) |>
-      tab_footnote(
-        footnote = "Adjusted model includes covariates as specified in original analysis",
-        locations = cells_column_spanners(spanners = "Adjusted Model")
-      )
-  }
-  
-  return(subset_pwc_table_gt)
-}
-
-# Create and display the table
-subset_pwc_table <- create_pairwise_table(subset_pwc_results)
-
-# Show summary
-epoxy("Table created with {nrow(filter(final_results, p.value < 0.06))} significant comparisons")
-
-```
-
-
-
 # Discussion
 
 ## RECORD \[18\] Key results
@@ -3734,9 +3204,23 @@ epoxy("Table created with {nrow(filter(final_results, p.value < 0.06))} signific
 
 <!--# Discuss limitations of the study, taking into account sources of potential bias or imprecision. Discuss both direction and magnitude of any potential bias -->
 
+The present findings should be interpreted -within the context of some key limitations;
+
+-   The methods of classifying diagnoses of foot and ankle conditions require further development as applied in the present context. Classification systems for many conditions are specialised and highly specific, for example ankle fractures or lisfranc injuries of the midfoot. However, there are few examples of classifying foot-ankle pathology holistically including the presence of concomitant pathology to other anatomical foot and ankle regions. While specific classification is viable where the presenting pathology is unequivocal, it becomes problematic to implement in a clinical environment where multiple pathologies affecting multiple anatomical regions are present. Further validation is required to standardise classification in these settings.
+
+    -   Further, the classifications applied in the present study may be too broad to enable meaningful interpretation of the results. While a secondary analysis was conducted on a narrower subset, further work is required to analyse baseline patterns of pain, function and quality of life in more specific presentations, that will also require detailed definitions to identify.
+
+-   The patient population represents a relatively limited presentation of trauma, which is a considerable portion of foot-ankle presentations more generally , but may be under-represented in the present cohort. Although fractures were present in the dataset, these tended to be less severe cases that were at least partway through recovery or were suffering from delayed or non-union. In contrast, more severe cases that were operated prior to clinic presentation at the participating surgeon practices were excluded from the analysis as they could not provide baseline data. The results should be interpreted cautiously in other settings where trauma cases make up a large component of the clinical load. Future work should define appropriate analysis in trauma presentations with respect to what an appropriate baseline assessment is in this population.
+
+-   The present cohort displays a relatively high proportion of missing data (\~45% missing), which although imputation was successfully applied, cannot be assumed to fully mitigate the potential for bias in the models derived. The length of the FAOS questionnaire, combined with other baseline measures, may have formed a barrier to completion for a higher proportion of patients than expected. Further, the one-to-one relationship between scores and treatment records, may have contributed to higher dropout amongs bilateral presentations who may have felt that the measures were duplicated across both sides.
+
+-   A considerable portion of the cohort enrolled into the registry dataset presented during the COVID pandemic (2020-2022). It is possible that the presentation patterns to the clinic were affected by local restrictions enacted by health authorities at different times during the height of the pandemic. These included lockdowns, restricted public transport services, as well as social distancing and other prophylactic measures (e.g. masking) in healthcare settings, which may have altered the presentation patterns.
+
 ### RECORD \[19.1\] Implications of non-specific data
 
-<!--# RECORD 19.1: Discuss the implications of using data that were not created or collected to answer the specific research question(s). Include discussion of misclassification bias, fit_adjusted_modelsunmeasured confounding, missing data, and changing eligibility over time, as they pertain to the study being reported. -->
+<!--# RECORD 19.1: Discuss the implications of using data that were not created or collected to answer the specific research question(s). Include discussion of misclassification bias, unmeasured confounding, missing data, and changing eligibility over time, as they pertain to the study being reported. -->
+
+The SOFARI registry was planned with the analysis of PROMs in mind, with background efforts made to review relevant potential confounders to PROMs scores during the initial design of the registry. However, the analysis of anatomical region in this context is outside the original design. Therefore, the presence of unmeasured confounders in adjusted models cannot be entirely ruled out. However, there is limited information available in the literature as to what those confounders may be. Nevertheless, the present results should be interpreted cautiously due to considerable gaps in the present knowledge regarding the most appropriate adjustment model.
 
 ## RECORD \[20\] Interpretation
 
@@ -3748,15 +3232,25 @@ epoxy("Table created with {nrow(filter(final_results, p.value < 0.06))} signific
 Summary of FAOS subscales from [@alexandre2024]
 :::
 
+The systematic review results reproduced in @fig-comparison show the possible range of average baseline scores for FAOS across a variety of foot and ankle pathology cohorts. The present averages summarised \[table reference\] fall well within the range for each subscale.
+
+However, the present results demonstrate clearly that pathologies restricted to the forefeet return scores that are systematically higher than other regions and those with multiple regions affected (which may include the forefoot). Two key takeaway from the present analysis is firstly, that the FAOS for forefoot conditions may suffer from ceiling effects, particularly for relatively minor conditions. Secondly, future efforts of this kind should consider i) collating forefoot presentations into their own separate cohort and ii) utilising a forefoot-specific PROM, that is appropriate for a broad range of conditions, but is contextually valid to patients presenting for surgical review for forefoot pathology and iii) investigation further the patterns of ceiling effects in these subscales.
+
+Where arthritis is present in a clinical presentation of a foot-ankle condition, either as the primary driver of symptoms or concomitant with other pathologies, a patient can be expected to score lower on all FAOS subscales except for Activities of Daily Living. While this effect is not in itself overly surprising, the variation in the magnitude of differences from one subscale to the next is somewhat contrary to popular belief. The variation in differences between those with ankle arthritis, ankle conditions without arthritis present, and patients presenting with multiple pathologies of which arthritis is one of them could be attributed to a number of mechanisms. The first is that patients are unable to differentiate sufficiently for different patterns of pain or function deficits from one condition to the next. The second is that the subscales themselves are not sufficiently discerning to describe patterns of symptoms.
+
 ## RECORD \[21\] Generalisability
 
 <!--# Discuss the generalisability (external validity) of the study results -->
+
+The present study represents a relatively large-scale analysis of FAOS subscales across a broad range of conditions electing to undergo
 
 # Other information
 
 ## RECORD \[22\] Funding
 
 <!--# Give the source of funding and the role of the funders for the present study and, if applicable, for the original study on which the present article is based -->
+
+The SOFARI registry was self-funded by the participating surgeons. The analysis for this study was also self-funded by the participating surgeons.
 
 ## RECORD \[23\] Accessibility of protocol, raw data, and programming code
 
