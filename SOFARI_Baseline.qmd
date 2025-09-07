@@ -4,7 +4,7 @@ author: "Corey Scholes"
 affiliation: "EBM Analytics"
 version: 1.0
 date: "2025-Aug-11"
-date-modified: "2025-Aug-11"
+date-modified: "2025-September-06"
 type: website
 output-dir: docs
 editor: visual
@@ -544,7 +544,7 @@ categorize_diagnosis <- function(
         # Anatomical classifications
         Ankle = if_else(str_detect(chunk_df$Term2, "ankle|tibiotalar|\\bplafond\\b|dome|malleol*|weber|achilles|tendo-achilles|fibula|\\btibia\\b|gutter|perone*|syndesmo|gastrocnemius|talo-fibular|talofibular|calcaneofibular|calcaneo-fibular|gutter|(lateral|medial)\\s+ligament|tibia|deltoid|compartment.+syndrome") & str_detect(chunk_df$Term2,"(lateral|medial)\\s+collateral\\s+ligament", negate = TRUE),1,0),
         
-        Hindfoot = if_else(str_detect(chunk_df$Term2, "\\btarsal\\b|\\btalar(?!\\s+dome)|talus|talonavic*|plantar|rearfoot|hindfoot|trigonum|hindfeet|tarsi|calcaneus|\\bcalcaneal\\b|heel|subtalar"),1,0),
+        Hindfoot = if_else(str_detect(chunk_df$Term2, "\\btarsal\\b|\\btalar(?!\\s+dome)|talus|talonavic*|plantar|(rear|hind)foot|trigonum|hindfeet|tarsi|calcaneus|\\bcalcaneal\\b|heel|subtalar"),1,0),
         
         Midfoot = if_else(str_detect(chunk_df$Term2, "metatarsus|tarsometatarsal|tarso-metatarsal|\\bmetatarsal\\b|talonavicular|navicular|cuneiform|lisfranc|cuboid|midfoot|jones|chopart"),1,0),
         
@@ -790,7 +790,7 @@ Clinical and statistical hypotheses presented in tabular format
 Clinical and statistical hypotheses for question 1 and 2. μ₁ᵢ and μ₂ᵢ represent the adjusted mean scores for FAOS subscale i in the specific region group and other regions group, respectively.
 :::
 
-The hypotheses presented in @tbl-hypotheses posit that the variables of interest will be associated with *clinically important* differences in FAOS subscales. For the purposes of the present analysis the approach of [@fatima2022] is replicated here and a general threshold of 8 points is used as a threshold to identify an important difference due to the variables of interest. However, this is provided with some caveats given the evolution of our understanding of these metrics over time. It should be noted that the minimal clinically important difference for the FAOS is sensitive to a range of factors (diagnosis, followup duration) [@sierevelt2024], baseline score [@sierevelt2015] and calculation methods [@Tenan2021]. Broadly speaking, the MCID for the FAOS may range somewhere between \<4 for the *Symptoms* subscale to 11.7 for the ADL subscale [@tapaninaho2022], with some variation reported in other studies investigating MCID in FAOS [@sierevelt2015; @desai2019].
+The hypotheses presented in @tbl-hypotheses posit that the variables of interest will be associated with *clinically important* differences in FAOS subscales. For the purposes of the present analysis the approach of [@fatima2022] is replicated here and a general threshold of 8 points is used as a threshold to identify an important difference due to the variables of interest. However, this is provided with some caveats given the evolution of our understanding of these metrics over time. It should be noted that the minimal clinically important difference for the FAOS is sensitive to a range of factors (diagnosis, followup duration) [@sierevelt2024], baseline score [@sierevelt2015] and calculation methods [@Tenan2021]. Broadly speaking, the MCID for the FAOS may range somewhere between \<4 for the *Symptoms* subscale to 11.7 for the ADL subscale [@tapaninaho2022], with variation reported in other studies investigating MCID in FAOS [@sierevelt2015; @desai2019].
 
 # Methods
 
@@ -2220,7 +2220,7 @@ Region == "Ankle" & Arthritis == "No" ~ "AnkleNonArthritis",
     ),
   Region = forcats::fct(
     Region,
-    levels = c("Ankle","Foot","Multiple","Rearfoot","Midfoot","Forefoot")
+    levels = c("Ankle","Foot","Multiple","Hindfoot","Midfoot","Forefoot")
     ),
   Provider = forcats::fct(
     Provider,
@@ -2632,6 +2632,8 @@ knitr::knit_print(TblDemo)
 <!--# Cohort study—Report numbers of outcome events or summary measures over time. Case-control study—Report numbers in each exposure category, or summary measures of exposure Cross-sectional study—Report numbers of outcome events or summary measures -->
 
 ```{r}
+#| label: tbl-faos-sum
+#| tbl-cap: "Summary of FAOS subscales at baseline assessment of foot and ankle pathology presenting for surgical review"
 
 #Summarise outcome data
 #
@@ -3230,9 +3232,11 @@ The SOFARI registry was planned with the analysis of PROMs in mind, with backgro
 Summary of FAOS subscales from [@alexandre2024]
 :::
 
-The systematic review results reproduced in @fig-comparison show the possible range of average baseline scores for FAOS across a variety of foot and ankle pathology cohorts. The present averages summarised \[table reference\] fall well within the range for each subscale.
+The systematic review results reproduced in @fig-comparison show the possible range of average baseline scores for FAOS across a variety of foot and ankle pathology cohorts. The present averages summarised in @tbl-faos-sum fall well within the range for each subscale.
 
 However, the present results demonstrate clearly that pathologies restricted to the forefeet return scores that are systematically higher than other regions and those with multiple regions affected (which may include the forefoot). Two key takeaway from the present analysis is firstly, that the FAOS for forefoot conditions may suffer from ceiling effects, particularly for relatively minor conditions. Secondly, future efforts of this kind should consider i) collating forefoot presentations into their own separate cohort and ii) utilising a forefoot-specific PROM, that is appropriate for a broad range of conditions, but is contextually valid to patients presenting for surgical review for forefoot pathology and iii) investigation further the patterns of ceiling effects in these subscales.
+
+The differences between foot-ankle regions can be interpreted in the context of clinically important differences. However, there is limited information available regarding the MCID of FAOS, with only a few studies conducted on relatively small samples, representing a narrow range of conditions using a variety of calculation methods. In short, the MCID for FAOS is variable and ranges from \~ 4 points for the *Symptom* subscale to \~11 points for the *Daily Living* subscale [@tapaninaho2022]. The forefoot differences exceeded these thresholds for all subscales. However, the effect of arthritis was less pronounced and generally failed to exceed MCID thresholds for all subscales.
 
 Where arthritis is present in a clinical presentation of a foot-ankle condition, either as the primary driver of symptoms or concomitant with other pathologies, a patient can be expected to score lower on all FAOS subscales except for Activities of Daily Living. While this effect is not in itself overly surprising, the variation in the magnitude of differences from one subscale to the next is somewhat contrary to popular belief. The variation in differences between those with ankle arthritis, ankle conditions without arthritis present, and patients presenting with multiple pathologies of which arthritis is one of them could be attributed to a number of mechanisms. The first is that patients are unable to differentiate sufficiently for different patterns of pain or function deficits from one condition to the next. The second is that the subscales themselves are not sufficiently discerning to describe patterns of symptoms.
 
