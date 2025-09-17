@@ -693,6 +693,156 @@ concatenate_cumulative <- function(SequenceRow, ProductCuml, Term2) {
 
 ```
 
+### Regression
+
+A function was created to run a regression model of the same form across all FAOS subscales in sequence.
+
+```{r}
+#|label: regression-func
+
+
+# Function to run models for each subscale
+run_subscale_models <- function(outcome_var, formula_str, model_label) {
+  
+  # Create models for this subscale
+  models <- map(1:MasterImp$m, ~ {
+    fixest::feols(
+      as.formula(paste(outcome_var, formula_str)),
+      data = complete(MasterImp, action = .x),
+      cluster = ~PatientID
+    )
+  })
+  
+  # Pool parameters and add labels
+  parameters::pool_parameters(models) |>
+    mutate(
+      Model = model_label,
+      Subscale = subscale_labels[which(faos_subscales == outcome_var)]
+    )
+}
+```
+
+A function was created to pool coefficient estimates across multiply imputation sets after adjusted regression.
+
+```{r}
+#| label: pwc-pooling
+
+
+# Load required libraries
+library(tidyverse)
+library(gt)
+
+# Function to create pairwise comparisons from regional coefficients
+create_pairwise_comparisons <- function(pooled_results) {
+  
+  # Extract regional coefficients (assuming reference is the first region alphabetically)
+  regional_coefs <- pooled_results |>
+    filter(str_detect(Parameter, "^Region")) |>
+    mutate(
+      Region = str_remove(Parameter, "^Region"),
+      # Clean up coefficient names
+      Region = str_trim(Region)
+    )
+  
+  # Get unique regions from the data
+  regions <- unique(regional_coefs$Region)
+  reference_region <- setdiff(
+    # Assuming you know your reference region - adjust as needed
+    c("Ankle", "Foot", "Hindfoot", "Midfoot", "Multiple"), # Replace with your actual regions
+    regions
+  )[1]
+  
+  # Create all pairwise combinations
+  all_regions <- c(reference_region, regions)
+  pairwise_combinations <- utils::combn(all_regions, 2, simplify = FALSE)
+  
+  # Function to calculate pairwise difference
+  calculate_pairwise_diff <- function(region1, region2, subscale_data) {
+    
+    # Get coefficients (reference region has coefficient = 0)
+    coef1 <- if(region1 == reference_region) {
+      list(Coefficient = 0, SE = 0)
+    } else {
+      subscale_data |> 
+        filter(Region == region1) |>
+        select(Coefficient, SE) |>
+        as.list()
+    }
+    
+    coef2 <- if(region2 == reference_region) {
+      list(Coefficient = 0, SE = 0)
+    } else {
+      subscale_data |> 
+        filter(Region == region2) |>
+        select(Coefficient, SE) |>
+        as.list()
+    }
+    
+    # Calculate difference and combined SE
+    diff_estimate <- coef1$Coefficient - coef2$Coefficient
+    
+    # For pooled results, we approximate the SE of the difference
+    # This is conservative but reasonable for presentation
+    combined_se <- sqrt(coef1$SE^2 + coef2$SE^2)
+    
+    # Calculate t-statistic and p-value (using large sample approximation)
+    t_stat <- diff_estimate / combined_se
+    p_value <- 2 * pnorm(abs(t_stat), lower.tail = FALSE)
+    
+    tibble(
+      comparison = paste(region1, "vs", region2),
+      estimate = diff_estimate,
+      std.error = combined_se,
+      statistic = t_stat,
+      p.value = p_value
+    )
+  }
+  
+  # Create pairwise comparisons for each subscale and model type
+  results <- pooled_results |>
+    filter(str_detect(Parameter, "^Region")) |>
+    mutate(Region = str_remove(Parameter, "^Region")) |>
+    select(Subscale, Model, Region, Coefficient, SE) |>
+    nest(data = c(Region, Coefficient, SE)) |>
+    mutate(
+      pairwise_comparisons = map(data, ~ {
+        subscale_data <- .x
+        map_dfr(pairwise_combinations, ~ {
+          calculate_pairwise_diff(.x[1], .x[2], subscale_data)
+        })
+      })
+    ) |>
+    select(-data) |>
+    unnest(pairwise_comparisons)
+  
+  return(results)
+}
+```
+
+Subset analysis required its own function to re-run regression models.
+
+```{r}
+# Function to run models for each subscale
+run_subset_models <- function(outcome_var, formula_str, model_label) {
+  
+  # Create models for this subscale
+  models_sub <- map(1:MasterImp_subset$m, ~ {
+    fixest::feols(
+      as.formula(paste(outcome_var, formula_str)),
+      data = complete(MasterImp_subset, action = .x),
+      cluster = ~PatientID
+    )
+  })
+  
+  # Pool parameters and add labels
+  parameters::pool_parameters(models_sub) |>
+    mutate(
+      Model = model_label,
+      Subscale = subscale_labels[which(faos_subscales == outcome_var)]
+    )
+}
+```
+
 # Title and abstract
 
 <!--# Indicate the study’s design with a commonly used term in the title or the abstract. Provide in the abstract an informative and balanced summary of what was done and what was found -->
@@ -2426,7 +2576,15 @@ No data linkage was performed for this analysis.
 
 ### Analysis Methods
 
-A flow chart was created with the *consort* package to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary*. Graphs were generated using *ggplot2*. Graphs and tables were prepared for display using *knitr*. A linear model was fitted to the imputed data with robust standard errors using the *fixest* package with the following form.
+A flow chart was created with the *consort* package to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary*. Graphs were generated using *ggplot2*. Summary graphs and tables were prepared for display using *knitr*.
+
+The linear model was applied in *unadjusted* form (Region as the only predictor) and *adjusted* with robust standard errors using the *fixest* package with the form as per the minimum dataset @fig-dag-minadjust;
+
+::: {#regression}
+FAOS_Subscale \~ Region + Age + Sex + ComorbidityScore
+:::
+
+The adjusted regression was then applied to all FAOS subscales in one function call (see Functions for Processing).
 
 ```{r}
 #| label: model-analysis
@@ -2442,26 +2600,6 @@ faos_subscales <- c("FAOS_Pain_TotalScore_Preop",
 
 subscale_labels <- c("Pain", "Daily Living", "Symptoms", "Sport", "Quality of Life")
 
-# Function to run models for each subscale
-run_subscale_models <- function(outcome_var, formula_str, model_label) {
-  
-  # Create models for this subscale
-  models <- map(1:MasterImp$m, ~ {
-    fixest::feols(
-      as.formula(paste(outcome_var, formula_str)),
-      data = complete(MasterImp, action = .x),
-      cluster = ~PatientID
-    )
-  })
-  
-  # Pool parameters and add labels
-  parameters::pool_parameters(models) |>
-    mutate(
-      Model = model_label,
-      Subscale = subscale_labels[which(faos_subscales == outcome_var)]
-    )
-}
-
 # Create unadjusted models for all subscales
 unadjusted_results <- map_dfr(faos_subscales, ~ {
   run_subscale_models(.x, "~ Region", paste("Unadjusted -", subscale_labels[which(faos_subscales == .x)]))
@@ -2475,7 +2613,7 @@ adjusted_results <- map_dfr(faos_subscales, ~ {
 
 ```
 
-The models were summarised using *parameters* and *gt* packages. Predicted values for all model variables were generated from the model object using *marginaleffects*.
+An additional function was written to perform pairwise comparisons between *Region* for both unadjusted and adjusted models simultaneously (see Functions for Processing). The function pooled coefficients across multiply imputed regression models. The results were then organised in tabular form and a correction applied for multiple comparisons using the *false discovery method* (FDR) [@benjamini1995]. The results were tabulated for display using the *gt* package.
 
 # Results
 
@@ -2527,8 +2665,6 @@ The flowchart @fig-strobe summarised the retrieval and categorisation of records
 
 <!--# (a) Give characteristics of study participants (eg demographic, clinical, social) and information on exposures and potential confounders(b) Indicate number of participants with missing data for each variable of interest (c) Cohort study—Summarise follow-up time (eg, average and total amount) -->
 
-Summarising the sample by anatomical region showed the ankle to be most common presentation, followed by cases presenting with pathologies affecting multiple regions.
-
 ```{r}
 #| label: fig-cohort-breakdown
 #| fig-cap: "Breakdown of sample by diagnostic group (region) labels and presence of arthritis."
@@ -2570,7 +2706,7 @@ min_count <- 10
   
 ```
 
-Patient characteristics for the sample are summarised.
+Summarising the sample by anatomical region @fig-cohort-breakdown showed the ankle presentations *not* involving arthritis to be most common, followed by cases presenting with pathologies affecting forefoot and multiple regions.
 
 ```{r}
 #| label: tbl-demographics
@@ -2618,7 +2754,7 @@ label = list(
       all_categorical() ~ "{p}% ({n})"
       ),
     missing = "no"
-) 
+) |> add_overall()
 
 # |> gtsummary::add_n() |>
 #   gtsummary::add_overall() |>
@@ -2635,6 +2771,8 @@ knitr::knit_print(TblDemo)
 
 
 ```
+
+The demographics of the cohort @tbl-demographics broken down by anatomical region showed variation between groups for age, sex, bilateral presentation, general health, onset to presentation duration, as well as pain catastrophising.
 
 ## RECORD \[15\] Outcome data
 
@@ -2659,7 +2797,7 @@ knitr::knit_print(TableFAOS)
 
 ```
 
-Correlation matrix for FAOS subscales
+The summary of baseline FAOS using complete case analysis is presented in @tbl-faos-sum, spanning scores from the highest in Daily Living and the lowest for Quality of Life.
 
 ```{r}
 #| label: fig-corr-plot
@@ -2670,17 +2808,17 @@ Correlation matrix for FAOS subscales
 
 # Function to calculate correlations for each imputed dataset
 calc_faos_corr <- function(imp_data) {
-  faos_data <- imp_data |> 
-    dplyr::select(contains("FAOS")) |> 
+  faos_data <- imp_data |>
+    dplyr::select(contains("FAOS")) |>
     dplyr::rename(
       Pain = "FAOS_Pain_TotalScore_Preop",
-      ADL = "FAOS_DailyLiving_TotalScore_Preop", 
+      ADL = "FAOS_DailyLiving_TotalScore_Preop",
       Symptoms = "FAOS_Symptom_TotalScore_Preop",
       Sport = "FAOS_Sport_TotalScore_Preop",
       QoL = "FAOS_Quality_TotalScore_Preop"
     )
-  
-  return(cor(faos_data, use = "complete.obs"))
+
+  #return(cor(faos_data, use = "complete.obs"))
 }
 
 # Calculate correlations for each imputed dataset
@@ -2690,13 +2828,13 @@ if (class(MasterImp) == "mids") {
     imp_data <- complete(MasterImp, i)
     calc_faos_corr(imp_data)
   })
-  
+
   # Pool the correlation matrices (average across imputations)
   FAOSCorr <- Reduce("+", corr_list) / length(corr_list)
-  
+
   # Alternative: Use Rubin's rules for pooling (more complex but more accurate)
   # This would require additional functions for pooling correlations
-  
+
 } else {
   # If MasterImp is already a completed imputed dataset
   FAOSCorr <- calc_faos_corr(MasterImp)
@@ -2717,11 +2855,15 @@ knitr::knit_print(FAOSCorrPlot)
 
 ```
 
+The correlation matrix @fig-corr-plot displayed moderate to strong correlations between subscales.
+
 ## RECORD \[16\] Main results
 
 <!--# (a) Give unadjusted estimates and, if applicable, confounder-adjusted estimates and their precision (eg, 95% confidence interval). Make clear which confounders were adjusted for and why they were included. (b) Report category boundaries when continuous variables were categorized. (c) If relevant, consider translating estimates of relative risk into absolute risk for a meaningful time period -->
 
-Table 4: Summary of regression assessing the effect of region on FAOS-Pain adjusted for confounders.
+### Effect of Anatomical Region
+
+The first question involved the effect of anatomical region on variations in FAOS subscales.
 
 ```{r}
 #| label: tbl-FAOS-unadjust
@@ -2762,6 +2904,8 @@ unadjusted_table <- unadjusted_results |>
 
 knitr::knit_print(unadjusted_table)
 ```
+
+The unadjusted regression results @tbl-FAOS-unadjust revealed significant differences between Regions for all FAOS subscales, with the largest differences between the reference level (Ankle) and Forefoot.
 
 ```{r}
 #| label: tbl-FAOS-adjust
@@ -2807,6 +2951,8 @@ adjusted_table <- adjusted_results |>
 knitr::knit_print(adjusted_table)
 ```
 
+The adjusted regression results @tbl-FAOS-adjust displayed identical patterns to the unadjusted, with the adjustments serving to reduce the optimism by shrinking the coefficients for Forefoot for example across all of the subscales.
+
 ```{r}
 #| label: tbl-faos-pwc1
 #| tbl-cap: "Pairwise comparisons of regional differences in FAOS subscales based on adjusted models"
@@ -2814,95 +2960,7 @@ knitr::knit_print(adjusted_table)
 #| message: false
 
 
-# Load required libraries
-library(tidyverse)
-library(gt)
 
-# Function to create pairwise comparisons from regional coefficients
-create_pairwise_comparisons <- function(pooled_results) {
-  
-  # Extract regional coefficients (assuming reference is the first region alphabetically)
-  regional_coefs <- pooled_results |>
-    filter(str_detect(Parameter, "^Region")) |>
-    mutate(
-      Region = str_remove(Parameter, "^Region"),
-      # Clean up coefficient names
-      Region = str_trim(Region)
-    )
-  
-  # Get unique regions from the data
-  regions <- unique(regional_coefs$Region)
-  reference_region <- setdiff(
-    # Assuming you know your reference region - adjust as needed
-    c("Ankle", "Foot", "Hindfoot", "Midfoot"), # Replace with your actual regions
-    regions
-  )[1]
-  
-  # Create all pairwise combinations
-  all_regions <- c(reference_region, regions)
-  pairwise_combinations <- combn(all_regions, 2, simplify = FALSE)
-  
-  # Function to calculate pairwise difference
-  calculate_pairwise_diff <- function(region1, region2, subscale_data) {
-    
-    # Get coefficients (reference region has coefficient = 0)
-    coef1 <- if(region1 == reference_region) {
-      list(Coefficient = 0, SE = 0)
-    } else {
-      subscale_data |> 
-        filter(Region == region1) |>
-        select(Coefficient, SE) |>
-        as.list()
-    }
-    
-    coef2 <- if(region2 == reference_region) {
-      list(Coefficient = 0, SE = 0)
-    } else {
-      subscale_data |> 
-        filter(Region == region2) |>
-        select(Coefficient, SE) |>
-        as.list()
-    }
-    
-    # Calculate difference and combined SE
-    diff_estimate <- coef1$Coefficient - coef2$Coefficient
-    
-    # For pooled results, we approximate the SE of the difference
-    # This is conservative but reasonable for presentation
-    combined_se <- sqrt(coef1$SE^2 + coef2$SE^2)
-    
-    # Calculate t-statistic and p-value (using large sample approximation)
-    t_stat <- diff_estimate / combined_se
-    p_value <- 2 * pnorm(abs(t_stat), lower.tail = FALSE)
-    
-    tibble(
-      comparison = paste(region1, "vs", region2),
-      estimate = diff_estimate,
-      std.error = combined_se,
-      statistic = t_stat,
-      p.value = p_value
-    )
-  }
-  
-  # Create pairwise comparisons for each subscale and model type
-  results <- pooled_results |>
-    filter(str_detect(Parameter, "^Region")) |>
-    mutate(Region = str_remove(Parameter, "^Region")) |>
-    select(Subscale, Model, Region, Coefficient, SE) |>
-    nest(data = c(Region, Coefficient, SE)) |>
-    mutate(
-      pairwise_comparisons = map(data, ~ {
-        subscale_data <- .x
-        map_dfr(pairwise_combinations, ~ {
-          calculate_pairwise_diff(.x[1], .x[2], subscale_data)
-        })
-      })
-    ) |>
-    select(-data) |>
-    unnest(pairwise_comparisons)
-  
-  return(results)
-}
 
 # Create pairwise comparisons
 all_pairwise_results <- bind_rows(
@@ -3030,6 +3088,12 @@ combined_table
 
 ```
 
+The pairwise comparisons for adjusted and unadjusted models @tbl-faos-pwc1 displayed the largest differences for comparisons involving the *Forefoot* compared to other regions.
+
+### Effect of Arthritis
+
+The second question asked whether the presence of *arthritis* systematically affected FAOS subscales.
+
 ```{r}
 #| label: tbl-FAOS-arthritis
 #| tbl-cap: "Summary of regression assessing the effect of arthritis on FAOS adjusted for confounders"
@@ -3076,13 +3140,15 @@ arthritis_table <- arthritis_results |>
 knitr::knit_print(arthritis_table)
 ```
 
+The adjusted models for *Athrtitis* @tbl-FAOS-arthritis displayed significant effects for Arthritis, with all but the Symptoms subscale being much lower than the MCID for FAOS (\~ 15 points).
+
 ## RECORD \[17\] Other analyses
 
 <!--# Report other analyses done—eg analyses of subgroups and interactions, and sensitivity analyses -->
 
-## Benchmark subgroup
+A subgroup analysis was performed to compare Ankle Arthritis with Ankle pathology not involving arthritis, as well as Multiple region presentations that also included an arthritis diagnosis.
 
-Review how isolated ankle arthritis compares to other ankle pathology and arthritis spanning multiple foot-ankle regions
+The multiply imputation dataset was subsetted using filters after conversion to long format.
 
 ```{r}
 
@@ -3117,27 +3183,6 @@ MasterImp_subset <- subset_mids(
 ```{r}
 #| label: subgroup-comparison
 #  Create the comparison groups on pooled data
-
-
-# Function to run models for each subscale
-run_subset_models <- function(outcome_var, formula_str, model_label) {
-  
-  # Create models for this subscale
-  models_sub <- map(1:MasterImp_subset$m, ~ {
-    fixest::feols(
-      as.formula(paste(outcome_var, formula_str)),
-      data = complete(MasterImp_subset, action = .x),
-      cluster = ~PatientID
-    )
-  })
-  
-  # Pool parameters and add labels
-  parameters::pool_parameters(models_sub) |>
-    mutate(
-      Model = model_label,
-      Subscale = subscale_labels[which(faos_subscales == outcome_var)]
-    )
-}
 
  #Create adjusted models for all subscales
 arthritis_subset <- map_dfr(faos_subscales, ~ {
@@ -3197,6 +3242,8 @@ subset_table <- arthritis_subset |> dplyr::filter(
 
 knitr::knit_print(subset_table)
 ```
+
+Significant reductions in FAOS scores could be attributed to *Arthritis* for all subscales @tbl-subset, although Daily Living was not significantly different between Ankle subgroups, with the largest differences observed for the Symptoms subscale.
 
 # Discussion
 
