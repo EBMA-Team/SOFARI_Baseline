@@ -53,7 +53,7 @@ The analysis was conducted in RStudio IDE (RStudio 2025.05.0+496 "Mariposa Orchi
 
 ## Preparation
 
-Load up required packages in advance. Citations are applied to each library at first use in the text. <!--# Reorder these in order of general appearance -->
+Packages were loaded in advance for further processing.
 
 ```{r}
 #| label: load-packages
@@ -137,7 +137,7 @@ knitr::kable(pkgs)
 
 ## Authorisations
 
-Pre-authorise access to registry datasets using the *gargle* package.
+Access to registry datasets was pre-authorised using the *gargle* package.
 
 ```{r}
 #| echo: false
@@ -163,9 +163,7 @@ drive_auth(cache = ".secrets", email = TRUE)
 
 ## Functions for Processing
 
-Include a series of functions to call later in the file for processing data imports.
-
-Function to retrieve files, using the *googledrive* package.
+A series of functions were generated to call later in the file for processing data. The first function was constructed to retrieve and process input files, using the *googledrive* package.
 
 ```{r}
 #| echo: false
@@ -270,7 +268,7 @@ bind_and_clean <- function(df1, df2, cols = NULL, clean_cols = NULL, clean_fn = 
 
 ### Diagnosis
 
-Include a series of functions for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* and *furrr* to enable distributed processing of the records. The *progressr* package was utlised to enable visual progress to be communicated during processing and *memoise* to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
+A series of functions were included for calling later in the file to process sub-phases of converting clinical text stored in the registry to categories of pathology affecting the foot and ankle. The functions were built on *tidyverse* and *stringr* packages to manipulate data, *future* and *furrr* to enable distributed processing of the records. The *progressr* package was utlised to enable visual progress to be communicated during processing and *memoise* to cache processing results from batches of subsets of the registry dataset to enable distributed processing.
 
 ```{r}
 #| label: diagnosis-process-func-1
@@ -503,7 +501,7 @@ safe_process_diagnosis <- function(
 
 ```
 
-Function to conduct categorisation of terms for pathology (diagnosis) stored in the registry.
+The next function conducted categorisation of terms for pathology (diagnosis) stored in the registry using regular expressions.
 
 ```{r}
 #' Categorize medical diagnoses with anatomical and pathological classifications
@@ -607,7 +605,7 @@ categorize_diagnosis <- function(
 categorize_diagnosis_cached <- memoise::memoise(categorize_diagnosis)
 ```
 
-Concatenated terms for each treatment record using *tidyverse* syntax. Generated a method to cumulatively concatenate terms within a treatment record that have been split into text sequences delimited by punctuation (e.g. ";").
+The next function concatenated cleaned and replaced terms for each treatment record using *tidyverse* syntax. It included a method to cumulatively concatenate terms within a treatment record that have been split into text sequences delimited by punctuation (e.g. ";").
 
 ```{r}
 concatenate_diagnoses <- function(data) {
@@ -753,7 +751,7 @@ The contemporary literature provides a dearth of information regarding these rel
 
 <!--# State specific objectives, including any prespecified hypotheses -->
 
-PICOS question format
+The questions for the study were outlined explicity in PICO format [@mauffrey2013].
 
 ::: {#tbl-questions}
 +--------------+--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
@@ -775,7 +773,7 @@ Analysis questions presented in PICOS format
 
 ### Hypotheses
 
-Clinical and statistical hypotheses presented in tabular format
+Clinical and statistical hypotheses are presented in tabular format.
 
 ::: {#tbl-hypotheses}
 +-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -910,7 +908,7 @@ rm(PatientTable1,
 )
 ```
 
-Process the registry snapshot by retrieving the file and use *tidyverse* to add columns, recode existing columns and create an additional identifier using *tidyr*, representing the patient and their side, to track multiple treatments for each limb. Dates were reformatted to a form appropriate for analysis using *lubridate*. The snapshot is initially processed using custom functions to retrieve datatables and apply eligibility criteria for each treatment
+The registry snapshot was processed by retrieving the file and using *tidyverse* to add columns, recode existing columns and create an additional identifier using *tidyr*, representing the patient and their side, to track multiple treatments for each limb. Dates were reformatted to a form appropriate for analysis using *lubridate*. The snapshot is initially processed using custom functions to retrieve datatables and apply eligibility criteria for each treatment
 
 ```{r}
 #| label: import-snapshot
@@ -1002,7 +1000,7 @@ unlink(temp_file)
 
 <!--# (a) Cohort study—Give the eligibility criteria, and the sources and methods of selection of participants. Describe methods of follow-up -->
 
-Participants are eligible for inclusion in the SOFARI registry if they meet the following criteria
+Participants were eligible for inclusion in the SOFARI registry if they meet the following criteria
 
 -   Presented with a pathology localised to the foot or ankle
 
@@ -1026,7 +1024,7 @@ Record selection was based on the following criteria;
 
 -   The record was eligible for baseline PROMs capture. That is, sufficient time was available between patient registration and definitive treatment offered by the reviewing surgeon. In some cases, trauma cases first present to the clinic after their definitive surgical treatment and baseline PROMs cannot be captured prior to surgery.
 
-The *consort* package (v`{r} utils::packageVersion("consort")`) [@consort] was used to create a table of indications for exclusion for each record and plot a flowchart (see 13.1) indicating the flow from total records processed to the final inclusion sample for analysis.
+The *consort* package was used to create a table of indications for exclusion for each record and plot a flowchart (see RECORD 13.1) indicating the flow from total records processed to the final inclusion sample for analysis.
 
 <!--# going to impute region + pathology columns as required (drop exclusion3) ~ 1400 cases -->
 
@@ -1181,6 +1179,8 @@ A total of {nrow(MasterTable1)} records were selected, with dates of initial exa
 
 <!--# RECORD 6.2: Any validation studies of the codes or algorithms used to select the population should be referenced. If validation was conducted for this study and not published elsewhere, detailed methods and results should be provided. -->
 
+The algorithms described for identifying sample selection were validated by manual review with small subsets of data and iterative development of the coded rules to accurately identify exclusion conditions and handle edge cases.
+
 ### Record \[6.3\] Data linkage
 
 <!--# RECORD 6.3: If the study involved linkage of databases, consider use of a flow diagram or other graphical display to demonstrate the data linkage process, including the number of individuals with linked data at each stage. -->
@@ -1225,7 +1225,7 @@ Key variables defined as part of this analysis are summarised below and retrieve
 Summary of key variable definitions in the analysis
 :::
 
-The self-assessed comorbidity score had to be added to the dataset by calculating from individual responses included in the registry snapshot. The scores were then added to the analysis master table.
+The self-assessed comorbidity score [@Sangha2003] had to be added to the dataset by calculating from individual responses included in the registry snapshot. The scores were then added to the analysis master table.
 
 ```{r}
 # Apply to your data
@@ -1267,7 +1267,7 @@ MasterTable2 <- MasterTable1 |> left_join(
 )
 ```
 
-*Extract individual PCS scores*
+Pain catastrophising scores [@cheng2019] derived from the short form version were isolated for further processing.
 
 ```{r}
 PCSTable  <- MasterTable1 |> 
@@ -1283,9 +1283,7 @@ PCSTable  <- MasterTable1 |>
 
 ```
 
-According to [@cheng2019] the PCS-SF (and perhaps the full scale as well) would be best scored by simply adding all the items up. The present analysis may provide a platform for future examination of subscales of PCS such as *Rumination*, *Magnification* and *Helplessness* with respect to baseline pain.
-
-The PCS-SF total score was added to the master table.
+According to [@cheng2019] the PCS-SF (and perhaps the full scale as well) would be best scored by simply adding all the items up. The present analysis may provide a platform for future examination of subscales of PCS such as *Rumination*, *Magnification* and *Helplessness* with respect to baseline pain. The PCS-SF total score was added to the master table.
 
 ```{r}
 #| label: mastertable-3
@@ -1324,7 +1322,7 @@ MasterTable3 <- MasterTable2 |> dplyr::select(
 
 ```
 
-*Extract individual FAOS scores*
+The FAOS scores [@roos2001], including subscores for all 5 dimensions was isolated for further processing.
 
 ```{r}
 FAOSTable  <- Snapshot |> dplyr::filter(
@@ -1340,7 +1338,6 @@ FAOSTable  <- Snapshot |> dplyr::filter(
   )
 
 ```
-
 
 The FAOS subscale total scores were added to the master table.
 
@@ -1380,7 +1377,7 @@ MasterTable4 <- MasterTable3 |> left_join(
 
 ### Diagnosis
 
-Raw text stored in the registry snapshot was processed with custom functions (see *Functions for Processing*). Additional processing was performed to create a *Region* label, describing the anatomical region in which the pathology affected.
+Raw text stored in the registry snapshot was processed with custom functions (see *Functions for Processing*). Abbreviated terminology was isolated and replaced with fully specified versions. Phrases were separated by common delimiters and further processed before being reconstituted into cleaner strings for regular expression matching. Additional processing was performed to create a *Region* label, describing the anatomical region in which the pathology affected.
 
 ```{r}
 #| label: targeturl
@@ -1600,7 +1597,22 @@ DiagFunc4 <- categorize_diagnosis(
 
 ```
 
+The regions were defined as the following;
+
+Forefoot - any condition affecting up to the distal heads of the metatarsals
+
+Midfoot - any condition affecting the metatarsals, cuneiforms, navicular and cuboids, as well as soft tissues interacting directly with these bony structures.
+
+Hindfoot - any condition isolated to the calcaneus and talus not involving the talocrural (ankle) joint.
+
+Ankle - conditions affecting the complex bounded by the talus, distal tibial and distal fibula, as well as the soft tissues interacting directly with these bony structures, not isolated to the talus (see hindfoot).
+
+Multiple - presentations involving one or more pathologies that directly affect, or are located within, more than one anatomical region
+
+Foot - conditions that cannot be isolated to a single region of the foot-ankle (e.g. neuropathy or complex pain)
+
 ```{r}
+
 #| label: diagnosis-region-1
 
 
@@ -1624,6 +1636,7 @@ DiagRegion <- DiagFunc4 |> dplyr::select(
 ) |> dplyr::select(
   -RegionPresence
 )
+
 ```
 
 ```{r}
@@ -1745,8 +1758,6 @@ MasterTable5 <- MasterTable4 |> left_join(
 
 ```
 
-Establishing the breakdown of the sample by cohorts revealed that multiple pathologies across multiple regions of the foot-ankle was the most common presentation, followed by ankle_injury and multiple pathologies affecting the ankle (Figure 1).
-
 ```{r}
 #| label: fig-cohort
 #| fig-cap: "Breakdown of sample by defined cohorts - combined pathology and region labels."
@@ -1781,6 +1792,8 @@ min_count <- 10
   
   knitr::knit_print(cohort_plot)
 ```
+
+Establishing the breakdown of the sample by cohorts revealed that multiple pathologies across multiple regions of the foot-ankle was the most common presentation, followed by ankle_injury and multiple pathologies affecting the ankle (@fig-cohort).
 
 ### Bilateral Status
 
@@ -1852,7 +1865,7 @@ SnapshotBilat3 <- distinct(
 
 ```
 
-Marry back into the master table.
+The bilateral status was joined back into the master table.
 
 ```{r}
 #| label: mastertable-6
@@ -1884,6 +1897,8 @@ MasterTable6 <- MasterTable5 |> left_join(
 
 <!--# RECORD 7.1: A complete list of codes and algorithms used to classify exposures, outcomes, confounders, and effect modifiers should be provided. If these cannot be reported, an explanation should be provided -->
 
+Codes and algorithms have been included throughout the report.
+
 ## RECORD \[9\] Bias
 
 <!--# Describe any efforts to address potential sources of bias -->
@@ -1896,10 +1911,6 @@ For a discussion of biases in the context of the clinical registry utilised for 
 +===================+==============================================================================================================+===========================+===============================================================================================================================================================================================+
 | Selection         |                                                                                                              |                           |                                                                                                                                                                                               |
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Misclassification | Treatment record labelled into incorrect cohort.                              | [@Benchimol2015]          | Clinical text retrieved by two experienced reviewers and transferred to registry.                                                                                                             |
-|                   |                                                                                                              |                           |                                                                                                                                                                                               |
-|                   |                                                                                                              |                           | Code functions used to process text in a repeatable workflow.                                                                                                                                 |
-+-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Immortal Time     | Individuals meet eligibility criteria that can only assessed after followup has started                      | [@nguyen2021]             | Patients are enrolled at first presentation to the registry for their condition - but this does not necessarily represent first presentation to the clinic.                                   |
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Missing Data      | The absence of a data value where a treatment record is eligible to have a data value collected              | [@carroll2020]            | Multiple imputation was used to impute missing values and model-based predictions of outcomes used                                                                                            |
@@ -1908,7 +1919,7 @@ For a discussion of biases in the context of the clinical registry utilised for 
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Pseudoreplication | Analyse data while ignoring dependency between observations. Inadequate model specification.                 | [@davies2015; @lazic2010] | Because not all patients had multiple treatments, mixed effects models were poorly specified. A generalised linear model was utilised instead.                                                |
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Confounder        | A variable of interest and a target outcome simultaneously influenced by a third variable                   | [@tennant2020]            | PCS-SF models incorporated adjustment for confounders                                                                                                                                         |
+| Confounder        | A variable of interest and a target outcome simultaneously influenced by a third variable                    | [@tennant2020]            | models incorporated adjustment for confounders                                                                                                                                                |
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 Biases in an analysis of an observational cohort retrieved from a clinical registry
@@ -1934,7 +1945,7 @@ No categorisation of quantitative variables was undertaken in this analysis.
 
 <!--# check methods in gtsummary for univariate comparisons -->
 
-Descriptives for exposure and outcome variables were summarised into tables compared between anatomical regions. 
+Descriptives for exposure and outcome variables were summarised into tables compared between anatomical regions.
 
 ### Regression preparation
 
@@ -2122,6 +2133,8 @@ knitr::knit_print(dagmin)
 
 ```
 
+A minimum adjustment set was derived @fig-dag-minadjust and identified age, sex and comorbidities burden as key adjusters required to assess the effect of anatomical region of baseline FAOS score.
+
 ### RECORD \[12.1\] Data access
 
 <!--# RECORD 12.1: Authors should describe the extent to which the investigators had access to the database population used to create the study population. -->
@@ -2184,7 +2197,7 @@ MasterAnalysis <- MasterTable6 |> dplyr::select(
 )
 ```
 
-Missingness was visualised with the *naniar* package (v`{r} utils::packageVersion("naniar")`) [@naniar]. It showed that patients with a diagnosis also had other missing data, predominantly PROMs data.
+Missingness was visualised with the *naniar* package. It showed that patients with a diagnosis also had other missing data, predominantly PROMs data.
 
 ```{r}
 #| label: fig-missingness
@@ -2251,9 +2264,9 @@ Region == "Ankle" & Arthritis == "No" ~ "AnkleNonArthritis",
 
 ```
 
-The *mice* package was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
-
 #### Management
+
+The *mice* package was used to impute the dataset. A predictor matrix was created to remove record identifiers and passive variables (e.g. PCS categorisation) from the imputation. Imputation was performed over 20 replications and stored in a variable for further processing.
 
 ```{r}
 # Check unique values for each categorical variable
@@ -2373,7 +2386,7 @@ knitr::knit_print(MasterImpStrip)
 
 ```
 
-The estimated FAOS-Pain subscore from the imputation model versus the distribution of the observed data was plotted as a visual inspection of the imputation result.
+The estimated FAOS subscores from the imputation model versus the distribution of the observed data were plotted as a visual inspection of the imputation result.
 
 ```{r}
 #| label: fig-visualise
@@ -2403,6 +2416,8 @@ FAOSQualityImp <- ggplot() +
 
 ```
 
+The match between imputed and observed distributions @fig-visualise, showed reasonable agreement for all subscales, although the Quality of Life subscale displayed some variance that was difficult to match completely in the imputed data.
+
 ### RECORD \[12.3\] Linkage
 
 <!--# RECORD 12.3: State whether the study included person-level, institutional-level, or other data linkage across two or more databases. The methods of linkage and methods of linkage quality evaluation should be provided. -->
@@ -2411,12 +2426,7 @@ No data linkage was performed for this analysis.
 
 ### Analysis Methods
 
-Participant flow - consort package and flow chart Descriptive - gtsummary and prepared for display with knitr Outcome data - ggplot2 complete case analysis
-
-A flow chart was created with the *consort* package to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary*. Graphs were generated using *ggplot2*. Graphs and tables were prepared for display using *knitr*. A linear model was fitted to the imputed data with robust standard errors using *estimatr* with the following form.
-
-```         
-```
+A flow chart was created with the *consort* package to describe the inclusion and exclusion of records into the sample pool for the present analysis to be drawn from. Patient demographics and pathology characteristics were summarised using *gtsummary*. Graphs were generated using *ggplot2*. Graphs and tables were prepared for display using *knitr*. A linear model was fitted to the imputed data with robust standard errors using the *fixest* package with the following form.
 
 ```{r}
 #| label: model-analysis
@@ -2483,8 +2493,6 @@ The initial export from the registry returned {nrow(STROBEInput)} treatment reco
 
 <!--# RECORD 13.1: Describe in detail the selection of the persons included in the study (i.e., study population selection) including filtering based on data quality, data availability and linkage. The selection of included persons can be described in the text and/or by means of the study flow diagram. -->
 
-The diagram below summarises recruitment and categorisation of patients from the SOFARI registry into the final analysis cohort.
-
 ```{r}
 #| label: fig-strobe
 #| fig-cap: "Flow chart of treatment record inclusion for analysis."
@@ -2513,11 +2521,13 @@ knitr::knit_print(STROBEplot)
 
 ```
 
+The flowchart @fig-strobe summarised the retrieval and categorisation of records from the SOFARI registry into the final analysis cohort.
+
 ## RECORD \[14\] Patient Characteristics
 
 <!--# (a) Give characteristics of study participants (eg demographic, clinical, social) and information on exposures and potential confounders(b) Indicate number of participants with missing data for each variable of interest (c) Cohort study—Summarise follow-up time (eg, average and total amount) -->
 
-Summarising the sample by anatomical region showed the ankle to be most common presentation, followed by multiple regions.
+Summarising the sample by anatomical region showed the ankle to be most common presentation, followed by cases presenting with pathologies affecting multiple regions.
 
 ```{r}
 #| label: fig-cohort-breakdown
@@ -2654,6 +2664,7 @@ Correlation matrix for FAOS subscales
 ```{r}
 #| label: fig-corr-plot
 #| fig-cap: "Correlation matrix for FAOS subscales at baseline using imputed data"
+#| message: false
 
 
 
