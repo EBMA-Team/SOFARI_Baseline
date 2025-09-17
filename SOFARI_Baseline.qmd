@@ -2818,7 +2818,7 @@ calc_faos_corr <- function(imp_data) {
       QoL = "FAOS_Quality_TotalScore_Preop"
     )
 
-  #return(cor(faos_data, use = "complete.obs"))
+  return(cor(faos_data, use = "complete.obs"))
 }
 
 # Calculate correlations for each imputed dataset
