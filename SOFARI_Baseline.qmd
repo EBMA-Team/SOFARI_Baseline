@@ -1324,7 +1324,7 @@ MasterTable3 <- MasterTable2 |> dplyr::select(
 
 ```
 
-*Extract individual PCS scores*
+*Extract individual FAOS scores*
 
 ```{r}
 FAOSTable  <- Snapshot |> dplyr::filter(
@@ -1341,7 +1341,6 @@ FAOSTable  <- Snapshot |> dplyr::filter(
 
 ```
 
-According to [@cheng2019] the PCS-SF (and perhaps the full scale as well) would be best scored by simply adding all the items up. The present analysis may provide a platform for future examination of subscales of PCS such as *Rumination*, *Magnification* and *Helplessness* with respect to baseline pain.
 
 The FAOS subscale total scores were added to the master table.
 
@@ -1897,7 +1896,7 @@ For a discussion of biases in the context of the clinical registry utilised for 
 +===================+==============================================================================================================+===========================+===============================================================================================================================================================================================+
 | Selection         |                                                                                                              |                           |                                                                                                                                                                                               |
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Misclassification | Treatment record labelled into incorrect cohort. PROMs package not aligned to                                | [@Benchimol2015]          | Clinical text retrieved by two experienced reviewers and transferred to registry.                                                                                                             |
+| Misclassification | Treatment record labelled into incorrect cohort.                              | [@Benchimol2015]          | Clinical text retrieved by two experienced reviewers and transferred to registry.                                                                                                             |
 |                   |                                                                                                              |                           |                                                                                                                                                                                               |
 |                   |                                                                                                              |                           | Code functions used to process text in a repeatable workflow.                                                                                                                                 |
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1909,7 +1908,7 @@ For a discussion of biases in the context of the clinical registry utilised for 
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Pseudoreplication | Analyse data while ignoring dependency between observations. Inadequate model specification.                 | [@davies2015; @lazic2010] | Because not all patients had multiple treatments, mixed effects models were poorly specified. A generalised linear model was utilised instead.                                                |
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Confounder        | An variable of interest and a target outcome simultaneously influenced by a third variable                   | [@tennant2020]            | PCS-SF models incorporated adjustment for confounders                                                                                                                                         |
+| Confounder        | A variable of interest and a target outcome simultaneously influenced by a third variable                   | [@tennant2020]            | PCS-SF models incorporated adjustment for confounders                                                                                                                                         |
 +-------------------+--------------------------------------------------------------------------------------------------------------+---------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 Biases in an analysis of an observational cohort retrieved from a clinical registry
@@ -1935,7 +1934,7 @@ No categorisation of quantitative variables was undertaken in this analysis.
 
 <!--# check methods in gtsummary for univariate comparisons -->
 
-Descriptives for exposure and outcome variables were summarised into tables. Univariate comparisons were between Groups for adverse events and comparisons made by Fisher's exact test (binary outcomes) and Pearson's chi-square tests (multilevel categorical variables) as per the *gtsummary* package functions.
+Descriptives for exposure and outcome variables were summarised into tables compared between anatomical regions. 
 
 ### Regression preparation
 
@@ -2518,7 +2517,7 @@ knitr::knit_print(STROBEplot)
 
 <!--# (a) Give characteristics of study participants (eg demographic, clinical, social) and information on exposures and potential confounders(b) Indicate number of participants with missing data for each variable of interest (c) Cohort study—Summarise follow-up time (eg, average and total amount) -->
 
-Summarising the sample by anatomical region showed the ankle to be most common presentation, followed by multiple regions (Figure 6).
+Summarising the sample by anatomical region showed the ankle to be most common presentation, followed by multiple regions.
 
 ```{r}
 #| label: fig-cohort-breakdown
